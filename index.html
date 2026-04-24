@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0b0b0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Arrows Vision" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="style.css" />
+  <title>Arrows Vision Training</title>
+</head>
+<body>
+  <div id="app">
+    <!-- メインメニュー -->
+    <section id="screen-menu" class="screen active">
+      <header class="brand">
+        <h1>ARROWS</h1>
+        <p class="sub">VISION TRAINING</p>
+      </header>
+      <div class="menu-grid">
+        <button class="menu-card" data-goto="settings-kva">
+          <span class="card-label">01</span>
+          <span class="card-title">動体視力</span>
+          <span class="card-desc">画面を横切る文字を読み取る</span>
+        </button>
+        <button class="menu-card" data-goto="settings-eye">
+          <span class="card-label">02</span>
+          <span class="card-title">眼球運動</span>
+          <span class="card-desc">3×3マスに出る○△を判別</span>
+        </button>
+      </div>
+      <footer class="foot">Arrows Gym</footer>
+    </section>
+
+    <!-- 動体視力 設定 -->
+    <section id="screen-settings-kva" class="screen">
+      <header class="bar">
+        <button class="back" data-goto="menu">‹ 戻る</button>
+        <h2>動体視力 設定</h2>
+      </header>
+      <div class="settings">
+        <div class="setting">
+          <label>速度</label>
+          <div class="seg" data-key="kva-speed">
+            <button data-val="slow">遅い</button>
+            <button data-val="normal" class="on">普通</button>
+            <button data-val="fast">速い</button>
+            <button data-val="ultra">超速</button>
+          </div>
+        </div>
+        <div class="setting">
+          <label>文字サイズ</label>
+          <div class="seg" data-key="kva-size">
+            <button data-val="small">小</button>
+            <button data-val="medium" class="on">中</button>
+            <button data-val="large">大</button>
+          </div>
+        </div>
+        <div class="setting">
+          <label>軌道</label>
+          <div class="seg" data-key="kva-path">
+            <button data-val="h" class="on">水平</button>
+            <button data-val="v">垂直</button>
+            <button data-val="d">斜め</button>
+            <button data-val="random">ランダム</button>
+          </div>
+        </div>
+        <div class="setting">
+          <label>文字種</label>
+          <div class="seg" data-key="kva-charset">
+            <button data-val="num" class="on">数字</button>
+            <button data-val="alpha">英字</button>
+            <button data-val="mix">数字＋英字</button>
+          </div>
+        </div>
+        <div class="setting">
+          <label>問題数</label>
+          <div class="seg" data-key="kva-count">
+            <button data-val="5">5問</button>
+            <button data-val="10" class="on">10問</button>
+            <button data-val="20">20問</button>
+          </div>
+        </div>
+      </div>
+      <button class="primary" id="start-kva">スタート</button>
+    </section>
+
+    <!-- 動体視力 トレーニング -->
+    <section id="screen-kva" class="screen">
+      <header class="bar">
+        <button class="back" id="kva-quit">‹ 中断</button>
+        <div class="progress"><span id="kva-progress">1 / 10</span></div>
+      </header>
+      <div id="kva-stage" class="stage">
+        <div id="kva-char" class="kva-char">0</div>
+      </div>
+      <div id="kva-answer" class="answer hidden">
+        <p class="q">何の文字でしたか？</p>
+        <input id="kva-input" type="text" maxlength="1" autocomplete="off" autocapitalize="characters" />
+        <button class="primary" id="kva-submit">決定</button>
+      </div>
+    </section>
+
+    <!-- 眼球運動 設定 -->
+    <section id="screen-settings-eye" class="screen">
+      <header class="bar">
+        <button class="back" data-goto="menu">‹ 戻る</button>
+        <h2>眼球運動 設定</h2>
+      </header>
+      <div class="settings">
+        <div class="setting">
+          <label>表示時間</label>
+          <div class="seg" data-key="eye-show">
+            <button data-val="300">0.3秒</button>
+            <button data-val="500" class="on">0.5秒</button>
+            <button data-val="1000">1秒</button>
+            <button data-val="2000">2秒</button>
+          </div>
+        </div>
+        <div class="setting">
+          <label>問題間隔</label>
+          <div class="seg" data-key="eye-gap">
+            <button data-val="200">0.2秒</button>
+            <button data-val="500" class="on">0.5秒</button>
+            <button data-val="1000">1秒</button>
+          </div>
+        </div>
+        <div class="setting">
+          <label>問題数</label>
+          <div class="seg" data-key="eye-count">
+            <button data-val="10">10問</button>
+            <button data-val="20" class="on">20問</button>
+            <button data-val="30">30問</button>
+          </div>
+        </div>
+      </div>
+      <button class="primary" id="start-eye">スタート</button>
+    </section>
+
+    <!-- 眼球運動 トレーニング -->
+    <section id="screen-eye" class="screen">
+      <header class="bar">
+        <button class="back" id="eye-quit">‹ 中断</button>
+        <div class="progress"><span id="eye-progress">1 / 20</span></div>
+      </header>
+      <div class="grid3">
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+        <div class="cell"></div><div class="cell"></div><div class="cell"></div>
+      </div>
+      <div class="choices">
+        <button class="choice" data-ans="circle"><span class="sym">○</span></button>
+        <button class="choice" data-ans="triangle"><span class="sym">△</span></button>
+      </div>
+      <p class="hint" id="eye-hint">表示された記号をタップ</p>
+    </section>
+
+    <!-- 結果 -->
+    <section id="screen-result" class="screen">
+      <header class="bar">
+        <h2>結果</h2>
+      </header>
+      <div class="result">
+        <div class="stat">
+          <span class="stat-label">正答率</span>
+          <span class="stat-value" id="r-rate">0%</span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">正解</span>
+          <span class="stat-value"><span id="r-correct">0</span> / <span id="r-total">0</span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">平均反応時間</span>
+          <span class="stat-value"><span id="r-rt">-</span> ms</span>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button class="primary" id="r-retry">もう一度</button>
+        <button class="secondary" data-goto="menu">メニュー</button>
+      </div>
+    </section>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
