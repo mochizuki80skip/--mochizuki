@@ -1,8 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="96" fill="#0b0b0f"/>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#0c1a26"/>
+      <stop offset="100%" stop-color="#05080c"/>
+    </radialGradient>
+    <radialGradient id="hex" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#3db8ff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#0a1218" stop-opacity="0.9"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
   <g transform="translate(256 256)">
-    <circle r="150" fill="none" stroke="#f5f5f7" stroke-width="14"/>
-    <circle r="60" fill="#e1282a"/>
+    <!-- Outer hex (border) -->
+    <polygon points="0,-160 139,-80 139,80 0,160 -139,80 -139,-80" fill="#3db8ff"/>
+    <polygon points="0,-152 132,-76 132,76 0,152 -132,76 -132,-76" fill="url(#hex)"/>
+    <!-- Arrow logo -->
+    <polygon points="0,-70 60,50 20,50 0,10 -20,50 -60,50" fill="#3db8ff"/>
+    <circle r="8" cx="0" cy="70" fill="#3db8ff"/>
   </g>
-  <path d="M96 430 L256 110 L416 430 L356 430 L256 236 L156 430 Z" fill="#e1282a" opacity="0.0"/>
 </svg>

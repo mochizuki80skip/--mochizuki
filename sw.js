@@ -1,5 +1,5 @@
 // Arrows Vision Training - Service Worker
-const CACHE = 'arrows-vision-v1';
+const CACHE = 'arrows-vision-v2';
 const ASSETS = [
   './',
   './index.html',

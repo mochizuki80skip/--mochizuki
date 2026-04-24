@@ -1,13 +1,13 @@
-// Arrows Vision Training - PWA
+// ARROWS EYE - Vision Training PWA
 (() => {
   'use strict';
 
   // ===== Screen navigation =====
   const screens = {
     menu: document.getElementById('screen-menu'),
-    'settings-kva': document.getElementById('screen-settings-kva'),
+    'mode-test': document.getElementById('screen-mode-test'),
+    'mode-train': document.getElementById('screen-mode-train'),
     kva: document.getElementById('screen-kva'),
-    'settings-eye': document.getElementById('screen-settings-eye'),
     eye: document.getElementById('screen-eye'),
     result: document.getElementById('screen-result'),
   };
@@ -20,85 +20,139 @@
     btn.addEventListener('click', () => show(btn.dataset.goto));
   });
 
-  // ===== Segmented control =====
-  const settings = {
-    'kva-speed': 'normal',
-    'kva-size': 'medium',
-    'kva-path': 'h',
-    'kva-charset': 'num',
-    'kva-count': '10',
-    'eye-show': '500',
-    'eye-gap': '500',
-    'eye-count': '20',
+  // ===== Rank pickers =====
+  // Each picker identified by data-rank-for, e.g. "test-kva", "train-kva", etc.
+  const ranks = {
+    'test-kva': 3, 'test-eye': 3,
+    'train-kva': 3, 'train-eye': 3,
   };
-  document.querySelectorAll('.seg').forEach(seg => {
-    const key = seg.dataset.key;
-    seg.querySelectorAll('button').forEach(b => {
-      b.addEventListener('click', () => {
-        seg.querySelectorAll('button').forEach(x => x.classList.remove('on'));
-        b.classList.add('on');
-        settings[key] = b.dataset.val;
+  function clampRank(n) { return Math.max(1, Math.min(5, n)); }
+  document.querySelectorAll('.rank-picker').forEach(picker => {
+    const key = picker.dataset.rankFor;
+    const valEl = picker.querySelector('.rank-val');
+    picker.querySelectorAll('.rank-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const delta = parseInt(btn.dataset.delta, 10);
+        ranks[key] = clampRank(ranks[key] + delta);
+        valEl.textContent = ranks[key];
       });
     });
   });
 
-  // ===== Shared result state =====
-  let lastMode = null; // 'kva' | 'eye'
+  // ===== Preset parameters per rank =====
+  // KVA presets: duration(ms) speed, char size, path mode, charset, count
+  const KVA_PRESETS = {
+    1: { duration: 2200, size: 140, path: 'h',      charset: 'num',   count: 5 },
+    2: { duration: 1700, size: 120, path: 'h',      charset: 'num',   count: 8 },
+    3: { duration: 1300, size: 96,  path: 'h',      charset: 'num',   count: 10 },
+    4: { duration: 950,  size: 80,  path: 'random', charset: 'mix',   count: 12 },
+    5: { duration: 650,  size: 64,  path: 'random', charset: 'mix',   count: 15 },
+  };
+  // Eye presets: showMs, gapMs, count
+  const EYE_PRESETS = {
+    1: { showMs: 1400, gapMs: 700, count: 10 },
+    2: { showMs: 1000, gapMs: 600, count: 15 },
+    3: { showMs: 700,  gapMs: 500, count: 20 },
+    4: { showMs: 500,  gapMs: 400, count: 25 },
+    5: { showMs: 300,  gapMs: 300, count: 30 },
+  };
+  // For "test" mode, use slightly reduced question count for a quick measurement
+  function testify(preset, type) {
+    const count = type === 'kva' ? 10 : 15;
+    return { ...preset, count };
+  }
+
+  const CHARSETS = {
+    num: '0123456789'.split(''),
+    alpha: 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split(''),
+    mix: '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'.split(''),
+  };
+  const PATHS = ['h', 'v', 'd'];
+
+  // ===== Drill launcher =====
+  // Clicking any hex-card with data-mode+data-drill launches that drill.
+  document.querySelectorAll('.hex-card[data-drill]').forEach(card => {
+    card.addEventListener('click', () => {
+      const mode = card.dataset.mode;   // 'test' | 'train'
+      const drill = card.dataset.drill; // 'kva' | 'eye'
+      const rank = ranks[`${mode}-${drill}`];
+      launchDrill(mode, drill, rank);
+    });
+  });
+
+  // ===== Shared session state =====
+  const session = {
+    mode: null,   // 'test' | 'train'
+    drill: null,  // 'kva' | 'eye'
+    rank: 3,
+  };
   const results = { correct: 0, total: 0, rtList: [] };
   function resetResults() {
     results.correct = 0;
     results.total = 0;
     results.rtList = [];
   }
+
+  function launchDrill(mode, drill, rank) {
+    session.mode = mode;
+    session.drill = drill;
+    session.rank = rank;
+    resetResults();
+    if (drill === 'kva') startKva();
+    else startEye();
+  }
+
+  function modeLabel() {
+    return session.mode === 'test' ? 'TEST' : 'TRAINING';
+  }
+
   function showResult() {
     const rate = results.total ? Math.round((results.correct / results.total) * 100) : 0;
     const rt = results.rtList.length
       ? Math.round(results.rtList.reduce((a, b) => a + b, 0) / results.rtList.length)
       : null;
-    document.getElementById('r-rate').textContent = rate + '%';
+    document.getElementById('r-rate').firstChild.textContent = rate;
     document.getElementById('r-correct').textContent = results.correct;
     document.getElementById('r-total').textContent = results.total;
     document.getElementById('r-rt').textContent = rt == null ? '-' : rt;
+    const titleEn = session.mode === 'test' ? 'Test result' : 'Training result';
+    const titleJa = session.mode === 'test' ? 'テスト結果' : 'トレーニング結果';
+    document.getElementById('result-title').textContent = titleEn;
+    document.getElementById('result-subtitle').textContent = titleJa;
     show('result');
   }
+
   document.getElementById('r-retry').addEventListener('click', () => {
-    if (lastMode === 'kva') startKva();
-    else if (lastMode === 'eye') startEye();
-    else show('menu');
+    if (!session.mode) return show('menu');
+    launchDrill(session.mode, session.drill, session.rank);
   });
 
   // ===== KVA (Dynamic Visual Acuity) =====
-  const SPEED_MS = { slow: 2200, normal: 1500, fast: 1000, ultra: 650 };
-  const SIZE_PX = { small: 56, medium: 96, large: 140 };
-  const CHARSETS = {
-    num: '0123456789'.split(''),
-    alpha: 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split(''), // exclude I, O to avoid confusion with 1, 0
-    mix: '0123456789ABCDEFGHJKLMNPQRSTUVWXYZ'.split(''),
-  };
-  const PATHS = ['h', 'v', 'd'];
-
   const kvaStage = document.getElementById('kva-stage');
   const kvaChar = document.getElementById('kva-char');
   const kvaAnswer = document.getElementById('kva-answer');
   const kvaInput = document.getElementById('kva-input');
   const kvaSubmit = document.getElementById('kva-submit');
   const kvaProgress = document.getElementById('kva-progress');
+  const kvaModeLabel = document.getElementById('kva-mode-label');
 
   let kvaState = null;
 
   function startKva() {
-    lastMode = 'kva';
-    resetResults();
+    let preset = KVA_PRESETS[session.rank];
+    if (session.mode === 'test') preset = testify(preset, 'kva');
     kvaState = {
-      total: parseInt(settings['kva-count'], 10),
+      total: preset.count,
       idx: 0,
       current: null,
-      charset: CHARSETS[settings['kva-charset']],
-      duration: SPEED_MS[settings['kva-speed']],
-      size: SIZE_PX[settings['kva-size']],
-      pathMode: settings['kva-path'],
+      charset: CHARSETS[preset.charset],
+      duration: preset.duration,
+      size: preset.size,
+      pathMode: preset.path,
       animId: null,
     };
+    kvaModeLabel.textContent = modeLabel();
     show('kva');
     kvaAnswer.classList.add('hidden');
     nextKva();
@@ -127,14 +181,11 @@
     const W = rect.width;
     const H = rect.height;
     const path = pickPath();
-
-    // Compute start/end positions (CSS transform translate)
-    // kvaChar is positioned at top:50%, left:0, and we translate to position
-    let sx, sy, ex, ey;
     const margin = kvaState.size;
+    let sx, sy, ex, ey;
     switch (path) {
       case 'v': {
-        const x = margin + Math.random() * (W - margin * 2);
+        const x = margin + Math.random() * Math.max(0, W - margin * 2);
         const dir = Math.random() < 0.5 ? 1 : -1;
         sx = x; ex = x;
         sy = dir > 0 ? -margin : H + margin;
@@ -152,7 +203,7 @@
       }
       case 'h':
       default: {
-        const y = margin + Math.random() * (H - margin * 2);
+        const y = margin + Math.random() * Math.max(0, H - margin * 2);
         const dir = Math.random() < 0.5 ? 1 : -1;
         sx = dir > 0 ? -margin : W + margin;
         ex = dir > 0 ? W + margin : -margin;
@@ -172,7 +223,6 @@
       if (p < 1) {
         kvaState.animId = requestAnimationFrame(frame);
       } else {
-        // done, ask for input
         kvaChar.style.transform = `translate(-200px, -200px)`;
         promptKvaAnswer();
       }
@@ -194,7 +244,6 @@
     const correct = ans === kvaState.current.toUpperCase();
     results.total++;
     if (correct) results.correct++;
-    // RT here is "time to answer after the character finished", tracked for context
     results.rtList.push(Math.round(performance.now() - kvaState.promptTime));
     kvaAnswer.classList.add('hidden');
     nextKva();
@@ -204,7 +253,6 @@
     if (e.key === 'Enter') { e.preventDefault(); submitKvaAnswer(); }
   });
 
-  document.getElementById('start-kva').addEventListener('click', startKva);
   document.getElementById('kva-quit').addEventListener('click', () => {
     if (kvaState && kvaState.animId) cancelAnimationFrame(kvaState.animId);
     show('menu');
@@ -216,27 +264,29 @@
   const choices = document.querySelectorAll('.choice');
   const eyeProgress = document.getElementById('eye-progress');
   const eyeHint = document.getElementById('eye-hint');
+  const eyeModeLabel = document.getElementById('eye-mode-label');
 
   let eyeState = null;
 
   function startEye() {
-    lastMode = 'eye';
-    resetResults();
+    let preset = EYE_PRESETS[session.rank];
+    if (session.mode === 'test') preset = testify(preset, 'eye');
     eyeState = {
-      total: parseInt(settings['eye-count'], 10),
+      total: preset.count,
       idx: 0,
-      showMs: parseInt(settings['eye-show'], 10),
-      gapMs: parseInt(settings['eye-gap'], 10),
+      showMs: preset.showMs,
+      gapMs: preset.gapMs,
       current: null,
       activeCell: null,
       showTime: 0,
       locked: false,
       timers: [],
     };
+    eyeModeLabel.textContent = modeLabel();
     show('eye');
     clearEye();
     eyeHint.textContent = '表示された記号をタップ';
-    scheduleNextEye(eyeState.gapMs);
+    eyeState.timers.push(setTimeout(nextEye, eyeState.gapMs));
   }
 
   function clearEye() {
@@ -248,10 +298,6 @@
       c.classList.remove('locked-correct', 'locked-wrong');
       c.disabled = false;
     });
-  }
-
-  function scheduleNextEye(delay) {
-    eyeState.timers.push(setTimeout(nextEye, delay));
   }
 
   function nextEye() {
@@ -274,7 +320,6 @@
     eyeState.showTime = performance.now();
     eyeState.locked = false;
 
-    // Hide after showMs, but keep accepting answer until user responds
     eyeState.timers.push(setTimeout(() => {
       if (eyeState && eyeState.activeCell === cell && !eyeState.locked) {
         cell.textContent = '';
@@ -292,7 +337,6 @@
     results.rtList.push(rt);
 
     const cell = eyeState.activeCell;
-    // Ensure symbol is shown as feedback even if already hidden
     cell.textContent = eyeState.current === 'circle' ? '○' : '△';
     cell.classList.remove('flash');
     cell.classList.add(correct ? 'correct' : 'wrong');
@@ -302,7 +346,9 @@
       if (isThis) c.classList.add(correct ? 'locked-correct' : 'locked-wrong');
       c.disabled = true;
     });
-    eyeHint.textContent = correct ? `正解 (${rt}ms)` : `不正解 - 正解は ${eyeState.current === 'circle' ? '○' : '△'}`;
+    eyeHint.textContent = correct
+      ? `正解 (${rt}ms)`
+      : `不正解 - 正解は ${eyeState.current === 'circle' ? '○' : '△'}`;
 
     eyeState.timers.push(setTimeout(() => {
       if (!eyeState) return;
@@ -322,7 +368,6 @@
     eyeState.timers = [];
   }
 
-  document.getElementById('start-eye').addEventListener('click', startEye);
   document.getElementById('eye-quit').addEventListener('click', () => {
     clearEyeTimers();
     eyeState = null;
@@ -336,6 +381,5 @@
     });
   }
 
-  // Initial screen
   show('menu');
 })();
