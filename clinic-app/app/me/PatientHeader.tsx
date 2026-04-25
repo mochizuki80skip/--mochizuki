@@ -14,11 +14,13 @@ export default function PatientHeader() {
 
   return (
     <header className="flex items-center gap-2 mb-6">
-      <Link
-        href="/me/dashboard"
-        className="text-sm font-bold tracking-[0.18em] text-ink-700"
-      >
-        KARADA <span className="text-accent-600">COMPASS</span>
+      <Link href="/me/dashboard" className="flex items-baseline gap-2">
+        <span className="text-sm font-black tracking-[0.12em] text-ink-900">
+          リカバリー鍼灸院
+        </span>
+        <span className="text-[10px] tracking-[0.18em] text-ink-400">
+          / マイページ
+        </span>
       </Link>
       <button
         onClick={logout}

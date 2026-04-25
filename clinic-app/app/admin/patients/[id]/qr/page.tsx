@@ -18,7 +18,7 @@ export default async function PatientQRPrintPage({
   if (!patient) notFound();
 
   const baseUrl = getBaseUrl();
-  const url = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}`;
+  const url = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}&name=${encodeURIComponent(patient.name)}`;
 
   return (
     <main className="mx-auto max-w-2xl px-5 py-8 print:p-0 print:max-w-full">
@@ -36,7 +36,7 @@ export default async function PatientQRPrintPage({
       <article className="mx-auto max-w-md rounded-2xl border-2 border-ink-900 bg-white p-8 shadow-soft print:shadow-none print:border-2">
         <div className="text-center">
           <div className="text-[10px] tracking-[0.3em] text-ink-400 mb-1">
-            KARADA COMPASS
+            リカバリー鍼灸院
           </div>
           <h1 className="text-xl font-black text-ink-900 leading-tight">
             あなた専用のマイページ
@@ -68,7 +68,7 @@ export default async function PatientQRPrintPage({
           </li>
           <li>
             <span className="font-bold text-accent-600">②</span>{" "}
-            カルテ番号は入力済み。お名前を入れてください
+            自動でマイページが開きます（カルテ番号・お名前は入力済み）
           </li>
           <li>
             <span className="font-bold text-accent-600">③</span>{" "}

@@ -46,10 +46,13 @@ export default function LoginClient() {
       </header>
 
       <h1 className="text-[22px] font-black text-ink-900 mb-2">
-        スタッフログイン
+        リカバリー鍼灸院
+        <span className="block text-sm text-ink-500 font-bold mt-1">
+          スタッフ管理画面
+        </span>
       </h1>
       <p className="text-sm text-ink-500 mb-8">
-        合言葉を入力して院の管理画面に進みます。
+        合言葉を入力して管理画面に進みます。
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4">

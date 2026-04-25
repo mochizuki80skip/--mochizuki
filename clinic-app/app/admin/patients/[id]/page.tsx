@@ -28,7 +28,7 @@ export default async function PatientDetailPage({
 
   const diagnoses = await listDiagnosesForPatient(patient.id);
   const baseUrl = getBaseUrl();
-  const patientLoginUrl = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}`;
+  const patientLoginUrl = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}&name=${encodeURIComponent(patient.name)}`;
 
   return (
     <main className="mx-auto max-w-2xl px-5 pt-6 pb-12 fade-up">

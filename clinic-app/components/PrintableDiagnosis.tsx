@@ -25,8 +25,8 @@ export default function PrintableDiagnosis({ row, patient, compare }: Props) {
       {/* Header */}
       <header className="flex items-center justify-between border-b-2 border-ink-900 pb-3 mb-5">
         <div>
-          <div className="text-[10px] tracking-[0.3em] text-ink-400">
-            KARADA COMPASS
+          <div className="text-[10px] tracking-[0.2em] text-ink-400">
+            リカバリー鍼灸院
           </div>
           <div className="text-sm font-black text-ink-900 mt-0.5">
             体質診断レポート

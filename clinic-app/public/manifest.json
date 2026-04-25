@@ -1,7 +1,7 @@
 {
-  "name": "Karada Compass — 体質診断",
-  "short_name": "Karada",
-  "description": "神経・循環・代謝の3軸で体質を可視化し、改善プロセスを理解する鍼灸院アプリ",
+  "name": "リカバリー鍼灸院 — 体質診断",
+  "short_name": "リカバリー",
+  "description": "リカバリー鍼灸院公式アプリ。神経・循環・代謝の3軸で体質を可視化し、通院の効果を見える化します。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

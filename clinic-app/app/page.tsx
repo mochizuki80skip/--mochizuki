@@ -17,8 +17,11 @@ export default async function Home() {
           aria-hidden
           className="inline-block w-2 h-6 rounded-sm bg-accent shadow-glow"
         />
-        <span className="text-sm font-bold tracking-[0.18em] text-ink-700">
-          KARADA <span className="text-accent-600">COMPASS</span>
+        <span className="text-sm font-black tracking-[0.12em] text-ink-900">
+          リカバリー鍼灸院
+        </span>
+        <span className="text-[10px] tracking-[0.18em] text-ink-400 ml-1">
+          / 体質診断
         </span>
       </header>
 
@@ -40,7 +43,7 @@ export default async function Home() {
           href="/diagnose"
           className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-4 shadow-soft hover:bg-accent-400 transition active:scale-[0.99]"
         >
-          体質診断をはじめる
+          無料で体質診断をはじめる
         </Link>
         <Link
           href={patient ? "/me/dashboard" : "/me"}

@@ -11,14 +11,14 @@ const notoSansJp = Noto_Sans_JP({
 });
 
 export const metadata: Metadata = {
-  title: "Karada Compass | 鍼灸院アプリ",
+  title: "リカバリー鍼灸院 | 体質診断・カルテ",
   description:
-    "身体の状態を可視化し、改善プロセスを理解し、日常から治療を加速させるアプリ。",
-  applicationName: "Karada Compass",
+    "リカバリー鍼灸院公式アプリ。神経・循環・代謝の3軸で体質を可視化し、通院の効果を見える化します。",
+  applicationName: "リカバリー鍼灸院",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    title: "Karada",
+    title: "リカバリー",
     statusBarStyle: "default",
   },
   icons: {

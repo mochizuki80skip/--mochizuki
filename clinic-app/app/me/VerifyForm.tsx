@@ -1,21 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 export default function VerifyForm({
   initialChartNumber = "",
+  initialName = "",
+  autoSubmit = false,
 }: {
   initialChartNumber?: string;
+  initialName?: string;
+  autoSubmit?: boolean;
 }) {
   const router = useRouter();
   const [chartNumber, setChartNumber] = useState(initialChartNumber);
-  const [name, setName] = useState("");
+  const [name, setName] = useState(initialName);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const autoTried = useRef(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submit() {
     setError(null);
     setSubmitting(true);
     try {
@@ -42,6 +46,22 @@ export default function VerifyForm({
     } finally {
       setSubmitting(false);
     }
+  }
+
+  // QR auto-fill flow: when both fields are pre-filled from the URL, try once
+  // automatically. The user only sees the form if it fails (e.g. typo in URL).
+  useEffect(() => {
+    if (!autoSubmit) return;
+    if (autoTried.current) return;
+    if (!initialChartNumber || !initialName) return;
+    autoTried.current = true;
+    submit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoSubmit]);
+
+  async function onSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    submit();
   }
 
   return (
