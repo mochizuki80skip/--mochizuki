@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/guards";
 import { getPatientById, listDiagnosesForPatient } from "@/lib/db";
 import { contentForType } from "@/lib/content";
+import { getBaseUrl } from "@/lib/baseUrl";
 import HistoryCalendar from "@/components/HistoryCalendar";
+import TrendChart from "@/components/TrendChart";
+import PatientQRCode from "@/components/PatientQRCode";
 import AdminHeader from "../../AdminHeader";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +27,8 @@ export default async function PatientDetailPage({
   if (!patient) notFound();
 
   const diagnoses = await listDiagnosesForPatient(patient.id);
+  const baseUrl = getBaseUrl();
+  const patientLoginUrl = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}`;
 
   return (
     <main className="mx-auto max-w-2xl px-5 pt-6 pb-12 fade-up">
@@ -94,6 +99,31 @@ export default async function PatientDetailPage({
         </div>
       </section>
 
+      {/* QR code: hand to patient on first visit */}
+      <details className="rounded-2xl border border-ink-100 bg-white shadow-soft mb-5">
+        <summary className="cursor-pointer px-5 py-3 text-xs tracking-widest text-ink-400 font-bold flex items-center justify-between">
+          <span>マイページQRコード</span>
+          <span className="text-ink-300 text-base leading-none">＋</span>
+        </summary>
+        <div className="px-5 pb-5 pt-1 flex flex-col items-center text-center">
+          <PatientQRCode url={patientLoginUrl} />
+          <p className="text-xs text-ink-500 leading-relaxed mt-2">
+            患者がスマホで読み込むと、カルテ番号が入力済みの
+            <br />
+            ログイン画面が開きます
+          </p>
+          <p className="text-[10px] text-ink-400 mt-2 tabular-nums break-all">
+            {patientLoginUrl}
+          </p>
+          <Link
+            href={`/admin/patients/${patient.id}/qr`}
+            className="mt-3 rounded-full border border-ink-200 text-ink-700 font-bold text-xs px-4 py-1.5 hover:border-accent transition"
+          >
+            印刷用カードを開く
+          </Link>
+        </div>
+      </details>
+
       <section className="mb-5">
         <h2 className="text-xs tracking-widest text-ink-400 mb-2">
           診断履歴 ({diagnoses.length})
@@ -106,6 +136,17 @@ export default async function PatientDetailPage({
         />
       </section>
 
+      {diagnoses.length >= 2 && (
+        <section className="mb-5 rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
+          <h2 className="text-xs tracking-widest text-ink-400 mb-3">
+            3軸スコアの推移
+          </h2>
+          <div className="overflow-x-auto -mx-1 px-1">
+            <TrendChart rows={diagnoses} />
+          </div>
+        </section>
+      )}
+
       {diagnoses.length > 0 && (
         <section>
           <h2 className="text-xs tracking-widest text-ink-400 mb-2">
@@ -114,6 +155,7 @@ export default async function PatientDetailPage({
           <ul className="space-y-2">
             {diagnoses.map((d) => {
               const c = contentForType(d.type_key);
+              const hasNote = !!d.staff_note;
               return (
                 <li key={d.id}>
                   <Link
@@ -129,6 +171,14 @@ export default async function PatientDetailPage({
                           {c.name}
                         </div>
                       </div>
+                      {hasNote && (
+                        <span
+                          className="text-accent-600 text-xs"
+                          title="施術メモあり"
+                        >
+                          📝
+                        </span>
+                      )}
                       <span className="text-ink-300 text-lg leading-none">›</span>
                     </div>
                   </Link>

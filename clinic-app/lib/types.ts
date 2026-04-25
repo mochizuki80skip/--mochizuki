@@ -62,4 +62,5 @@ export type DiagnosisRow = {
   type_key: DiagnoseType;
   answers: Answer[] | null;
   diagnosed_at: string;
+  staff_note: string | null;
 };

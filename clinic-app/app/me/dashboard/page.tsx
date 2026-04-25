@@ -3,6 +3,7 @@ import { requirePatient } from "@/lib/guards";
 import { listDiagnosesForPatient } from "@/lib/db";
 import { contentForType } from "@/lib/content";
 import HistoryCalendar from "@/components/HistoryCalendar";
+import TrendChart from "@/components/TrendChart";
 import PatientHeader from "../PatientHeader";
 
 export const dynamic = "force-dynamic";
@@ -50,6 +51,17 @@ export default async function PatientDashboard() {
           }))}
         />
       </section>
+
+      {diagnoses.length >= 2 && (
+        <section className="mb-5 rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
+          <h2 className="text-xs tracking-widest text-ink-400 mb-3">
+            3軸スコアの推移
+          </h2>
+          <div className="overflow-x-auto -mx-1 px-1">
+            <TrendChart rows={diagnoses} />
+          </div>
+        </section>
+      )}
 
       {diagnoses.length === 0 ? (
         <div className="rounded-xl border border-dashed border-ink-200 p-6 text-center text-sm text-ink-500">

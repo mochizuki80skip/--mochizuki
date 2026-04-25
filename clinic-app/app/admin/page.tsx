@@ -1,33 +1,34 @@
 import Link from "next/link";
 import { requireAdmin } from "@/lib/guards";
-import { getLatestDiagnosisDateMap, listPatients } from "@/lib/db";
+import {
+  getDashboardStats,
+  getLatestDiagnosisDateMap,
+  listPatients,
+} from "@/lib/db";
 import AdminHeader from "./AdminHeader";
+import PatientList from "./PatientList";
+import Dashboard from "./Dashboard";
 
 export const dynamic = "force-dynamic";
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}`;
-}
 
 export default async function AdminHome() {
   requireAdmin();
 
-  const patients = await listPatients();
+  const [patients, stats] = await Promise.all([
+    listPatients(),
+    getDashboardStats(),
+  ]);
   const latestMap = await getLatestDiagnosisDateMap(patients.map((p) => p.id));
 
   return (
     <main className="mx-auto max-w-2xl px-5 pt-6 pb-12 fade-up">
       <AdminHeader />
 
-      <div className="flex items-center justify-between mb-5">
+      <Dashboard stats={stats} />
+
+      <div className="flex items-center justify-between mb-3">
         <div>
-          <h1 className="text-[22px] font-black text-ink-900">患者一覧</h1>
-          <p className="text-xs text-ink-500 mt-0.5">
-            登録患者数 {patients.length} 名
-          </p>
+          <h1 className="text-[20px] font-black text-ink-900">患者一覧</h1>
         </div>
         <Link
           href="/admin/patients/new"
@@ -48,45 +49,7 @@ export default async function AdminHome() {
           </Link>
         </div>
       ) : (
-        <ul className="space-y-2">
-          {patients.map((p) => {
-            const latest = latestMap[p.id];
-            return (
-              <li key={p.id}>
-                <Link
-                  href={`/admin/patients/${p.id}`}
-                  className="block rounded-xl border border-ink-100 bg-white px-4 py-3.5 shadow-soft hover:border-accent transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-[11px] tracking-widest text-ink-400 tabular-nums">
-                          {p.chart_number}
-                        </span>
-                        <span className="font-bold text-ink-900 truncate">
-                          {p.name}
-                        </span>
-                      </div>
-                      {p.furigana && (
-                        <div className="text-[11px] text-ink-400 mt-0.5">
-                          {p.furigana}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      <div className="text-[10px] tracking-widest text-ink-400">
-                        最終診断
-                      </div>
-                      <div className="text-xs text-ink-700 tabular-nums">
-                        {formatDate(latest)}
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <PatientList patients={patients} latestMap={latestMap} />
       )}
     </main>
   );
