@@ -1,6 +1,14 @@
 import Link from "next/link";
+import { getAuthenticatedPatientId, isAdminAuthenticated } from "@/lib/auth";
+import { getPatientById } from "@/lib/db";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const patientId = getAuthenticatedPatientId();
+  const patient = patientId ? await getPatientById(patientId).catch(() => null) : null;
+  const adminAuthed = isAdminAuthenticated();
+
   return (
     <main className="mx-auto max-w-md px-5 pt-10 pb-12 fade-up">
       {/* Brand */}
@@ -25,6 +33,27 @@ export default function Home() {
           原因と、今日できる改善のヒントまで、一気通貫でわかる体質診断です。
         </p>
       </section>
+
+      {/* Returning patient shortcut */}
+      {patient && (
+        <Link
+          href="/me/dashboard"
+          className="mb-5 flex items-center justify-between rounded-2xl border border-accent bg-accent-50 px-4 py-4 shadow-soft hover:bg-accent-100 transition"
+        >
+          <div>
+            <div className="text-[10px] tracking-widest text-accent-600 font-bold mb-0.5">
+              ようこそ
+            </div>
+            <div className="text-base font-black text-ink-900">
+              {patient.name} さんのマイページへ
+            </div>
+            <div className="text-[11px] text-ink-500 mt-0.5">
+              診断履歴の確認 / 新しい診断
+            </div>
+          </div>
+          <span className="text-ink-400 text-2xl leading-none">›</span>
+        </Link>
+      )}
 
       {/* Feature cards */}
       <section className="grid grid-cols-3 gap-2.5 mb-10">
@@ -81,8 +110,40 @@ export default function Home() {
         体質診断をはじめる
       </Link>
       <p className="text-[11px] text-center text-ink-400 mt-3">
-        所要時間およそ2-3分 / 登録不要
+        所要時間およそ2-3分 / 登録不要でお試しいただけます
       </p>
+
+      {/* Sub navigation: returning patients & staff */}
+      <div className="mt-10 pt-6 border-t border-ink-100">
+        <div className="grid grid-cols-2 gap-2">
+          {!patient && (
+            <Link
+              href="/me"
+              className="text-center rounded-xl border border-ink-200 px-3 py-3 text-sm font-bold text-ink-700 hover:border-accent hover:text-ink-900 transition"
+            >
+              <div className="text-[10px] tracking-widest text-ink-400 mb-0.5">
+                PATIENT
+              </div>
+              通院中の方
+            </Link>
+          )}
+          <Link
+            href={adminAuthed ? "/admin" : "/admin/login"}
+            className={[
+              "text-center rounded-xl border px-3 py-3 text-sm font-bold transition",
+              adminAuthed
+                ? "border-accent bg-accent-50 text-ink-900 hover:bg-accent-100"
+                : "border-ink-200 text-ink-700 hover:border-accent hover:text-ink-900",
+              !patient ? "" : "col-span-2",
+            ].join(" ")}
+          >
+            <div className="text-[10px] tracking-widest text-ink-400 mb-0.5">
+              STAFF
+            </div>
+            {adminAuthed ? "管理画面へ" : "スタッフログイン"}
+          </Link>
+        </div>
+      </div>
     </main>
   );
 }

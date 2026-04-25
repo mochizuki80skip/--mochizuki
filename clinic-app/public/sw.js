@@ -2,12 +2,12 @@
 // Strategy: stale-while-revalidate for navigations and same-origin assets so the
 // app keeps working fully offline once it has been opened at least once.
 
-const CACHE_NAME = "karada-compass-v1";
+const CACHE_NAME = "karada-compass-v2";
 
+// Only cache truly static assets at install time. Pages are dynamic (cookie
+// driven) so we let the runtime stale-while-revalidate handler populate the
+// cache after the user actually visits each page.
 const PRECACHE_URLS = [
-  "/",
-  "/diagnose",
-  "/result",
   "/manifest.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",

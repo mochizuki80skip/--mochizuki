@@ -6,13 +6,22 @@ import { useRouter } from "next/navigation";
 import RadarChart from "@/components/RadarChart";
 import AxisBar from "@/components/AxisBar";
 import { contentForType, AXIS_DESC } from "@/lib/content";
-import { loadResult, clearDiagnose } from "@/lib/storage";
+import {
+  loadResult,
+  clearDiagnose,
+  loadAnswers,
+  getPatientContext,
+  markResultSaved,
+  isResultSaved,
+} from "@/lib/storage";
 import { AXIS_LABEL, type DiagnoseResult } from "@/lib/types";
 
 export default function ResultPage() {
   const router = useRouter();
   const [result, setResult] = useState<DiagnoseResult | null>(null);
   const [tab, setTab] = useState<"summary" | "advice">("summary");
+  const [patientId, setPatientId] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "skipped" | "error">("idle");
 
   useEffect(() => {
     const r = loadResult();
@@ -21,6 +30,37 @@ export default function ResultPage() {
       return;
     }
     setResult(r);
+    setPatientId(getPatientContext());
+
+    // Save to DB once per result (server validates auth and decides whether to
+    // actually persist or no-op for anonymous trials).
+    if (isResultSaved()) {
+      setSaveState("saved");
+      return;
+    }
+
+    const answers = loadAnswers();
+    setSaveState("saving");
+    fetch("/api/diagnoses", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scores: r.axes,
+        type_key: r.type,
+        answers: answers || [],
+        patient_id: getPatientContext(),
+      }),
+    })
+      .then((res) => res.json().catch(() => ({})))
+      .then((json) => {
+        if (json?.saved) {
+          markResultSaved();
+          setSaveState("saved");
+        } else {
+          setSaveState("skipped");
+        }
+      })
+      .catch(() => setSaveState("error"));
   }, [router]);
 
   if (!result) {
@@ -46,13 +86,23 @@ export default function ResultPage() {
       {/* Header */}
       <div className="flex items-center gap-2 mb-6">
         <Link
-          href="/"
+          href={patientId ? "/me/dashboard" : "/"}
           className="text-ink-500 hover:text-ink-900 text-sm tracking-widest"
         >
-          ← TOP
+          ← {patientId ? "MY PAGE" : "TOP"}
         </Link>
         <span className="ml-auto text-[10px] tracking-[0.2em] text-ink-400">
           RESULT
+          {saveState === "saved" && (
+            <span className="ml-2 text-emerald-600 normal-case tracking-normal">
+              ✓ 保存済み
+            </span>
+          )}
+          {saveState === "saving" && (
+            <span className="ml-2 text-ink-400 normal-case tracking-normal">
+              保存中…
+            </span>
+          )}
         </span>
       </div>
 
@@ -154,13 +204,23 @@ export default function ResultPage() {
 
       {/* Bottom actions */}
       <div className="mt-8 grid gap-3">
-        <Link
-          href="/diagnose"
-          onClick={() => clearDiagnose()}
-          className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition active:scale-[0.99]"
-        >
-          もう一度診断する
-        </Link>
+        {patientId ? (
+          <Link
+            href="/me/dashboard"
+            onClick={() => clearDiagnose()}
+            className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition active:scale-[0.99]"
+          >
+            マイページに戻る
+          </Link>
+        ) : (
+          <Link
+            href="/diagnose"
+            onClick={() => clearDiagnose()}
+            className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition active:scale-[0.99]"
+          >
+            もう一度診断する
+          </Link>
+        )}
         <Link
           href="/"
           className="block w-full text-center rounded-full border border-ink-200 text-ink-700 font-bold py-3.5"

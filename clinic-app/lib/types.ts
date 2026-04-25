@@ -41,3 +41,25 @@ export type DiagnoseResult = {
   secondary: AxisKey | null;
   createdAt: string;    // ISO
 };
+
+// --- Phase 2: persistence -------------------------------------------------
+
+export type Patient = {
+  id: string;
+  chart_number: string;
+  name: string;
+  furigana: string | null;
+  birth_date: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type DiagnosisRow = {
+  id: string;
+  patient_id: string | null;
+  scores: Record<AxisKey, AxisResult>;
+  type_key: DiagnoseType;
+  answers: Answer[] | null;
+  diagnosed_at: string;
+};

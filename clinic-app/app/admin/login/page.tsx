@@ -1,12 +1,12 @@
 import { Suspense } from "react";
-import DiagnoseClient from "./DiagnoseClient";
+import LoginClient from "./LoginClient";
 
 export const dynamic = "force-dynamic";
 
-export default function DiagnosePage() {
+export default function AdminLoginPage() {
   return (
     <Suspense fallback={null}>
-      <DiagnoseClient />
+      <LoginClient />
     </Suspense>
   );
 }
