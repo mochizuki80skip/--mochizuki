@@ -1,8 +1,21 @@
 import Link from "next/link";
 import { getAuthenticatedPatientId, isAdminAuthenticated } from "@/lib/auth";
 import { getPatientById } from "@/lib/db";
+import RadarChart from "@/components/RadarChart";
+import { contentForType } from "@/lib/content";
+import type { AxisKey, AxisResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
+
+// Hard-coded sample result used purely as a marketing preview on the landing
+// page. Picked an off-balance "nerve_excess" shape so the radar chart looks
+// visually interesting (a perfect equilateral triangle reads as "no result").
+const SAMPLE_AXES: Record<AxisKey, AxisResult> = {
+  nerve: { axis: "nerve", raw: 19, normalized: 75, level: "off" },
+  circ: { axis: "circ", raw: 13, normalized: 50, level: "mild" },
+  metab: { axis: "metab", raw: 12, normalized: 45, level: "balanced" },
+};
+const SAMPLE_TYPE = contentForType("nerve_excess");
 
 export default async function Home() {
   const patientId = getAuthenticatedPatientId();
@@ -84,7 +97,7 @@ export default async function Home() {
       )}
 
       {/* Feature cards */}
-      <section className="grid grid-cols-3 gap-2.5 mb-10">
+      <section className="grid grid-cols-3 gap-2.5 mb-8">
         {[
           { jp: "神経", en: "Nervous", role: "指令" },
           { jp: "循環", en: "Circulation", role: "供給" },
@@ -101,6 +114,58 @@ export default async function Home() {
             <div className="text-[10px] text-ink-400 mt-0.5">{a.role}</div>
           </div>
         ))}
+      </section>
+
+      {/* Result preview — gives first-time visitors a concrete idea of the output */}
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-2">
+          <h2 className="text-xs tracking-widest text-ink-400">
+            RESULT PREVIEW
+          </h2>
+          <span className="text-[10px] tracking-widest text-accent-600 font-bold bg-accent-50 px-2 py-0.5 rounded-full">
+            SAMPLE
+          </span>
+        </div>
+        <p className="text-xs text-ink-500 mb-3 leading-relaxed">
+          診断後、あなただけの結果がこのように表示されます
+        </p>
+
+        <div className="rounded-2xl border border-ink-100 bg-white shadow-soft overflow-hidden">
+          <div className="bg-gradient-to-b from-accent-50/60 to-white px-2 pt-3 pb-1 flex justify-center">
+            <RadarChart axes={SAMPLE_AXES} size={260} />
+          </div>
+          <div className="border-t border-ink-100 px-5 py-4">
+            <div className="text-[10px] tracking-widest text-accent-600 font-bold mb-1">
+              YOUR TYPE
+            </div>
+            <h3 className="text-lg font-black text-ink-900 leading-tight">
+              {SAMPLE_TYPE.name}
+            </h3>
+            <p className="text-xs text-ink-500 leading-relaxed mt-1.5">
+              {SAMPLE_TYPE.tagline}
+            </p>
+          </div>
+          <div className="border-t border-ink-100 px-5 py-3 bg-ink-50/60">
+            <div className="text-[10px] tracking-widest text-ink-400 font-bold mb-1.5">
+              改善アドバイス（一部）
+            </div>
+            <ul className="space-y-1">
+              {[
+                ["🌙", SAMPLE_TYPE.advice.sleep[0]],
+                ["🥣", SAMPLE_TYPE.advice.food[0]],
+                ["🚶", SAMPLE_TYPE.advice.exercise[0]],
+              ].map(([emoji, txt], i) => (
+                <li
+                  key={i}
+                  className="text-xs text-ink-700 leading-relaxed flex gap-2"
+                >
+                  <span aria-hidden>{emoji}</span>
+                  <span className="flex-1">{txt}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       </section>
 
       {/* Steps */}
