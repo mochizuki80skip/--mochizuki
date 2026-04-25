@@ -35,8 +35,13 @@ export default async function PatientQRPrintPage({
       {/* Welcome card — A6/postcard sized, designed for monochrome print too */}
       <article className="mx-auto max-w-md rounded-2xl border-2 border-ink-900 bg-white p-8 shadow-soft print:shadow-none print:border-2">
         <div className="text-center">
-          <div className="text-[10px] tracking-[0.3em] text-ink-400 mb-1">
-            リカバリー鍼灸院
+          <div className="flex justify-center mb-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/logo-full.png"
+              alt="リカバリー鍼灸院"
+              className="w-32 h-auto"
+            />
           </div>
           <h1 className="text-xl font-black text-ink-900 leading-tight">
             あなた専用のマイページ

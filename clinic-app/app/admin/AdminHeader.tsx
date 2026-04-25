@@ -14,11 +14,16 @@ export default function AdminHeader() {
 
   return (
     <header className="flex items-center gap-2 mb-6">
-      <Link href="/admin" className="flex items-baseline gap-2">
-        <span className="text-sm font-black tracking-[0.12em] text-ink-900">
-          リカバリー鍼灸院
-        </span>
-        <span className="text-[10px] tracking-[0.2em] text-accent-600 font-bold">
+      <Link href="/admin" className="flex items-center gap-2">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo/logo-mark.png" alt="" aria-hidden className="h-7 w-auto" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo/logo-wordmark-jp.png"
+          alt="リカバリー鍼灸院"
+          className="h-4 w-auto"
+        />
+        <span className="text-[10px] tracking-[0.2em] text-accent-600 font-bold ml-1">
           ADMIN
         </span>
       </Link>

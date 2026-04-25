@@ -24,12 +24,24 @@ export default function PrintableDiagnosis({ row, patient, compare }: Props) {
     <article className="mx-auto max-w-2xl px-6 py-8 bg-white print:p-0 print:max-w-full">
       {/* Header */}
       <header className="flex items-center justify-between border-b-2 border-ink-900 pb-3 mb-5">
-        <div>
-          <div className="text-[10px] tracking-[0.2em] text-ink-400">
-            リカバリー鍼灸院
-          </div>
-          <div className="text-sm font-black text-ink-900 mt-0.5">
-            体質診断レポート
+        <div className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/logo/logo-mark.png"
+            alt=""
+            aria-hidden
+            className="h-10 w-auto"
+          />
+          <div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/logo/logo-wordmark-jp.png"
+              alt="リカバリー鍼灸院"
+              className="h-4 w-auto"
+            />
+            <div className="text-[11px] font-black text-ink-900 mt-1.5">
+              体質診断レポート
+            </div>
           </div>
         </div>
         <div className="text-right text-xs text-ink-700 tabular-nums">

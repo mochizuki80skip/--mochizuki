@@ -2,7 +2,7 @@
 // Strategy: stale-while-revalidate for navigations and same-origin assets so the
 // app keeps working fully offline once it has been opened at least once.
 
-const CACHE_NAME = "recovery-acu-v3";
+const CACHE_NAME = "recovery-acu-v4";
 
 // Only cache truly static assets at install time. Pages are dynamic (cookie
 // driven) so we let the runtime stale-while-revalidate handler populate the

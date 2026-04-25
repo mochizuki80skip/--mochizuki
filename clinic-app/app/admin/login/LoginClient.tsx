@@ -45,14 +45,19 @@ export default function LoginClient() {
         </span>
       </header>
 
-      <h1 className="text-[22px] font-black text-ink-900 mb-2">
-        リカバリー鍼灸院
-        <span className="block text-sm text-ink-500 font-bold mt-1">
-          スタッフ管理画面
-        </span>
+      <div className="flex flex-col items-center mb-6">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo/logo-full.png"
+          alt="リカバリー鍼灸院 / Recovery Acupuncturist"
+          className="w-40 h-auto"
+        />
+      </div>
+      <h1 className="text-[18px] font-black text-ink-900 mb-2 text-center">
+        スタッフ管理画面
       </h1>
-      <p className="text-sm text-ink-500 mb-8">
-        合言葉を入力して管理画面に進みます。
+      <p className="text-sm text-ink-500 mb-8 text-center">
+        合言葉を入力して管理画面に進みます
       </p>
 
       <form onSubmit={onSubmit} className="space-y-4">
