@@ -39,15 +39,25 @@ export default async function PatientDetailPage({
       </div>
 
       <section className="rounded-2xl border border-ink-100 bg-white p-5 shadow-soft mb-5">
-        <div className="text-[11px] tracking-widest text-accent-600 font-bold mb-1">
-          {patient.chart_number}
+        <div className="flex items-start gap-2">
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] tracking-widest text-accent-600 font-bold mb-1">
+              {patient.chart_number}
+            </div>
+            <h1 className="text-[24px] font-black text-ink-900 leading-tight">
+              {patient.name}
+            </h1>
+            {patient.furigana && (
+              <div className="text-xs text-ink-500 mt-0.5">{patient.furigana}</div>
+            )}
+          </div>
+          <Link
+            href={`/admin/patients/${patient.id}/edit`}
+            className="shrink-0 rounded-full border border-ink-200 px-3 py-1.5 text-xs font-bold text-ink-700 hover:border-accent hover:text-ink-900 transition"
+          >
+            編集
+          </Link>
         </div>
-        <h1 className="text-[24px] font-black text-ink-900 leading-tight">
-          {patient.name}
-        </h1>
-        {patient.furigana && (
-          <div className="text-xs text-ink-500 mt-0.5">{patient.furigana}</div>
-        )}
         <div className="grid grid-cols-2 gap-3 mt-4 text-xs">
           <div>
             <div className="text-ink-400 tracking-widest mb-0.5">生年月日</div>
