@@ -1,0 +1,43 @@
+export type AxisKey = "nerve" | "circ" | "metab";
+
+export const AXIS_LABEL: Record<AxisKey, { ja: string; en: string; role: string }> = {
+  nerve: { ja: "神経", en: "Nervous", role: "指令" },
+  circ:  { ja: "循環", en: "Circulation", role: "供給" },
+  metab: { ja: "代謝", en: "Metabolism", role: "排出" },
+};
+
+export type Question = {
+  id: string;
+  axis: AxisKey;
+  text: string;
+  hint?: string;
+};
+
+export type Answer = {
+  id: string;
+  value: number; // 1..5
+};
+
+export type AxisLevel = "balanced" | "mild" | "off" | "strong";
+
+export type AxisResult = {
+  axis: AxisKey;
+  raw: number;          // sum of 5 questions, 5..25
+  normalized: number;   // 0..100
+  level: AxisLevel;
+};
+
+export type DiagnoseType =
+  | "balanced"
+  | "nerve_excess"
+  | "circ_deficit"
+  | "metab_low"
+  | "compound";
+
+export type DiagnoseResult = {
+  axes: Record<AxisKey, AxisResult>;
+  type: DiagnoseType;
+  primary: AxisKey | null;
+  secondary: AxisKey | null;
+  createdAt: string;    // ISO
+};
