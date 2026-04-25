@@ -137,7 +137,7 @@ export default function TrendChart({ rows, width = 320, height = 200 }: Props) {
         })}
       </svg>
       <p className="text-[10px] text-ink-400 text-center mt-1">
-        数値が大きいほど不調傾向。下方向への推移は改善を意味します。
+        数値が大きいほど良好。上向きへの推移は改善を意味します。
       </p>
     </div>
   );

@@ -99,9 +99,9 @@ export default async function MyDiagnosisDetail({
               const old = prev.scores[k].normalized;
               const delta = cur - old;
               const tone =
-                delta < 0
+                delta > 0
                   ? "text-emerald-600"
-                  : delta > 0
+                  : delta < 0
                   ? "text-rose-600"
                   : "text-ink-400";
               return (
@@ -124,7 +124,7 @@ export default async function MyDiagnosisDetail({
             })}
           </div>
           <p className="text-[10px] text-ink-400 text-center mt-2">
-            数値が下がった軸（緑）は改善傾向です
+            数値が上がった軸（緑）は改善傾向です
           </p>
         </section>
       )}

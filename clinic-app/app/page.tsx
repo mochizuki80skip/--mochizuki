@@ -7,18 +7,18 @@ import { AXIS_LABEL, type AxisKey, type AxisResult } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 // Hard-coded before/after sample shown on the landing page to communicate that
-// the app visualises changes over time. The "previous" snapshot is more
-// off-balance and the "current" one shows clear improvement on every axis,
-// which is the value proposition for returning patients.
+// the app visualises changes over time. The "previous" snapshot has lower
+// scores (poor health) and the "current" one shows clear improvement on every
+// axis (higher scores) — the value proposition for returning patients.
 const SAMPLE_PREV_AXES: Record<AxisKey, AxisResult> = {
-  nerve: { axis: "nerve", raw: 22, normalized: 85, level: "strong" },
-  circ: { axis: "circ", raw: 16, normalized: 65, level: "mild" },
-  metab: { axis: "metab", raw: 15, normalized: 60, level: "mild" },
+  nerve: { axis: "nerve", raw: 22, normalized: 15, level: "strong" },
+  circ: { axis: "circ", raw: 18, normalized: 35, level: "off" },
+  metab: { axis: "metab", raw: 17, normalized: 40, level: "off" },
 };
 const SAMPLE_AXES: Record<AxisKey, AxisResult> = {
-  nerve: { axis: "nerve", raw: 16, normalized: 60, level: "mild" },
-  circ: { axis: "circ", raw: 13, normalized: 50, level: "balanced" },
-  metab: { axis: "metab", raw: 12, normalized: 45, level: "balanced" },
+  nerve: { axis: "nerve", raw: 17, normalized: 40, level: "off" },
+  circ: { axis: "circ", raw: 15, normalized: 50, level: "off" },
+  metab: { axis: "metab", raw: 14, normalized: 55, level: "mild" },
 };
 
 export default async function Home() {
@@ -208,7 +208,7 @@ export default async function Home() {
               })}
             </div>
             <p className="text-[10px] text-emerald-600 text-center mt-2 font-bold">
-              ↓ 数値が下がるほど不調が改善しています
+              ↑ 数値が上がるほど体質が改善しています
             </p>
           </div>
         </div>

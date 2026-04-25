@@ -112,9 +112,9 @@ export default function PrintableDiagnosis({ row, patient, compare }: Props) {
                     <span
                       className={[
                         "text-[10px] tabular-nums font-bold",
-                        delta < 0
+                        delta > 0
                           ? "text-emerald-600"
-                          : delta > 0
+                          : delta < 0
                           ? "text-rose-600"
                           : "text-ink-400",
                       ].join(" ")}

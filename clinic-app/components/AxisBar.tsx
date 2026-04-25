@@ -28,9 +28,9 @@ export default function AxisBar({ result }: Props) {
         />
       </div>
       <div className="mt-1.5 flex justify-between text-[11px] text-ink-400">
-        <span>良好</span>
-        <span className="text-ink-700 tabular-nums">{result.normalized}</span>
         <span>不調</span>
+        <span className="text-ink-700 tabular-nums">{result.normalized}</span>
+        <span>良好</span>
       </div>
     </div>
   );

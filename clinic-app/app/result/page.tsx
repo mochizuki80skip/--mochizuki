@@ -131,7 +131,7 @@ export default function ResultPage() {
           <RadarChart axes={result.axes} size={300} />
         </div>
         <p className="text-[11px] text-ink-400 text-center mt-1">
-          数値が大きいほど、その軸の不調傾向が強いことを示します
+          数値が大きいほど、その軸が良好な状態であることを示します
         </p>
       </section>
 

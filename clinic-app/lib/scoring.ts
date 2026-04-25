@@ -31,8 +31,10 @@ export function computeResult(answers: Answer[]): DiagnoseResult {
   for (const axis of AXES) {
     const items = QUESTIONS.filter((q) => q.axis === axis);
     const raw = items.reduce((sum, q) => sum + (map.get(q.id) ?? 1), 0);
-    // raw range 5..25  →  normalize to 0..100 (raw 5 = 0, raw 25 = 100)
-    const normalized = Math.round(((raw - 5) / 20) * 100);
+    // Questions are framed as "how often do you experience this DYSFUNCTION",
+    // so high raw = many symptoms. We invert to display: high score = healthy,
+    // low score = poor (raw 5 → 100, raw 25 → 0).
+    const normalized = Math.round(((25 - raw) / 20) * 100);
     axisResults[axis] = {
       axis,
       raw,
