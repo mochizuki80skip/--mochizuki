@@ -22,7 +22,7 @@ export default async function Home() {
         </span>
       </header>
 
-      <section className="mb-10">
+      <section className="mb-7">
         <h1 className="text-[28px] leading-[1.35] font-black text-ink-900 mb-3">
           身体の状態を、
           <br />
@@ -34,21 +34,40 @@ export default async function Home() {
         </p>
       </section>
 
-      {/* Returning patient shortcut */}
+      {/* Primary actions */}
+      <section className="grid gap-3 mb-10">
+        <Link
+          href="/diagnose"
+          className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-4 shadow-soft hover:bg-accent-400 transition active:scale-[0.99]"
+        >
+          体質診断をはじめる
+        </Link>
+        <Link
+          href={patient ? "/me/dashboard" : "/me"}
+          className="block w-full text-center rounded-full border-2 border-ink-200 text-ink-800 font-black tracking-widest py-3.5 hover:border-accent hover:text-ink-900 transition active:scale-[0.99]"
+        >
+          {patient ? "マイページへ" : "ログイン"}
+        </Link>
+        <p className="text-[11px] text-center text-ink-400 mt-1">
+          初めての方も登録不要で2-3分でお試しいただけます
+        </p>
+      </section>
+
+      {/* Returning patient welcome card (only when logged in) */}
       {patient && (
         <Link
           href="/me/dashboard"
-          className="mb-5 flex items-center justify-between rounded-2xl border border-accent bg-accent-50 px-4 py-4 shadow-soft hover:bg-accent-100 transition"
+          className="mb-10 flex items-center justify-between rounded-2xl border border-accent bg-accent-50 px-4 py-4 shadow-soft hover:bg-accent-100 transition"
         >
           <div>
             <div className="text-[10px] tracking-widest text-accent-600 font-bold mb-0.5">
               ようこそ
             </div>
             <div className="text-base font-black text-ink-900">
-              {patient.name} さんのマイページへ
+              {patient.name} さん
             </div>
             <div className="text-[11px] text-ink-500 mt-0.5">
-              診断履歴の確認 / 新しい診断
+              {patient.chart_number} ・ 診断履歴を見る
             </div>
           </div>
           <span className="text-ink-400 text-2xl leading-none">›</span>
@@ -102,47 +121,14 @@ export default async function Home() {
         </ol>
       </section>
 
-      {/* CTA */}
-      <Link
-        href="/diagnose"
-        className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-4 shadow-soft hover:bg-accent-400 transition active:scale-[0.99]"
-      >
-        体質診断をはじめる
-      </Link>
-      <p className="text-[11px] text-center text-ink-400 mt-3">
-        所要時間およそ2-3分 / 登録不要でお試しいただけます
-      </p>
-
-      {/* Sub navigation: returning patients & staff */}
-      <div className="mt-10 pt-6 border-t border-ink-100">
-        <div className="grid grid-cols-2 gap-2">
-          {!patient && (
-            <Link
-              href="/me"
-              className="text-center rounded-xl border border-ink-200 px-3 py-3 text-sm font-bold text-ink-700 hover:border-accent hover:text-ink-900 transition"
-            >
-              <div className="text-[10px] tracking-widest text-ink-400 mb-0.5">
-                PATIENT
-              </div>
-              通院中の方
-            </Link>
-          )}
-          <Link
-            href={adminAuthed ? "/admin" : "/admin/login"}
-            className={[
-              "text-center rounded-xl border px-3 py-3 text-sm font-bold transition",
-              adminAuthed
-                ? "border-accent bg-accent-50 text-ink-900 hover:bg-accent-100"
-                : "border-ink-200 text-ink-700 hover:border-accent hover:text-ink-900",
-              !patient ? "" : "col-span-2",
-            ].join(" ")}
-          >
-            <div className="text-[10px] tracking-widest text-ink-400 mb-0.5">
-              STAFF
-            </div>
-            {adminAuthed ? "管理画面へ" : "スタッフログイン"}
-          </Link>
-        </div>
+      {/* Staff entry (small, footer-like) */}
+      <div className="pt-6 border-t border-ink-100 text-center">
+        <Link
+          href={adminAuthed ? "/admin" : "/admin/login"}
+          className="inline-block text-[11px] tracking-widest text-ink-400 hover:text-ink-700"
+        >
+          STAFF / {adminAuthed ? "管理画面へ" : "スタッフログイン"}
+        </Link>
       </div>
     </main>
   );
