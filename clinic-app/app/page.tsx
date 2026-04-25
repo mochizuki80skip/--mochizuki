@@ -2,20 +2,24 @@ import Link from "next/link";
 import { getAuthenticatedPatientId, isAdminAuthenticated } from "@/lib/auth";
 import { getPatientById } from "@/lib/db";
 import RadarChart from "@/components/RadarChart";
-import { contentForType } from "@/lib/content";
-import type { AxisKey, AxisResult } from "@/lib/types";
+import { AXIS_LABEL, type AxisKey, type AxisResult } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-// Hard-coded sample result used purely as a marketing preview on the landing
-// page. Picked an off-balance "nerve_excess" shape so the radar chart looks
-// visually interesting (a perfect equilateral triangle reads as "no result").
+// Hard-coded before/after sample shown on the landing page to communicate that
+// the app visualises changes over time. The "previous" snapshot is more
+// off-balance and the "current" one shows clear improvement on every axis,
+// which is the value proposition for returning patients.
+const SAMPLE_PREV_AXES: Record<AxisKey, AxisResult> = {
+  nerve: { axis: "nerve", raw: 22, normalized: 85, level: "strong" },
+  circ: { axis: "circ", raw: 16, normalized: 65, level: "mild" },
+  metab: { axis: "metab", raw: 15, normalized: 60, level: "mild" },
+};
 const SAMPLE_AXES: Record<AxisKey, AxisResult> = {
-  nerve: { axis: "nerve", raw: 19, normalized: 75, level: "off" },
-  circ: { axis: "circ", raw: 13, normalized: 50, level: "mild" },
+  nerve: { axis: "nerve", raw: 16, normalized: 60, level: "mild" },
+  circ: { axis: "circ", raw: 13, normalized: 50, level: "balanced" },
   metab: { axis: "metab", raw: 12, normalized: 45, level: "balanced" },
 };
-const SAMPLE_TYPE = contentForType("nerve_excess");
 
 export default async function Home() {
   const patientId = getAuthenticatedPatientId();
@@ -116,54 +120,96 @@ export default async function Home() {
         ))}
       </section>
 
-      {/* Result preview — gives first-time visitors a concrete idea of the output */}
+      {/* Result preview — show before/after comparison so visitors immediately
+          understand the app tracks improvement over time, not just snapshots. */}
       <section className="mb-10">
         <div className="flex items-center justify-between mb-2">
           <h2 className="text-xs tracking-widest text-ink-400">
-            RESULT PREVIEW
+            BEFORE / AFTER
           </h2>
           <span className="text-[10px] tracking-widest text-accent-600 font-bold bg-accent-50 px-2 py-0.5 rounded-full">
             SAMPLE
           </span>
         </div>
         <p className="text-xs text-ink-500 mb-3 leading-relaxed">
-          診断後、あなただけの結果がこのように表示されます
+          通院前後の体質変化が一目でわかります
         </p>
 
         <div className="rounded-2xl border border-ink-100 bg-white shadow-soft overflow-hidden">
+          {/* Date legend */}
+          <div className="grid grid-cols-2 border-b border-ink-100 text-center">
+            <div className="py-2.5 border-r border-ink-100">
+              <div className="text-[10px] tracking-widest text-ink-400 mb-0.5">
+                前回（初診時）
+              </div>
+              <div className="flex items-center justify-center gap-1.5">
+                <span
+                  aria-hidden
+                  className="inline-block w-3 h-0.5 border-t-2 border-dashed border-ink-400"
+                />
+                <span className="text-xs font-bold text-ink-700 tabular-nums">
+                  3/15
+                </span>
+              </div>
+            </div>
+            <div className="py-2.5 bg-accent-50/40">
+              <div className="text-[10px] tracking-widest text-accent-600 font-bold mb-0.5">
+                今回
+              </div>
+              <div className="flex items-center justify-center gap-1.5">
+                <span
+                  aria-hidden
+                  className="inline-block w-3 h-0.5 bg-accent rounded-full"
+                />
+                <span className="text-xs font-bold text-ink-900 tabular-nums">
+                  4/25
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Comparison radar */}
           <div className="bg-gradient-to-b from-accent-50/60 to-white px-2 pt-3 pb-1 flex justify-center">
-            <RadarChart axes={SAMPLE_AXES} size={260} />
+            <RadarChart
+              axes={SAMPLE_AXES}
+              compare={SAMPLE_PREV_AXES}
+              compareLabel="前回 (3/15)"
+              size={260}
+            />
           </div>
+
+          {/* Per-axis change */}
           <div className="border-t border-ink-100 px-5 py-4">
-            <div className="text-[10px] tracking-widest text-accent-600 font-bold mb-1">
-              YOUR TYPE
+            <div className="text-[10px] tracking-widest text-ink-400 font-bold mb-2">
+              前回からの変化
             </div>
-            <h3 className="text-lg font-black text-ink-900 leading-tight">
-              {SAMPLE_TYPE.name}
-            </h3>
-            <p className="text-xs text-ink-500 leading-relaxed mt-1.5">
-              {SAMPLE_TYPE.tagline}
+            <div className="grid grid-cols-3 gap-2">
+              {(["nerve", "circ", "metab"] as const).map((k) => {
+                const cur = SAMPLE_AXES[k].normalized;
+                const prev = SAMPLE_PREV_AXES[k].normalized;
+                const delta = cur - prev;
+                return (
+                  <div
+                    key={k}
+                    className="rounded-xl border border-ink-100 bg-ink-50 px-2 py-2 text-center"
+                  >
+                    <div className="text-[10px] tracking-widest text-ink-400">
+                      {AXIS_LABEL[k].ja}
+                    </div>
+                    <div className="text-base font-black text-ink-900 tabular-nums leading-tight mt-0.5">
+                      {cur}
+                    </div>
+                    <div className="text-[11px] tabular-nums font-bold text-emerald-600">
+                      {delta > 0 ? "+" : ""}
+                      {delta}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="text-[10px] text-emerald-600 text-center mt-2 font-bold">
+              ↓ 数値が下がるほど不調が改善しています
             </p>
-          </div>
-          <div className="border-t border-ink-100 px-5 py-3 bg-ink-50/60">
-            <div className="text-[10px] tracking-widest text-ink-400 font-bold mb-1.5">
-              改善アドバイス（一部）
-            </div>
-            <ul className="space-y-1">
-              {[
-                ["🌙", SAMPLE_TYPE.advice.sleep[0]],
-                ["🥣", SAMPLE_TYPE.advice.food[0]],
-                ["🚶", SAMPLE_TYPE.advice.exercise[0]],
-              ].map(([emoji, txt], i) => (
-                <li
-                  key={i}
-                  className="text-xs text-ink-700 leading-relaxed flex gap-2"
-                >
-                  <span aria-hidden>{emoji}</span>
-                  <span className="flex-1">{txt}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         </div>
       </section>
