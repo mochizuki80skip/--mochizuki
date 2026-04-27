@@ -44,13 +44,19 @@ export function getClinic(id: string | null | undefined): Clinic | null {
 
 /**
  * Compact name suitable for badges and dense UI. Strips the brand prefix
- * "リカバリー鍼灸院" (with or without a separator) so the badge shows just
+ * "リカバリー鍼灸院" (with or without separators) so the badge shows just
  * the location, e.g. "長泉三島院" instead of "リカバリー鍼灸院長泉三島院".
+ *
+ * Tolerates common separators between the brand and the location name:
+ * - half / full-width space
+ * - ・ (interpunct)
+ * - hyphen / dash variants (-, －, —)
+ * - slashes (/, ／)
  */
 export function getClinicShortName(id: string | null | undefined): string {
   const c = getClinic(id);
   if (!c) return "";
-  return c.name.replace(/^リカバリー鍼灸院[\s　]*/, "");
+  return c.name.replace(/^リカバリー鍼灸院[\s　・／/\-－—]*/, "").trim();
 }
 
 export function isValidClinicId(id: string | null | undefined): id is ClinicId {
