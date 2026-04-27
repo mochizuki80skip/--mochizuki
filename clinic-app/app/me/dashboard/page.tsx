@@ -8,7 +8,6 @@ import SymptomRanking from "@/components/SymptomRanking";
 import PatientHeader from "../PatientHeader";
 import { getClinic } from "@/lib/clinics";
 import { listVisitsForPatient } from "@/lib/db";
-import VisitButton from "./VisitButton";
 import PatientCalendarSection from "./PatientCalendarSection";
 
 export const dynamic = "force-dynamic";
@@ -54,8 +53,6 @@ export default async function PatientDashboard() {
       >
         ＋ 今日の体調を記録する
       </Link>
-
-      <VisitButton recentCount={visits.length} />
 
       {/* Reservation button — opens the clinic-specific external site in a
           new tab. We use the brand's secondary colour (ink-900 / black) with

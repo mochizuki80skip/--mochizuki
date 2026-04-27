@@ -8,7 +8,6 @@ import {
 } from "@/lib/db";
 import { contentForType } from "@/lib/content";
 import { getBaseUrl } from "@/lib/baseUrl";
-import HistoryCalendar from "@/components/HistoryCalendar";
 import TrendChart from "@/components/TrendChart";
 import PatientQRCode from "@/components/PatientQRCode";
 import SymptomHeatmap from "@/components/SymptomHeatmap";
@@ -17,6 +16,7 @@ import AdminHeader from "../../AdminHeader";
 import { getClinic } from "@/lib/clinics";
 import { listVisitsForPatient } from "@/lib/db";
 import RecordVisitButton from "./RecordVisitButton";
+import StaffCalendarSection from "./StaffCalendarSection";
 
 export const dynamic = "force-dynamic";
 
@@ -178,21 +178,20 @@ export default async function PatientDetailPage({
         <h2 className="text-xs tracking-widest text-ink-400 mb-2">
           診断・記録・来院カレンダー
         </h2>
-        <HistoryCalendar
-          diagnoses={diagnoses.map((d) => ({
-            date: d.diagnosed_at,
-            href: `/admin/patients/${patient.id}/diagnoses/${d.id}`,
-          }))}
-          logs={logs.map((l) => ({
-            date: `${l.log_date}T00:00:00`,
-            href: `/admin/patients/${patient.id}/logs/${l.log_date}`,
-          }))}
-          visits={visits.map((v) => ({
-            date: `${v.visit_date}T00:00:00`,
-            // Visit-only days route to that day's log view; even if there's
-            // no log we still show the staff a useful page.
-            href: `/admin/patients/${patient.id}/logs/${v.visit_date}`,
-          }))}
+        <p className="text-[11px] text-ink-400 mb-2">
+          日付をタップすると、その日のデータと来院の追加・取り消しができます
+        </p>
+        {/*
+          Staff version of the patient calendar tap-panel: same UX as the
+          patient mypage calendar, but with admin-side links and the ability
+          to add/delete visits inline (in addition to the existing bulk-edit
+          page which the RecordVisitButton above still leads to).
+        */}
+        <StaffCalendarSection
+          patientId={patient.id}
+          diagnoses={diagnoses}
+          logs={logs}
+          visits={visits}
         />
       </section>
 
