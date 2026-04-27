@@ -105,10 +105,10 @@ export default async function PatientDetailPage({
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
+        <div className="mt-5 grid grid-cols-1 gap-2">
           <Link
             href={`/diagnose?patient=${patient.id}`}
-            className="text-center rounded-full bg-accent text-ink-900 font-bold text-sm py-2.5 shadow-soft hover:bg-accent-400 transition"
+            className="block w-full text-center rounded-full bg-accent text-ink-900 font-bold text-sm py-2.5 shadow-soft hover:bg-accent-400 transition"
           >
             ＋ 体質診断を実施
           </Link>
