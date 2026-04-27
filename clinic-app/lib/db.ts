@@ -3,6 +3,7 @@ import type {
   Answer,
   AxisKey,
   AxisResult,
+  DailyLog,
   DiagnoseType,
   DiagnosisRow,
   Patient,
@@ -252,5 +253,80 @@ export async function updateDiagnosisNote(
     .from("diagnoses")
     .update({ staff_note: note })
     .eq("id", diagnosisId);
+  if (error) throw new Error(error.message);
+}
+
+// --- Daily logs ----------------------------------------------------------
+
+export async function getDailyLog(
+  patientId: string,
+  date: string,
+): Promise<DailyLog | null> {
+  const { data, error } = await getClient()
+    .from("daily_logs")
+    .select("*")
+    .eq("patient_id", patientId)
+    .eq("log_date", date)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data as DailyLog) || null;
+}
+
+export async function listDailyLogsForPatient(
+  patientId: string,
+  fromDate?: string,
+  toDate?: string,
+): Promise<DailyLog[]> {
+  let q = getClient()
+    .from("daily_logs")
+    .select("*")
+    .eq("patient_id", patientId)
+    .order("log_date", { ascending: false });
+  if (fromDate) q = q.gte("log_date", fromDate);
+  if (toDate) q = q.lte("log_date", toDate);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  return (data || []) as DailyLog[];
+}
+
+export type UpsertLogInput = {
+  patient_id: string;
+  log_date: string;
+  mood: number | null;
+  sleep_quality: number | null;
+  symptoms: string[];
+  notes: string | null;
+};
+
+export async function upsertDailyLog(
+  input: UpsertLogInput,
+): Promise<DailyLog> {
+  // Postgres unique(patient_id, log_date) lets us upsert cleanly. We pass the
+  // full record so existing fields get overwritten on save (no partial merges
+  // needed: the form always submits the complete state).
+  const { data, error } = await getClient()
+    .from("daily_logs")
+    .upsert(
+      {
+        ...input,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "patient_id,log_date" },
+    )
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data as DailyLog;
+}
+
+export async function deleteDailyLog(
+  patientId: string,
+  date: string,
+): Promise<void> {
+  const { error } = await getClient()
+    .from("daily_logs")
+    .delete()
+    .eq("patient_id", patientId)
+    .eq("log_date", date);
   if (error) throw new Error(error.message);
 }

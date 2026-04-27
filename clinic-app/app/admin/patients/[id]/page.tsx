@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/guards";
-import { getPatientById, listDiagnosesForPatient } from "@/lib/db";
+import {
+  getPatientById,
+  listDailyLogsForPatient,
+  listDiagnosesForPatient,
+} from "@/lib/db";
 import { contentForType } from "@/lib/content";
 import { getBaseUrl } from "@/lib/baseUrl";
 import HistoryCalendar from "@/components/HistoryCalendar";
 import TrendChart from "@/components/TrendChart";
 import PatientQRCode from "@/components/PatientQRCode";
+import SymptomHeatmap from "@/components/SymptomHeatmap";
+import SymptomRanking from "@/components/SymptomRanking";
 import AdminHeader from "../../AdminHeader";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +32,10 @@ export default async function PatientDetailPage({
   const patient = await getPatientById(params.id);
   if (!patient) notFound();
 
-  const diagnoses = await listDiagnosesForPatient(patient.id);
+  const [diagnoses, logs] = await Promise.all([
+    listDiagnosesForPatient(patient.id),
+    listDailyLogsForPatient(patient.id),
+  ]);
   const baseUrl = getBaseUrl();
   const patientLoginUrl = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}&name=${encodeURIComponent(patient.name)}`;
 
@@ -124,14 +133,27 @@ export default async function PatientDetailPage({
         </div>
       </details>
 
+      {/* Daily log summary surfaces — staff sees mood/symptoms at a glance */}
+      <section className="mb-5 grid gap-3">
+        <SymptomHeatmap
+          logs={logs}
+          hrefForDate={(ymd) => `/admin/patients/${patient.id}/logs/${ymd}`}
+        />
+        <SymptomRanking logs={logs} />
+      </section>
+
       <section className="mb-5">
         <h2 className="text-xs tracking-widest text-ink-400 mb-2">
-          診断履歴 ({diagnoses.length})
+          診断・記録カレンダー
         </h2>
         <HistoryCalendar
-          entries={diagnoses.map((d) => ({
+          diagnoses={diagnoses.map((d) => ({
             date: d.diagnosed_at,
             href: `/admin/patients/${patient.id}/diagnoses/${d.id}`,
+          }))}
+          logs={logs.map((l) => ({
+            date: `${l.log_date}T00:00:00`,
+            href: `/admin/patients/${patient.id}/logs/${l.log_date}`,
           }))}
         />
       </section>

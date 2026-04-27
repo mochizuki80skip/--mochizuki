@@ -4,17 +4,22 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 export type CalendarEntry = {
-  /** ISO timestamp of the diagnosis */
+  /** ISO timestamp or YYYY-MM-DD of the entry */
   date: string;
-  /** Detail page URL to navigate to on tap */
+  /** Detail page URL when this kind of entry is the only one for that day */
   href: string;
-  /** Short label shown on the dot tooltip / list */
-  label?: string;
 };
 
 type Props = {
-  entries: CalendarEntry[];
-  /** "YYYY-MM" string for the initial month (defaults to current month) */
+  diagnoses: CalendarEntry[];
+  /** Optional daily-log entries. Different colour dot, separate href. */
+  logs?: CalendarEntry[];
+  /**
+   * When provided, days without any entry are tappable and route to this
+   * function's result (used by the patient calendar to allow "tap empty day
+   * to add a log"). When omitted, empty days are non-interactive.
+   */
+  emptyDayHref?: (ymd: string) => string | null;
   initialMonth?: string;
 };
 
@@ -23,39 +28,46 @@ const WEEK_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
 function ymKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
-
 function ymdKey(d: Date): string {
   return `${ymKey(d)}-${String(d.getDate()).padStart(2, "0")}`;
 }
-
 function parseYm(s: string): Date {
   const [y, m] = s.split("-").map((n) => parseInt(n, 10));
   return new Date(y, (m || 1) - 1, 1);
 }
 
-export default function HistoryCalendar({ entries, initialMonth }: Props) {
+function indexBy(entries: CalendarEntry[]): Record<string, CalendarEntry[]> {
+  const map: Record<string, CalendarEntry[]> = {};
+  for (const e of entries) {
+    const d = new Date(e.date);
+    const k = ymdKey(d);
+    (map[k] ||= []).push(e);
+  }
+  return map;
+}
+
+export default function HistoryCalendar({
+  diagnoses,
+  logs = [],
+  emptyDayHref,
+  initialMonth,
+}: Props) {
   const today = new Date();
+  const todayKey = ymdKey(today);
   const [cursor, setCursor] = useState<Date>(() =>
-    initialMonth ? parseYm(initialMonth) : new Date(today.getFullYear(), today.getMonth(), 1),
+    initialMonth
+      ? parseYm(initialMonth)
+      : new Date(today.getFullYear(), today.getMonth(), 1),
   );
 
-  // Group entries by ymd key.
-  const byDay = useMemo(() => {
-    const map: Record<string, CalendarEntry[]> = {};
-    for (const e of entries) {
-      const d = new Date(e.date);
-      const k = ymdKey(d);
-      (map[k] ||= []).push(e);
-    }
-    return map;
-  }, [entries]);
+  const diagByDay = useMemo(() => indexBy(diagnoses), [diagnoses]);
+  const logByDay = useMemo(() => indexBy(logs), [logs]);
 
   const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
-  const startWeekday = monthStart.getDay(); // 0 (Sun) - 6 (Sat)
+  const startWeekday = monthStart.getDay();
   const daysInMonth = monthEnd.getDate();
 
-  // Build a 6-row x 7-col grid of cells (some leading/trailing nulls).
   const cells: (Date | null)[] = [];
   for (let i = 0; i < startWeekday; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) {
@@ -63,9 +75,19 @@ export default function HistoryCalendar({ entries, initialMonth }: Props) {
   }
   while (cells.length % 7 !== 0) cells.push(null);
 
-  const monthEntriesCount = entries.filter((e) => {
+  const monthDiagCount = diagnoses.filter((e) => {
     const d = new Date(e.date);
-    return d.getFullYear() === cursor.getFullYear() && d.getMonth() === cursor.getMonth();
+    return (
+      d.getFullYear() === cursor.getFullYear() &&
+      d.getMonth() === cursor.getMonth()
+    );
+  }).length;
+  const monthLogCount = logs.filter((e) => {
+    const d = new Date(e.date);
+    return (
+      d.getFullYear() === cursor.getFullYear() &&
+      d.getMonth() === cursor.getMonth()
+    );
   }).length;
 
   function step(months: number) {
@@ -83,8 +105,15 @@ export default function HistoryCalendar({ entries, initialMonth }: Props) {
           ‹
         </button>
         <div className="text-center">
-          <div className="text-[10px] tracking-widest text-ink-400">
-            {monthEntriesCount} 件の診断履歴
+          <div className="text-[10px] tracking-widest text-ink-400 flex items-center justify-center gap-2">
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent" />
+              診断 {monthDiagCount}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              記録 {monthLogCount}
+            </span>
           </div>
           <div className="text-base font-black text-ink-900 tabular-nums">
             {cursor.getFullYear()}年 {cursor.getMonth() + 1}月
@@ -112,39 +141,69 @@ export default function HistoryCalendar({ entries, initialMonth }: Props) {
 
       <div className="grid grid-cols-7 gap-1">
         {cells.map((d, i) => {
-          if (!d) {
-            return <div key={i} className="aspect-square" />;
-          }
+          if (!d) return <div key={i} className="aspect-square" />;
+
           const key = ymdKey(d);
-          const dayEntries = byDay[key];
-          const isToday = ymdKey(today) === key;
+          const diagEntries = diagByDay[key];
+          const logEntries = logByDay[key];
+          const isToday = todayKey === key;
+          const isFuture = key > todayKey;
           const dow = d.getDay();
-          const dayClass = [
+          const baseDay = [
             "aspect-square flex flex-col items-center justify-center rounded-lg text-sm tabular-nums",
             dow === 0 ? "text-rose-500" : dow === 6 ? "text-sky-500" : "text-ink-700",
             isToday ? "ring-1 ring-accent" : "",
           ].join(" ");
 
-          if (dayEntries && dayEntries.length > 0) {
-            const target = dayEntries[0];
+          // Decide on tap target:
+          //  - log entry exists: open log
+          //  - else diagnosis: open diagnosis
+          //  - else empty + emptyDayHref provided + not future: open new log
+          //  - else: non-interactive
+          let href: string | null = null;
+          if (logEntries?.[0]) href = logEntries[0].href;
+          else if (diagEntries?.[0]) href = diagEntries[0].href;
+          else if (emptyDayHref && !isFuture) href = emptyDayHref(key);
+
+          const dots = (
+            <div className="mt-0.5 flex gap-0.5 items-center justify-center h-2">
+              {diagEntries && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent" />
+              )}
+              {logEntries && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              )}
+            </div>
+          );
+
+          const hasEntry = !!(diagEntries || logEntries);
+          const cellBg = hasEntry
+            ? "bg-accent-50 hover:bg-accent-100"
+            : href
+            ? "hover:bg-ink-50"
+            : "";
+
+          if (href) {
             return (
               <Link
                 key={i}
-                href={target.href}
-                className={`${dayClass} bg-accent-50 hover:bg-accent-100 transition`}
+                href={href}
+                className={`${baseDay} ${cellBg} transition`}
               >
-                <span className="font-bold text-ink-900">{d.getDate()}</span>
-                <span
-                  className="mt-0.5 inline-block w-1.5 h-1.5 rounded-full bg-accent"
-                  aria-hidden
-                />
+                <span className={hasEntry ? "font-bold text-ink-900" : ""}>
+                  {d.getDate()}
+                </span>
+                {dots}
               </Link>
             );
           }
 
           return (
-            <div key={i} className={dayClass}>
-              <span>{d.getDate()}</span>
+            <div key={i} className={baseDay}>
+              <span className={isFuture ? "text-ink-300" : ""}>
+                {d.getDate()}
+              </span>
+              {dots}
             </div>
           );
         })}

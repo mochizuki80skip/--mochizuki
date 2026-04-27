@@ -64,3 +64,15 @@ export type DiagnosisRow = {
   diagnosed_at: string;
   staff_note: string | null;
 };
+
+export type DailyLog = {
+  id: string;
+  patient_id: string;
+  log_date: string;       // YYYY-MM-DD
+  mood: number | null;    // 1..5 (5 = best)
+  sleep_quality: number | null; // 1..5 (5 = best)
+  symptoms: string[];
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
