@@ -14,6 +14,7 @@ import { contentForType } from "@/lib/content";
 import AdminHeader from "../../../AdminHeader";
 import PeriodPicker from "./PeriodPicker";
 import CopySummaryButton from "./CopySummaryButton";
+import PainBodyDiagram from "@/components/PainBodyDiagram";
 
 export const dynamic = "force-dynamic";
 
@@ -165,32 +166,10 @@ export default async function AnalysisPage({
 
       {/* Pains / Symptoms */}
       <section className="mb-5 grid grid-cols-1 gap-3">
-        <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
-          <h2 className="text-[10px] tracking-widest text-ink-400 font-bold mb-2">
-            痛みランキング
-          </h2>
-          {result.pains.length === 0 ? (
-            <p className="text-xs text-ink-500">記録された痛みはありません</p>
-          ) : (
-            <ul className="space-y-1.5">
-              {result.pains.slice(0, 5).map((p) => (
-                <li
-                  key={`${p.area}:${p.side ?? ""}`}
-                  className="flex items-center gap-2 text-xs"
-                >
-                  <span className="text-rose-600 font-bold">●</span>
-                  <span className="font-bold text-ink-900">{p.label}</span>
-                  <span className="ml-auto text-ink-500 tabular-nums">
-                    {p.count}日 / 強度 {p.avgStrength}
-                    <span className="text-[10px] text-ink-400">
-                      （最大{p.maxStrength}）
-                    </span>
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {/* Body silhouette with pain markers — replaces the old plain
+            ranking list. The diagram includes its own ordered list to the
+            right (or below on narrow screens). */}
+        <PainBodyDiagram pains={result.pains} />
         <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
           <h2 className="text-[10px] tracking-widest text-ink-400 font-bold mb-2">
             症状ランキング
