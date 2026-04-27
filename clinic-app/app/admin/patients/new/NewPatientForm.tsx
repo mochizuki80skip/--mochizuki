@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { listClinics } from "@/lib/clinics";
+
+const CLINICS = listClinics();
 
 export default function NewPatientForm() {
   const router = useRouter();
@@ -10,6 +13,7 @@ export default function NewPatientForm() {
   const [name, setName] = useState("");
   const [furigana, setFurigana] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [clinicId, setClinicId] = useState<string>("");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -28,6 +32,7 @@ export default function NewPatientForm() {
           furigana: furigana || null,
           birth_date: birthDate || null,
           notes: notes || null,
+          clinic_id: clinicId || null,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -83,6 +88,8 @@ export default function NewPatientForm() {
         onChange={setBirthDate}
       />
 
+      <ClinicSelector value={clinicId} onChange={setClinicId} />
+
       <div>
         <label
           htmlFor="notes"
@@ -122,6 +129,47 @@ export default function NewPatientForm() {
         </button>
       </div>
     </form>
+  );
+}
+
+export function ClinicSelector({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <label className="block text-xs tracking-widest text-ink-400 mb-1.5">
+        通っている院
+      </label>
+      <div className="grid grid-cols-2 gap-2">
+        {CLINICS.map((c) => {
+          const selected = value === c.id;
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onChange(selected ? "" : c.id)}
+              className={[
+                "rounded-xl border px-3 py-3 text-sm font-bold transition text-center",
+                selected
+                  ? "border-accent bg-accent-50 text-ink-900"
+                  : "border-ink-200 bg-white text-ink-700 hover:border-accent",
+              ].join(" ")}
+              aria-pressed={selected}
+            >
+              {selected && <span className="text-accent-600 mr-1">✓</span>}
+              {c.name}
+            </button>
+          );
+        })}
+      </div>
+      <p className="text-[11px] text-ink-400 mt-1">
+        後から編集画面で変更できます
+      </p>
+    </div>
   );
 }
 

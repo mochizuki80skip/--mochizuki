@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
+import { isValidClinicId } from "@/lib/clinics";
 
 export const runtime = "nodejs";
 
@@ -27,12 +28,18 @@ export async function PATCH(
   }
 
   const updates: Record<string, string | null> = {};
-  const allow: Array<["chart_number" | "name" | "furigana" | "birth_date" | "notes", boolean]> = [
+  const allow: Array<
+    [
+      "chart_number" | "name" | "furigana" | "birth_date" | "notes" | "clinic_id",
+      boolean,
+    ]
+  > = [
     ["chart_number", true],
     ["name", true],
     ["furigana", false],
     ["birth_date", false],
     ["notes", false],
+    ["clinic_id", false],
   ];
 
   for (const [field, required] of allow) {
@@ -43,6 +50,13 @@ export async function PATCH(
       if (required && !trimmed) {
         return NextResponse.json(
           { error: "missing_fields" },
+          { status: 400 },
+        );
+      }
+      // Reject unknown clinic ids so we never write garbage to the column.
+      if (field === "clinic_id" && trimmed && !isValidClinicId(trimmed)) {
+        return NextResponse.json(
+          { error: "invalid_clinic" },
           { status: 400 },
         );
       }

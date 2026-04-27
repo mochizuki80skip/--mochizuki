@@ -101,38 +101,46 @@ export default async function Home() {
       )}
 
       {/* Feature cards */}
-      <section className="grid grid-cols-3 gap-2.5 mb-8">
-        {[
-          { jp: "神経", en: "Nervous", role: "指令" },
-          { jp: "循環", en: "Circulation", role: "供給" },
-          { jp: "代謝", en: "Metabolism", role: "排出" },
-        ].map((a) => (
-          <div
-            key={a.en}
-            className="rounded-xl border border-ink-100 bg-ink-50 px-3 py-3 text-center shadow-soft"
-          >
-            <div className="text-[10px] tracking-widest text-ink-400 mb-0.5">
-              {a.en.toUpperCase()}
+      <section className="mb-8">
+        <h2 className="text-sm font-black text-ink-900 mb-1">
+          身体を3つの軸で見える化
+        </h2>
+        <p className="text-xs text-ink-500 mb-3">
+          神経・循環・代謝のバランスから、あなたの体質タイプを判定します
+        </p>
+        <div className="grid grid-cols-3 gap-2.5">
+          {[
+            { jp: "神経", en: "Nervous", role: "指令" },
+            { jp: "循環", en: "Circulation", role: "供給" },
+            { jp: "代謝", en: "Metabolism", role: "排出" },
+          ].map((a) => (
+            <div
+              key={a.en}
+              className="rounded-xl border border-ink-100 bg-ink-50 px-3 py-3 text-center shadow-soft"
+            >
+              <div className="text-[10px] tracking-widest text-ink-400 mb-0.5">
+                {a.en.toUpperCase()}
+              </div>
+              <div className="text-base font-black text-ink-900">{a.jp}</div>
+              <div className="text-[10px] text-ink-400 mt-0.5">{a.role}</div>
             </div>
-            <div className="text-base font-black text-ink-900">{a.jp}</div>
-            <div className="text-[10px] text-ink-400 mt-0.5">{a.role}</div>
-          </div>
-        ))}
+          ))}
+        </div>
       </section>
 
       {/* Result preview — show before/after comparison so visitors immediately
           understand the app tracks improvement over time, not just snapshots. */}
       <section className="mb-10">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xs tracking-widest text-ink-400">
-            BEFORE / AFTER
+          <h2 className="text-sm font-black text-ink-900">
+            通院前後の変化イメージ
           </h2>
           <span className="text-[10px] tracking-widest text-accent-600 font-bold bg-accent-50 px-2 py-0.5 rounded-full">
-            SAMPLE
+            サンプル
           </span>
         </div>
         <p className="text-xs text-ink-500 mb-3 leading-relaxed">
-          通院前後の体質変化が一目でわかります
+          施術を続けるとこのように体質スコアが伸びていきます
         </p>
 
         <div className="rounded-2xl border border-ink-100 bg-white shadow-soft overflow-hidden">
@@ -216,9 +224,12 @@ export default async function Home() {
 
       {/* Steps */}
       <section className="mb-10">
-        <h2 className="text-xs tracking-widest text-ink-400 mb-3">
-          DIAGNOSE FLOW
+        <h2 className="text-sm font-black text-ink-900 mb-1">
+          体質診断のながれ
         </h2>
+        <p className="text-xs text-ink-500 mb-3">
+          所要時間およそ2〜3分の3ステップ
+        </p>
         <ol className="space-y-3">
           {[
             { n: "01", t: "15問の問診", d: "1問あたり10秒。タップで直感的に回答" },

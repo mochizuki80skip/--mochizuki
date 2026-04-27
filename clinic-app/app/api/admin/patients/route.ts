@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { isAdminAuthenticated } from "@/lib/auth";
 import { createPatient, findPatientByChart } from "@/lib/db";
+import { isValidClinicId } from "@/lib/clinics";
 
 export const runtime = "nodejs";
 
@@ -15,6 +16,7 @@ export async function POST(req: Request) {
     furigana?: unknown;
     birth_date?: unknown;
     notes?: unknown;
+    clinic_id?: unknown;
   };
   try {
     body = await req.json();
@@ -37,6 +39,10 @@ export async function POST(req: Request) {
     typeof body.notes === "string" && body.notes.trim()
       ? body.notes.trim()
       : null;
+  const clinic_id =
+    typeof body.clinic_id === "string" && isValidClinicId(body.clinic_id)
+      ? body.clinic_id
+      : null;
 
   if (!chart_number || !name) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
@@ -53,6 +59,7 @@ export async function POST(req: Request) {
     furigana,
     birth_date,
     notes,
+    clinic_id,
   });
 
   return NextResponse.json({ ok: true, id: patient.id });

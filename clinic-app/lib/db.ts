@@ -75,6 +75,7 @@ export type CreatePatientInput = {
   furigana?: string | null;
   birth_date?: string | null;
   notes?: string | null;
+  clinic_id?: string | null;
 };
 
 export async function createPatient(input: CreatePatientInput): Promise<Patient> {

@@ -51,6 +51,8 @@ export type Patient = {
   furigana: string | null;
   birth_date: string | null;
   notes: string | null;
+  /** Identifier of the clinic this patient primarily attends. */
+  clinic_id: string | null;
   created_at: string;
   updated_at: string;
 };

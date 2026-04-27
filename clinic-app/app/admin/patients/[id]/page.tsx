@@ -14,6 +14,7 @@ import PatientQRCode from "@/components/PatientQRCode";
 import SymptomHeatmap from "@/components/SymptomHeatmap";
 import SymptomRanking from "@/components/SymptomRanking";
 import AdminHeader from "../../AdminHeader";
+import { getClinic } from "@/lib/clinics";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +73,15 @@ export default async function PatientDetailPage({
             編集
           </Link>
         </div>
-        <div className="grid grid-cols-2 gap-3 mt-4 text-xs">
+        <div className="grid grid-cols-3 gap-3 mt-4 text-xs">
+          <div>
+            <div className="text-ink-400 tracking-widest mb-0.5">通院</div>
+            <div className="text-ink-700 truncate">
+              {getClinic(patient.clinic_id)?.name || (
+                <span className="text-ink-400">未設定</span>
+              )}
+            </div>
+          </div>
           <div>
             <div className="text-ink-400 tracking-widest mb-0.5">生年月日</div>
             <div className="text-ink-700 tabular-nums">

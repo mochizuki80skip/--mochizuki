@@ -7,6 +7,7 @@ import TrendChart from "@/components/TrendChart";
 import SymptomHeatmap from "@/components/SymptomHeatmap";
 import SymptomRanking from "@/components/SymptomRanking";
 import PatientHeader from "../PatientHeader";
+import { getClinic } from "@/lib/clinics";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +27,7 @@ export default async function PatientDashboard() {
     listDiagnosesForPatient(patient.id),
     listDailyLogsForPatient(patient.id),
   ]);
+  const clinic = getClinic(patient.clinic_id);
 
   return (
     <main className="mx-auto max-w-md px-5 pt-6 pb-12 fade-up">
@@ -45,10 +47,50 @@ export default async function PatientDashboard() {
 
       <Link
         href={`/me/log/${todayKey()}`}
-        className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition mb-5"
+        className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition mb-3"
       >
         ＋ 今日の体調を記録する
       </Link>
+
+      {/* Reservation button — opens the clinic-specific external site in a
+          new tab. We render it disabled with a helpful note when the patient
+          isn't tied to a clinic yet, or when the URL hasn't been configured. */}
+      {clinic?.reservation_url ? (
+        <a
+          href={clinic.reservation_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mb-5 flex items-center justify-between rounded-full border-2 border-ink-900 bg-white text-ink-900 font-black tracking-widest py-3 px-5 hover:bg-ink-50 transition"
+        >
+          <span className="text-[10px] tracking-widest text-ink-400">
+            {clinic.name}
+          </span>
+          <span className="flex items-center gap-1">
+            来院予約する
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+            >
+              <path
+                d="M14 4h6v6M20 4l-9 9M5 6h5M5 12h3M5 18h11"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        </a>
+      ) : (
+        <div className="mb-5 rounded-full border border-dashed border-ink-200 text-ink-400 text-xs text-center py-3 px-5">
+          {clinic
+            ? "予約サイトURLが未設定です（院にお問い合わせください）"
+            : "通院されている院が未設定です（院にお問い合わせください）"}
+        </div>
+      )}
 
       <section className="mb-5">
         {/*

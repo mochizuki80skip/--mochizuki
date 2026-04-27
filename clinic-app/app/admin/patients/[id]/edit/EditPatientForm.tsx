@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Patient } from "@/lib/types";
+import { ClinicSelector } from "../../new/NewPatientForm";
 
 export default function EditPatientForm({ patient }: { patient: Patient }) {
   const router = useRouter();
@@ -11,6 +12,7 @@ export default function EditPatientForm({ patient }: { patient: Patient }) {
   const [name, setName] = useState(patient.name);
   const [furigana, setFurigana] = useState(patient.furigana || "");
   const [birthDate, setBirthDate] = useState(patient.birth_date || "");
+  const [clinicId, setClinicId] = useState(patient.clinic_id || "");
   const [notes, setNotes] = useState(patient.notes || "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -30,6 +32,7 @@ export default function EditPatientForm({ patient }: { patient: Patient }) {
           furigana: furigana || null,
           birth_date: birthDate || null,
           notes: notes || null,
+          clinic_id: clinicId || null,
         }),
       });
       const json = await res.json().catch(() => ({}));
@@ -109,6 +112,8 @@ export default function EditPatientForm({ patient }: { patient: Patient }) {
         value={birthDate}
         onChange={setBirthDate}
       />
+
+      <ClinicSelector value={clinicId} onChange={setClinicId} />
 
       <div>
         <label
