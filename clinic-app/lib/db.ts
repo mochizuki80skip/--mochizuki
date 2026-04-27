@@ -7,6 +7,7 @@ import type {
   DiagnoseType,
   DiagnosisRow,
   Patient,
+  Visit,
 } from "./types";
 
 let _client: SupabaseClient | null = null;
@@ -410,4 +411,111 @@ export async function deleteDailyLog(
     .eq("patient_id", patientId)
     .eq("log_date", date);
   if (error) throw new Error(error.message);
+}
+
+// --- Visits --------------------------------------------------------------
+
+function logVisitsReadError(where: string, err: unknown) {
+  // eslint-disable-next-line no-console
+  console.error(`[visits] read failed in ${where}:`, err);
+}
+
+export async function listVisitsForPatient(
+  patientId: string,
+  fromDate?: string,
+  toDate?: string,
+): Promise<Visit[]> {
+  try {
+    let q = getClient()
+      .from("visits")
+      .select("*")
+      .eq("patient_id", patientId)
+      .order("visit_date", { ascending: false });
+    if (fromDate) q = q.gte("visit_date", fromDate);
+    if (toDate) q = q.lte("visit_date", toDate);
+    const { data, error } = await q;
+    if (error) {
+      logVisitsReadError("listVisitsForPatient", error);
+      return [];
+    }
+    return (data || []) as Visit[];
+  } catch (e) {
+    logVisitsReadError("listVisitsForPatient (throw)", e);
+    return [];
+  }
+}
+
+export async function getVisitOnDate(
+  patientId: string,
+  date: string,
+): Promise<Visit | null> {
+  try {
+    const { data, error } = await getClient()
+      .from("visits")
+      .select("*")
+      .eq("patient_id", patientId)
+      .eq("visit_date", date)
+      .maybeSingle();
+    if (error) {
+      logVisitsReadError("getVisitOnDate", error);
+      return null;
+    }
+    return (data as Visit) || null;
+  } catch (e) {
+    logVisitsReadError("getVisitOnDate (throw)", e);
+    return null;
+  }
+}
+
+export async function createVisit(input: {
+  patient_id: string;
+  visit_date: string;
+  recorded_by: "patient" | "staff";
+  note?: string | null;
+}): Promise<Visit> {
+  const { data, error } = await getClient()
+    .from("visits")
+    // upsert prevents duplicates because of the (patient_id, visit_date)
+    // unique index — re-tapping "今日来院しました" is a no-op rather than an
+    // error.
+    .upsert(input, { onConflict: "patient_id,visit_date" })
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data as Visit;
+}
+
+export async function deleteVisit(
+  patientId: string,
+  date: string,
+): Promise<void> {
+  const { error } = await getClient()
+    .from("visits")
+    .delete()
+    .eq("patient_id", patientId)
+    .eq("visit_date", date);
+  if (error) throw new Error(error.message);
+}
+
+export async function getLastVisitBefore(
+  patientId: string,
+  beforeIsoDate: string,
+): Promise<Visit | null> {
+  try {
+    const { data, error } = await getClient()
+      .from("visits")
+      .select("*")
+      .eq("patient_id", patientId)
+      .lt("visit_date", beforeIsoDate)
+      .order("visit_date", { ascending: false })
+      .limit(1);
+    if (error) {
+      logVisitsReadError("getLastVisitBefore", error);
+      return null;
+    }
+    return ((data && data[0]) as Visit) || null;
+  } catch (e) {
+    logVisitsReadError("getLastVisitBefore (throw)", e);
+    return null;
+  }
 }

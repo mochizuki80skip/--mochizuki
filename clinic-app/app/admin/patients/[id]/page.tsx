@@ -15,6 +15,8 @@ import SymptomHeatmap from "@/components/SymptomHeatmap";
 import SymptomRanking from "@/components/SymptomRanking";
 import AdminHeader from "../../AdminHeader";
 import { getClinic } from "@/lib/clinics";
+import { listVisitsForPatient } from "@/lib/db";
+import RecordVisitButton from "./RecordVisitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -34,12 +36,15 @@ export default async function PatientDetailPage({
   if (!patient) notFound();
   if (!canAccessPatient(patient, ctx)) redirect("/admin/forbidden");
 
-  const [diagnoses, logs] = await Promise.all([
+  const [diagnoses, logs, visits] = await Promise.all([
     listDiagnosesForPatient(patient.id),
     listDailyLogsForPatient(patient.id),
+    listVisitsForPatient(patient.id),
   ]);
   const baseUrl = getBaseUrl();
   const patientLoginUrl = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}&name=${encodeURIComponent(patient.name)}`;
+  const today = new Date();
+  const todayKeyStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   return (
     <main className="mx-auto max-w-2xl px-5 pt-6 pb-12 fade-up">
@@ -102,16 +107,19 @@ export default async function PatientDetailPage({
           </div>
         )}
 
-        <Link
-          href={`/diagnose?patient=${patient.id}`}
-          className="mt-5 block w-full text-center rounded-full bg-accent text-ink-900 font-bold text-sm py-2.5 shadow-soft hover:bg-accent-400 transition"
-        >
-          ＋ 体質診断を実施
-        </Link>
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <Link
+            href={`/diagnose?patient=${patient.id}`}
+            className="text-center rounded-full bg-accent text-ink-900 font-bold text-sm py-2.5 shadow-soft hover:bg-accent-400 transition"
+          >
+            ＋ 体質診断を実施
+          </Link>
+          <RecordVisitButton patientId={patient.id} todayKey={todayKeyStr} />
+        </div>
       </section>
 
       {/* QR code: hand to patient on first visit */}
-      <details className="rounded-2xl border border-ink-100 bg-white shadow-soft mb-5">
+      <details className="rounded-2xl border border-ink-100 bg-white shadow-soft mb-3">
         <summary className="cursor-pointer px-5 py-3 text-xs tracking-widest text-ink-400 font-bold flex items-center justify-between">
           <span>マイページQRコード</span>
           <span className="text-ink-300 text-base leading-none">＋</span>
@@ -135,6 +143,30 @@ export default async function PatientDetailPage({
         </div>
       </details>
 
+      {/* Period analysis — placed directly below the QR section as requested */}
+      <Link
+        href={`/admin/patients/${patient.id}/analysis`}
+        className="mb-5 flex items-center justify-between rounded-2xl border-2 border-ink-900 bg-white px-5 py-4 shadow-soft hover:bg-ink-50 transition"
+      >
+        <span className="flex items-center gap-3">
+          <span
+            aria-hidden
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent text-ink-900"
+          >
+            📊
+          </span>
+          <span className="flex flex-col items-start">
+            <span className="text-[10px] tracking-widest text-ink-400 leading-none">
+              ANALYSIS
+            </span>
+            <span className="text-sm font-black text-ink-900 leading-tight mt-0.5">
+              体調を分析する
+            </span>
+          </span>
+        </span>
+        <span className="text-ink-300 text-2xl leading-none">›</span>
+      </Link>
+
       {/* Daily log summary surfaces — staff sees mood/symptoms at a glance */}
       <section className="mb-5 space-y-3">
         <SymptomHeatmap
@@ -146,7 +178,7 @@ export default async function PatientDetailPage({
 
       <section className="mb-5">
         <h2 className="text-xs tracking-widest text-ink-400 mb-2">
-          診断・記録カレンダー
+          診断・記録・来院カレンダー
         </h2>
         <HistoryCalendar
           diagnoses={diagnoses.map((d) => ({
@@ -156,6 +188,12 @@ export default async function PatientDetailPage({
           logs={logs.map((l) => ({
             date: `${l.log_date}T00:00:00`,
             href: `/admin/patients/${patient.id}/logs/${l.log_date}`,
+          }))}
+          visits={visits.map((v) => ({
+            date: `${v.visit_date}T00:00:00`,
+            // Visit-only days route to that day's log view; even if there's
+            // no log we still show the staff a useful page.
+            href: `/admin/patients/${patient.id}/logs/${v.visit_date}`,
           }))}
         />
       </section>

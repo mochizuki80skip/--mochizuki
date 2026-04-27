@@ -8,6 +8,8 @@ import SymptomHeatmap from "@/components/SymptomHeatmap";
 import SymptomRanking from "@/components/SymptomRanking";
 import PatientHeader from "../PatientHeader";
 import { getClinic } from "@/lib/clinics";
+import { listVisitsForPatient } from "@/lib/db";
+import VisitButton from "./VisitButton";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +25,14 @@ function todayKey(): string {
 
 export default async function PatientDashboard() {
   const patient = await requirePatient();
-  const [diagnoses, logs] = await Promise.all([
+  const [diagnoses, logs, visits] = await Promise.all([
     listDiagnosesForPatient(patient.id),
     listDailyLogsForPatient(patient.id),
+    listVisitsForPatient(patient.id),
   ]);
   const clinic = getClinic(patient.clinic_id);
+  const today = todayKey();
+  const recordedToday = visits.some((v) => v.visit_date === today);
 
   return (
     <main className="mx-auto max-w-md px-5 pt-6 pb-12 fade-up">
@@ -51,6 +56,8 @@ export default async function PatientDashboard() {
       >
         ＋ 今日の体調を記録する
       </Link>
+
+      <VisitButton recordedToday={recordedToday} todayKey={today} />
 
       {/* Reservation button — opens the clinic-specific external site in a
           new tab. We use the brand's secondary colour (ink-900 / black) with
@@ -130,6 +137,12 @@ export default async function PatientDashboard() {
           logs={logs.map((l) => ({
             date: `${l.log_date}T00:00:00`,
             href: `/me/log/${l.log_date}`,
+          }))}
+          visits={visits.map((v) => ({
+            date: `${v.visit_date}T00:00:00`,
+            // Patients land on the day record when tapping a visit-only day
+            // since there's no dedicated "visit detail" view for them.
+            href: `/me/log/${v.visit_date}`,
           }))}
           emptyDayBasePath="/me/log"
         />

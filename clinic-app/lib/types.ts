@@ -83,6 +83,15 @@ export type DailyLog = {
   updated_at: string;
 };
 
+export type Visit = {
+  id: string;
+  patient_id: string;
+  visit_date: string;     // YYYY-MM-DD
+  recorded_by: "patient" | "staff";
+  note: string | null;
+  created_at: string;
+};
+
 export type PainRecord = {
   area: string;
   side: "left" | "right" | "both" | null;

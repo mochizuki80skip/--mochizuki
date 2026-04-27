@@ -14,6 +14,8 @@ type Props = {
   diagnoses: CalendarEntry[];
   /** Optional daily-log entries. Different colour dot, separate href. */
   logs?: CalendarEntry[];
+  /** Optional visit entries. Third colour dot. */
+  visits?: CalendarEntry[];
   /**
    * When provided, days without any entry are tappable and route to
    * `${emptyDayBasePath}/${YYYY-MM-DD}` (e.g. "/me/log" → "/me/log/2026-04-27").
@@ -49,6 +51,7 @@ function indexBy(entries: CalendarEntry[]): Record<string, CalendarEntry[]> {
 export default function HistoryCalendar({
   diagnoses,
   logs = [],
+  visits = [],
   emptyDayBasePath,
   initialMonth,
 }: Props) {
@@ -62,6 +65,7 @@ export default function HistoryCalendar({
 
   const diagByDay = useMemo(() => indexBy(diagnoses), [diagnoses]);
   const logByDay = useMemo(() => indexBy(logs), [logs]);
+  const visitByDay = useMemo(() => indexBy(visits), [visits]);
 
   const monthStart = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
   const monthEnd = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0);
@@ -89,6 +93,13 @@ export default function HistoryCalendar({
       d.getMonth() === cursor.getMonth()
     );
   }).length;
+  const monthVisitCount = visits.filter((e) => {
+    const d = new Date(e.date);
+    return (
+      d.getFullYear() === cursor.getFullYear() &&
+      d.getMonth() === cursor.getMonth()
+    );
+  }).length;
 
   function step(months: number) {
     setCursor(new Date(cursor.getFullYear(), cursor.getMonth() + months, 1));
@@ -105,7 +116,7 @@ export default function HistoryCalendar({
           ‹
         </button>
         <div className="text-center">
-          <div className="text-[10px] tracking-widest text-ink-400 flex items-center justify-center gap-2">
+          <div className="text-[10px] tracking-widest text-ink-400 flex items-center justify-center gap-2 flex-wrap">
             <span className="flex items-center gap-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent" />
               診断 {monthDiagCount}
@@ -113,6 +124,10 @@ export default function HistoryCalendar({
             <span className="flex items-center gap-1">
               <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
               記録 {monthLogCount}
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500" />
+              来院 {monthVisitCount}
             </span>
           </div>
           <div className="text-base font-black text-ink-900 tabular-nums">
@@ -146,6 +161,7 @@ export default function HistoryCalendar({
           const key = ymdKey(d);
           const diagEntries = diagByDay[key];
           const logEntries = logByDay[key];
+          const visitEntries = visitByDay[key];
           const isToday = todayKey === key;
           const isFuture = key > todayKey;
           const dow = d.getDay();
@@ -158,11 +174,13 @@ export default function HistoryCalendar({
           // Decide on tap target:
           //  - log entry exists: open log
           //  - else diagnosis: open diagnosis
+          //  - else visit only: open visit's href
           //  - else empty + emptyDayHref provided + not future: open new log
           //  - else: non-interactive
           let href: string | null = null;
           if (logEntries?.[0]) href = logEntries[0].href;
           else if (diagEntries?.[0]) href = diagEntries[0].href;
+          else if (visitEntries?.[0]) href = visitEntries[0].href;
           else if (emptyDayBasePath && !isFuture)
             href = `${emptyDayBasePath}/${key}`;
 
@@ -174,10 +192,13 @@ export default function HistoryCalendar({
               {logEntries && (
                 <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
               )}
+              {visitEntries && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500" />
+              )}
             </div>
           );
 
-          const hasEntry = !!(diagEntries || logEntries);
+          const hasEntry = !!(diagEntries || logEntries || visitEntries);
           const cellBg = hasEntry
             ? "bg-accent-50 hover:bg-accent-100"
             : href
