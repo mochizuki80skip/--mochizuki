@@ -42,8 +42,8 @@ export default function SymptomRanking({
   const max = ranked[0][1];
 
   return (
-    <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
-      <div className="flex items-baseline justify-between mb-3">
+    <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft min-w-0">
+      <div className="flex items-baseline justify-between mb-3 gap-2">
         <h2 className="text-[10px] tracking-widest text-ink-400 font-bold">
           多かった不調 (過去 {days} 日)
         </h2>

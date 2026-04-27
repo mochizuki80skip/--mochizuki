@@ -134,7 +134,7 @@ export default async function PatientDetailPage({
       </details>
 
       {/* Daily log summary surfaces — staff sees mood/symptoms at a glance */}
-      <section className="mb-5 grid gap-3">
+      <section className="mb-5 space-y-3">
         <SymptomHeatmap
           logs={logs}
           hrefForDate={(ymd) => `/admin/patients/${patient.id}/logs/${ymd}`}

@@ -40,15 +40,14 @@ export default function SymptomHeatmap({
   }
 
   return (
-    <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
+    <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft min-w-0">
       <div className="text-[10px] tracking-widest text-ink-400 mb-2 font-bold">
         最近 {days} 日の体調
       </div>
-      <div className="overflow-x-auto -mx-1 px-1">
-        <div
-          className="grid gap-1"
-          style={{ gridTemplateColumns: `repeat(${cells.length}, minmax(36px, 1fr))` }}
-        >
+      {/* Pull the scroll viewport to the card edges so the swipe affordance
+          reads cleanly on mobile, then re-add visual padding inside. */}
+      <div className="-mx-4 overflow-x-auto">
+        <div className="flex gap-1 px-4 pb-1">
           {cells.map(({ date, key, log }) => {
             const m = log ? moodFor(log.mood) : null;
             const symptomCount = log?.symptoms?.length ?? 0;
@@ -59,10 +58,10 @@ export default function SymptomHeatmap({
               <Link
                 key={key}
                 href={hrefForDate(key)}
-                className={`flex flex-col items-center justify-start py-1.5 rounded-lg transition ${cellBg}`}
+                className={`shrink-0 w-11 flex flex-col items-center justify-start py-1.5 rounded-lg transition ${cellBg}`}
                 aria-label={`${date.toLocaleDateString()} の記録`}
               >
-                <div className="text-[10px] tracking-widest text-ink-400">
+                <div className="text-[10px] tracking-widest text-ink-400 whitespace-nowrap">
                   {shortLabel(date)}
                 </div>
                 <div className="text-xl leading-none mt-1 h-6 flex items-center">
