@@ -258,6 +258,16 @@ export async function updateDiagnosisNote(
 
 // --- Daily logs ----------------------------------------------------------
 
+// Postgres "relation does not exist" error code. We treat it as "feature not
+// installed yet" so pages keep rendering until the migration is applied.
+const ERR_TABLE_MISSING = "42P01";
+
+function isMissingTable(err: { code?: string; message?: string } | null) {
+  if (!err) return false;
+  if (err.code === ERR_TABLE_MISSING) return true;
+  return /relation .*daily_logs.* does not exist/i.test(err.message || "");
+}
+
 export async function getDailyLog(
   patientId: string,
   date: string,
@@ -268,7 +278,10 @@ export async function getDailyLog(
     .eq("patient_id", patientId)
     .eq("log_date", date)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingTable(error)) return null;
+    throw new Error(error.message);
+  }
   return (data as DailyLog) || null;
 }
 
@@ -285,7 +298,10 @@ export async function listDailyLogsForPatient(
   if (fromDate) q = q.gte("log_date", fromDate);
   if (toDate) q = q.lte("log_date", toDate);
   const { data, error } = await q;
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (isMissingTable(error)) return [];
+    throw new Error(error.message);
+  }
   return (data || []) as DailyLog[];
 }
 
