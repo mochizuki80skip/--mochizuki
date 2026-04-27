@@ -4,6 +4,7 @@ import { listDailyLogsForPatient, listDiagnosesForPatient } from "@/lib/db";
 import { contentForType } from "@/lib/content";
 import HistoryCalendar from "@/components/HistoryCalendar";
 import TrendChart from "@/components/TrendChart";
+import SymptomRanking from "@/components/SymptomRanking";
 import PatientHeader from "../PatientHeader";
 
 export const dynamic = "force-dynamic";
@@ -37,30 +38,27 @@ export default async function PatientDashboard() {
           {patient.name} さんのマイページ
         </h1>
         <p className="text-xs text-ink-500 mt-1">
-          カレンダーの日付をタップすると、その日の体調を記録できます
+          カレンダーの日付をタップすると、その日の体調を記録・確認できます
         </p>
       </section>
 
-      <div className="grid gap-2.5 mb-5">
-        <Link
-          href={`/me/log/${todayKey()}`}
-          className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition"
-        >
-          ＋ 今日の体調を記録する
-        </Link>
-        <Link
-          href={`/diagnose?patient=${patient.id}`}
-          className="block w-full text-center rounded-full border-2 border-ink-200 text-ink-700 font-bold tracking-widest py-3 hover:border-accent hover:text-ink-900 transition text-sm"
-        >
-          体質診断をする
-        </Link>
-      </div>
+      <Link
+        href={`/me/log/${todayKey()}`}
+        className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition mb-5"
+      >
+        ＋ 今日の体調を記録する
+      </Link>
 
       <section className="mb-5">
+        {/*
+          On the patient calendar every day routes through /me/log/[date]
+          (including diagnosis-only days) so the patient can fill in the day
+          record AND see the diagnosis link from the same screen.
+        */}
         <HistoryCalendar
           diagnoses={diagnoses.map((d) => ({
             date: d.diagnosed_at,
-            href: `/me/diagnoses/${d.id}`,
+            href: `/me/log/${d.diagnosed_at.slice(0, 10)}`,
           }))}
           logs={logs.map((l) => ({
             date: `${l.log_date}T00:00:00`,
@@ -68,6 +66,10 @@ export default async function PatientDashboard() {
           }))}
           emptyDayBasePath="/me/log"
         />
+      </section>
+
+      <section className="mb-5">
+        <SymptomRanking logs={logs} days={14} />
       </section>
 
       {diagnoses.length >= 2 && (
