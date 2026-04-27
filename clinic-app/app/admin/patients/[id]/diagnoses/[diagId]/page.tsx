@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/guards";
+import { notFound, redirect } from "next/navigation";
+import { canAccessPatient, requireAdmin } from "@/lib/guards";
 import { getPatientById, listDiagnosesForPatient } from "@/lib/db";
 import { contentForType } from "@/lib/content";
 import RadarChart from "@/components/RadarChart";
@@ -25,10 +25,11 @@ export default async function DiagnosisAdminDetailPage({
 }: {
   params: { id: string; diagId: string };
 }) {
-  requireAdmin();
+  const ctx = requireAdmin();
 
   const patient = await getPatientById(params.id);
   if (!patient) notFound();
+  if (!canAccessPatient(patient, ctx)) redirect("/admin/forbidden");
   const all = await listDiagnosesForPatient(patient.id);
   const row = all.find((d) => d.id === params.diagId);
   if (!row) notFound();
@@ -46,7 +47,7 @@ export default async function DiagnosisAdminDetailPage({
 
   return (
     <main className="mx-auto max-w-md px-5 pt-6 pb-12">
-      <AdminHeader />
+      <AdminHeader role={ctx.role} />
       <div className="mb-3 flex items-center gap-3">
         <Link
           href={`/admin/patients/${patient.id}`}

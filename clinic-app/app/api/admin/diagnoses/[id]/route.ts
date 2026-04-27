@@ -1,6 +1,10 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/auth";
-import { updateDiagnosisNote } from "@/lib/db";
+import { canAccessPatient, getAdminContext } from "@/lib/guards";
+import {
+  getDiagnosis,
+  getPatientById,
+  updateDiagnosisNote,
+} from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -8,9 +12,21 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string } },
 ) {
-  if (!isAdminAuthenticated()) {
+  const ctx = getAdminContext();
+  if (!ctx) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+
+  // Ownership check via the parent patient.
+  const diag = await getDiagnosis(params.id);
+  if (!diag || !diag.patient_id) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+  const patient = await getPatientById(diag.patient_id);
+  if (!canAccessPatient(patient, ctx)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  }
+
   let body: { staff_note?: unknown };
   try {
     body = await req.json();

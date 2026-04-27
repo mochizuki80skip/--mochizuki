@@ -24,11 +24,15 @@ function getClient(): SupabaseClient {
   return _client;
 }
 
-export async function listPatients(): Promise<Patient[]> {
-  const { data, error } = await getClient()
+export async function listPatients(clinicId?: string | null): Promise<Patient[]> {
+  let query = getClient()
     .from("patients")
     .select("*")
     .order("updated_at", { ascending: false });
+  // When a specific clinic id is provided, scope results. Pass null/undefined
+  // (or call without args) to see every patient — the master view.
+  if (clinicId) query = query.eq("clinic_id", clinicId);
+  const { data, error } = await query;
   if (error) throw new Error(error.message);
   return (data || []) as Patient[];
 }
@@ -47,24 +51,32 @@ export async function findPatientByChartAndName(
   chartNumber: string,
   name: string,
 ): Promise<Patient | null> {
+  // .limit(1) instead of maybeSingle so cross-clinic chart_number duplicates
+  // don't blow up the verify endpoint. We accept the rare case of two clinics
+  // sharing both number and exact name (effectively zero in practice).
   const { data, error } = await getClient()
     .from("patients")
     .select("*")
     .eq("chart_number", chartNumber)
     .eq("name", name)
-    .maybeSingle();
+    .order("updated_at", { ascending: false })
+    .limit(1);
   if (error) throw new Error(error.message);
-  return (data as Patient) || null;
+  return ((data && data[0]) as Patient) || null;
 }
 
 export async function findPatientByChart(
   chartNumber: string,
+  clinicId?: string | null,
 ): Promise<Patient | null> {
-  const { data, error } = await getClient()
+  let query = getClient()
     .from("patients")
     .select("*")
-    .eq("chart_number", chartNumber)
-    .maybeSingle();
+    .eq("chart_number", chartNumber);
+  // When a clinic is specified we look only within that clinic's chart space —
+  // numbers are now allowed to repeat between the two clinics.
+  if (clinicId) query = query.eq("clinic_id", clinicId);
+  const { data, error } = await query.maybeSingle();
   if (error) throw new Error(error.message);
   return (data as Patient) || null;
 }
@@ -166,27 +178,46 @@ export type DashboardStats = {
   todaysBirthdays: Patient[];
 };
 
-export async function getDashboardStats(): Promise<DashboardStats> {
+export async function getDashboardStats(
+  clinicId?: string | null,
+): Promise<DashboardStats> {
   const sb = getClient();
 
-  const [{ data: patients }, { data: thisMonthDiag }, { data: typeDiag }] =
-    await Promise.all([
-      sb.from("patients").select("*"),
-      sb
-        .from("diagnoses")
-        .select("id, diagnosed_at, patient_id")
-        .gte(
-          "diagnosed_at",
-          new Date(
-            new Date().getFullYear(),
-            new Date().getMonth(),
-            1,
-          ).toISOString(),
-        ),
-      sb.from("diagnoses").select("type_key, patient_id, diagnosed_at"),
-    ]);
-
+  // Patients first, scoped to the admin's clinic when provided.
+  let patientsQuery = sb.from("patients").select("*");
+  if (clinicId) patientsQuery = patientsQuery.eq("clinic_id", clinicId);
+  const { data: patients } = await patientsQuery;
   const allPatients = (patients || []) as Patient[];
+  const patientIds = allPatients.map((p) => p.id);
+
+  // Short-circuit when there are no patients in scope: skip the diagnoses
+  // round-trips entirely.
+  if (patientIds.length === 0) {
+    return {
+      totalPatients: 0,
+      diagnosesThisMonth: 0,
+      typeDistribution: {},
+      staleCount: 0,
+      todaysBirthdays: [],
+    };
+  }
+
+  const monthStart = new Date(
+    new Date().getFullYear(),
+    new Date().getMonth(),
+    1,
+  ).toISOString();
+  const [{ data: thisMonthDiag }, { data: typeDiag }] = await Promise.all([
+    sb
+      .from("diagnoses")
+      .select("id, diagnosed_at, patient_id")
+      .gte("diagnosed_at", monthStart)
+      .in("patient_id", patientIds),
+    sb
+      .from("diagnoses")
+      .select("type_key, patient_id, diagnosed_at")
+      .in("patient_id", patientIds),
+  ]);
 
   // Latest diagnosis per patient for stale calculation.
   const latestMap: Record<string, number> = {};

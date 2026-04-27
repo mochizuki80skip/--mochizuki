@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/guards";
+import { notFound, redirect } from "next/navigation";
+import { canAccessPatient, requireAdmin } from "@/lib/guards";
 import { getDailyLog, getPatientById } from "@/lib/db";
 import {
   BODY_PART_LABEL,
@@ -28,11 +28,12 @@ export default async function StaffLogView({
 }: {
   params: { id: string; date: string };
 }) {
-  requireAdmin();
+  const ctx = requireAdmin();
   if (!DATE_RE.test(params.date)) notFound();
 
   const patient = await getPatientById(params.id);
   if (!patient) notFound();
+  if (!canAccessPatient(patient, ctx)) redirect("/admin/forbidden");
   const log = await getDailyLog(patient.id, params.date);
 
   const mood = log ? moodFor(log.mood) : null;
@@ -46,7 +47,7 @@ export default async function StaffLogView({
 
   return (
     <main className="mx-auto max-w-md px-5 pt-6 pb-12 fade-up">
-      <AdminHeader />
+      <AdminHeader role={ctx.role} />
       <div className="mb-3">
         <Link
           href={`/admin/patients/${patient.id}`}

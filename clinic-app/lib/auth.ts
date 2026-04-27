@@ -6,10 +6,22 @@ const PATIENT_COOKIE = "kc_patient";
 const ADMIN_MAX_AGE = 60 * 60 * 8;          // 8 hours
 const PATIENT_MAX_AGE = 60 * 60 * 24 * 30;  // 30 days
 
+export type AdminRole = "master" | "main" | "branch";
+
+const ADMIN_VALUES = new Set<string>(["master", "main", "branch"]);
+
 function getSecret(): string {
-  // ADMIN_PASSWORD doubles as the HMAC secret. If unset, we fall back to a
-  // dev-only marker — production envs always have it.
-  return process.env.ADMIN_PASSWORD || "kc-dev-secret-do-not-use";
+  // We sign cookies with whichever password is available; the value of the
+  // secret doesn't need to be predictable, only consistent across the same
+  // server. ADMIN_PASSWORD_MASTER is preferred, falling back through the
+  // other keys, then the legacy single password.
+  return (
+    process.env.ADMIN_PASSWORD_MASTER ||
+    process.env.ADMIN_PASSWORD ||
+    process.env.ADMIN_PASSWORD_MAIN ||
+    process.env.ADMIN_PASSWORD_BRANCH ||
+    "kc-dev-secret-do-not-use"
+  );
 }
 
 function sign(value: string): string {
@@ -46,8 +58,8 @@ const baseOpts = {
 
 // --- Admin ----------------------------------------------------------------
 
-export function setAdminCookie() {
-  cookies().set(ADMIN_COOKIE, pack("admin"), {
+export function setAdminCookie(role: AdminRole) {
+  cookies().set(ADMIN_COOKIE, pack(role), {
     ...baseOpts,
     maxAge: ADMIN_MAX_AGE,
   });
@@ -57,15 +69,43 @@ export function clearAdminCookie() {
   cookies().delete(ADMIN_COOKIE);
 }
 
-export function isAdminAuthenticated(): boolean {
-  return unpack(cookies().get(ADMIN_COOKIE)?.value) === "admin";
+export function getAdminRole(): AdminRole | null {
+  const v = unpack(cookies().get(ADMIN_COOKIE)?.value);
+  if (!v) return null;
+  // Backward compatibility: legacy cookies stored "admin" — treat as master.
+  if (v === "admin") return "master";
+  return ADMIN_VALUES.has(v) ? (v as AdminRole) : null;
 }
 
-export function checkAdminPassword(input: string): boolean {
-  const expected = process.env.ADMIN_PASSWORD;
-  if (!expected) return false;
-  if (input.length !== expected.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(input), Buffer.from(expected));
+export function isAdminAuthenticated(): boolean {
+  return getAdminRole() !== null;
+}
+
+function timingEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(a), Buffer.from(b));
+}
+
+/**
+ * Check the entered password against the configured roles. Returns the
+ * matching role, or null if no password matches.
+ *
+ * The legacy ADMIN_PASSWORD env var is treated as the master password so
+ * existing deployments continue to work without env-var churn.
+ */
+export function checkAdminPassword(input: string): AdminRole | null {
+  if (!input) return null;
+  const candidates: Array<[AdminRole, string | undefined]> = [
+    ["master", process.env.ADMIN_PASSWORD_MASTER],
+    ["master", process.env.ADMIN_PASSWORD], // legacy fallback
+    ["main", process.env.ADMIN_PASSWORD_MAIN],
+    ["branch", process.env.ADMIN_PASSWORD_BRANCH],
+  ];
+  for (const [role, expected] of candidates) {
+    if (!expected) continue;
+    if (timingEqual(input, expected)) return role;
+  }
+  return null;
 }
 
 // --- Patient --------------------------------------------------------------

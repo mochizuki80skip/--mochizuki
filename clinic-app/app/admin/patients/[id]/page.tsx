@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/guards";
+import { notFound, redirect } from "next/navigation";
+import { canAccessPatient, requireAdmin } from "@/lib/guards";
 import {
   getPatientById,
   listDailyLogsForPatient,
@@ -28,10 +28,11 @@ export default async function PatientDetailPage({
 }: {
   params: { id: string };
 }) {
-  requireAdmin();
+  const ctx = requireAdmin();
 
   const patient = await getPatientById(params.id);
   if (!patient) notFound();
+  if (!canAccessPatient(patient, ctx)) redirect("/admin/forbidden");
 
   const [diagnoses, logs] = await Promise.all([
     listDiagnosesForPatient(patient.id),
@@ -42,7 +43,7 @@ export default async function PatientDetailPage({
 
   return (
     <main className="mx-auto max-w-2xl px-5 pt-6 pb-12 fade-up">
-      <AdminHeader />
+      <AdminHeader role={ctx.role} />
 
       <div className="mb-3">
         <Link

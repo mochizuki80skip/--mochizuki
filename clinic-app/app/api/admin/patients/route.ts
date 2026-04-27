@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { getAdminContext } from "@/lib/guards";
 import { createPatient, findPatientByChart } from "@/lib/db";
 import { isValidClinicId } from "@/lib/clinics";
 
 export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  if (!isAdminAuthenticated()) {
+  const ctx = getAdminContext();
+  if (!ctx) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
@@ -39,16 +40,28 @@ export async function POST(req: Request) {
     typeof body.notes === "string" && body.notes.trim()
       ? body.notes.trim()
       : null;
-  const clinic_id =
-    typeof body.clinic_id === "string" && isValidClinicId(body.clinic_id)
-      ? body.clinic_id
-      : null;
+
+  // Clinic admins always create within their own clinic. Master can pick.
+  let clinic_id: string | null;
+  if (ctx.role === "master") {
+    clinic_id =
+      typeof body.clinic_id === "string" && isValidClinicId(body.clinic_id)
+        ? body.clinic_id
+        : null;
+  } else {
+    clinic_id = ctx.clinicId;
+  }
 
   if (!chart_number || !name) {
     return NextResponse.json({ error: "missing_fields" }, { status: 400 });
   }
+  if (!clinic_id) {
+    return NextResponse.json({ error: "clinic_required" }, { status: 400 });
+  }
 
-  const existing = await findPatientByChart(chart_number);
+  // Chart numbers are unique only within a clinic — duplicates between the
+  // two clinics are intentionally allowed.
+  const existing = await findPatientByChart(chart_number, clinic_id);
   if (existing) {
     return NextResponse.json({ error: "chart_number_taken" }, { status: 409 });
   }

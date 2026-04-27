@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/guards";
+import { notFound, redirect } from "next/navigation";
+import { canAccessPatient, requireAdmin } from "@/lib/guards";
 import { getPatientById } from "@/lib/db";
 import AdminHeader from "../../../AdminHeader";
 import EditPatientForm from "./EditPatientForm";
@@ -12,13 +12,14 @@ export default async function EditPatientPage({
 }: {
   params: { id: string };
 }) {
-  requireAdmin();
+  const ctx = requireAdmin();
   const patient = await getPatientById(params.id);
   if (!patient) notFound();
+  if (!canAccessPatient(patient, ctx)) redirect("/admin/forbidden");
 
   return (
     <main className="mx-auto max-w-md px-5 pt-6 pb-12 fade-up">
-      <AdminHeader />
+      <AdminHeader role={ctx.role} />
       <div className="mb-3">
         <Link
           href={`/admin/patients/${patient.id}`}
@@ -35,7 +36,7 @@ export default async function EditPatientPage({
         変更後は「保存」をタップしてください。診断履歴は影響を受けません。
       </p>
 
-      <EditPatientForm patient={patient} />
+      <EditPatientForm patient={patient} masterMode={ctx.role === "master"} />
     </main>
   );
 }

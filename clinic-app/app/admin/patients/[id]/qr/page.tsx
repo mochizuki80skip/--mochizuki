@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/guards";
+import { notFound, redirect } from "next/navigation";
+import { canAccessPatient, requireAdmin } from "@/lib/guards";
 import { getPatientById } from "@/lib/db";
 import { getBaseUrl } from "@/lib/baseUrl";
 import PatientQRCode from "@/components/PatientQRCode";
@@ -13,9 +13,10 @@ export default async function PatientQRPrintPage({
 }: {
   params: { id: string };
 }) {
-  requireAdmin();
+  const ctx = requireAdmin();
   const patient = await getPatientById(params.id);
   if (!patient) notFound();
+  if (!canAccessPatient(patient, ctx)) redirect("/admin/forbidden");
 
   const baseUrl = getBaseUrl();
   const url = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}&name=${encodeURIComponent(patient.name)}`;

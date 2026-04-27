@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { isAdminAuthenticated } from "@/lib/auth";
 import { createClient } from "@supabase/supabase-js";
 import { isValidClinicId } from "@/lib/clinics";
+import { canAccessPatient, getAdminContext } from "@/lib/guards";
+import { getPatientById } from "@/lib/db";
 
 export const runtime = "nodejs";
 
@@ -16,8 +17,17 @@ export async function PATCH(
   req: Request,
   { params }: { params: { id: string } },
 ) {
-  if (!isAdminAuthenticated()) {
+  const ctx = getAdminContext();
+  if (!ctx) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  }
+  // Ownership check before doing anything else.
+  const target = await getPatientById(params.id);
+  if (!target) {
+    return NextResponse.json({ error: "not_found" }, { status: 404 });
+  }
+  if (!canAccessPatient(target, ctx)) {
+    return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
 
   let body: Record<string, unknown>;
@@ -44,6 +54,13 @@ export async function PATCH(
 
   for (const [field, required] of allow) {
     if (!(field in body)) continue;
+    // Only the master can transfer patients between clinics.
+    if (field === "clinic_id" && ctx.role !== "master") {
+      return NextResponse.json(
+        { error: "clinic_change_master_only" },
+        { status: 403 },
+      );
+    }
     const v = body[field];
     if (typeof v === "string") {
       const trimmed = v.trim();
@@ -53,7 +70,6 @@ export async function PATCH(
           { status: 400 },
         );
       }
-      // Reject unknown clinic ids so we never write garbage to the column.
       if (field === "clinic_id" && trimmed && !isValidClinicId(trimmed)) {
         return NextResponse.json(
           { error: "invalid_clinic" },
@@ -77,14 +93,22 @@ export async function PATCH(
   }
   updates.updated_at = new Date().toISOString();
 
-  // If chart_number is being changed, ensure it doesn't conflict.
+  // Chart number duplication check, scoped to the resulting clinic. If the
+  // master is also moving the patient to another clinic, the destination
+  // clinic's chart space is what matters.
   if (typeof updates.chart_number === "string") {
-    const { data: existing } = await client()
+    const destClinic =
+      "clinic_id" in updates
+        ? updates.clinic_id
+        : target.clinic_id;
+    let q = client()
       .from("patients")
       .select("id")
       .eq("chart_number", updates.chart_number)
-      .neq("id", params.id)
-      .maybeSingle();
+      .neq("id", params.id);
+    if (destClinic) q = q.eq("clinic_id", destClinic);
+    else q = q.is("clinic_id", null);
+    const { data: existing } = await q.maybeSingle();
     if (existing) {
       return NextResponse.json(
         { error: "chart_number_taken" },
@@ -108,10 +132,16 @@ export async function DELETE(
   _req: Request,
   { params }: { params: { id: string } },
 ) {
-  if (!isAdminAuthenticated()) {
+  const ctx = getAdminContext();
+  if (!ctx) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  // Diagnoses are removed via ON DELETE CASCADE in the schema.
+  // Patient deletion is master-only. Clinic admins can't accidentally wipe
+  // someone else's records — or even their own — without escalation.
+  if (ctx.role !== "master") {
+    return NextResponse.json({ error: "delete_master_only" }, { status: 403 });
+  }
+  // Diagnoses + daily_logs cascade via ON DELETE CASCADE in the schema.
   const { error } = await client()
     .from("patients")
     .delete()

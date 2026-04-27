@@ -5,6 +5,7 @@ import {
   getLatestDiagnosisDateMap,
   listPatients,
 } from "@/lib/db";
+import { getClinic } from "@/lib/clinics";
 import AdminHeader from "./AdminHeader";
 import PatientList from "./PatientList";
 import Dashboard from "./Dashboard";
@@ -12,23 +13,31 @@ import Dashboard from "./Dashboard";
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
-  requireAdmin();
+  const ctx = requireAdmin();
 
+  // Master sees everyone (clinicId = null → no filter), clinic admins are
+  // automatically scoped to their own patients.
   const [patients, stats] = await Promise.all([
-    listPatients(),
-    getDashboardStats(),
+    listPatients(ctx.clinicId),
+    getDashboardStats(ctx.clinicId),
   ]);
   const latestMap = await getLatestDiagnosisDateMap(patients.map((p) => p.id));
 
+  const scopeLabel =
+    ctx.role === "master"
+      ? "全患者"
+      : `${getClinic(ctx.clinicId)?.name || "—"} の患者`;
+
   return (
     <main className="mx-auto max-w-2xl px-5 pt-6 pb-12 fade-up">
-      <AdminHeader />
+      <AdminHeader role={ctx.role} />
 
       <Dashboard stats={stats} />
 
       <div className="flex items-center justify-between mb-3">
         <div>
           <h1 className="text-[20px] font-black text-ink-900">患者一覧</h1>
+          <p className="text-[11px] text-ink-400 mt-0.5">表示対象: {scopeLabel}</p>
         </div>
         <Link
           href="/admin/patients/new"

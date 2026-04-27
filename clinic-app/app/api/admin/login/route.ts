@@ -15,10 +15,11 @@ export async function POST(req: Request) {
   if (!password) {
     return NextResponse.json({ error: "password_required" }, { status: 400 });
   }
-  if (!checkAdminPassword(password)) {
+  const role = checkAdminPassword(password);
+  if (!role) {
     return NextResponse.json({ error: "invalid_password" }, { status: 401 });
   }
 
-  setAdminCookie();
-  return NextResponse.json({ ok: true });
+  setAdminCookie(role);
+  return NextResponse.json({ ok: true, role });
 }

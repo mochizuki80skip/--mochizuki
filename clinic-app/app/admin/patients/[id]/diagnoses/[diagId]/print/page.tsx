@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { requireAdmin } from "@/lib/guards";
+import { notFound, redirect } from "next/navigation";
+import { canAccessPatient, requireAdmin } from "@/lib/guards";
 import { getPatientById, listDiagnosesForPatient } from "@/lib/db";
 import PrintableDiagnosis from "@/components/PrintableDiagnosis";
 import PrintButton from "@/components/PrintButton";
@@ -12,9 +12,10 @@ export default async function AdminDiagnosisPrint({
 }: {
   params: { id: string; diagId: string };
 }) {
-  requireAdmin();
+  const ctx = requireAdmin();
   const patient = await getPatientById(params.id);
   if (!patient) notFound();
+  if (!canAccessPatient(patient, ctx)) redirect("/admin/forbidden");
   const diagnoses = await listDiagnosesForPatient(patient.id);
   const row = diagnoses.find((d) => d.id === params.diagId);
   if (!row) notFound();

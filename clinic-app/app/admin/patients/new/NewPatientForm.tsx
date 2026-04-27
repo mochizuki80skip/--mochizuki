@@ -7,16 +7,32 @@ import { listClinics } from "@/lib/clinics";
 
 const CLINICS = listClinics();
 
-export default function NewPatientForm() {
+type Props = {
+  /** True when the master is registering — they get to choose the clinic. */
+  masterMode: boolean;
+  /** When non-master, the clinic the patient must be assigned to. */
+  fixedClinicId: string | null;
+  fixedClinicName: string | null;
+};
+
+export default function NewPatientForm({
+  masterMode,
+  fixedClinicId,
+  fixedClinicName,
+}: Props) {
   const router = useRouter();
   const [chartNumber, setChartNumber] = useState("");
   const [name, setName] = useState("");
   const [furigana, setFurigana] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [clinicId, setClinicId] = useState<string>("");
+  const [clinicId, setClinicId] = useState<string>(fixedClinicId || "");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  // For clinic admins the clinic is decided by their role; for master we send
+  // whatever they picked in the selector.
+  const effectiveClinic = masterMode ? clinicId : fixedClinicId || "";
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -32,15 +48,17 @@ export default function NewPatientForm() {
           furigana: furigana || null,
           birth_date: birthDate || null,
           notes: notes || null,
-          clinic_id: clinicId || null,
+          clinic_id: effectiveClinic || null,
         }),
       });
       const json = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (json?.error === "chart_number_taken") {
-          setError("そのカルテ番号は既に登録されています");
+          setError("そのカルテ番号は既にこの院で登録されています");
         } else if (json?.error === "missing_fields") {
           setError("カルテ番号と氏名を入力してください");
+        } else if (json?.error === "clinic_required") {
+          setError("通っている院を選択してください");
         } else {
           setError("登録に失敗しました");
         }
@@ -88,7 +106,21 @@ export default function NewPatientForm() {
         onChange={setBirthDate}
       />
 
-      <ClinicSelector value={clinicId} onChange={setClinicId} />
+      {masterMode ? (
+        <ClinicSelector value={clinicId} onChange={setClinicId} />
+      ) : (
+        <div>
+          <label className="block text-xs tracking-widest text-ink-400 mb-1.5">
+            通っている院
+          </label>
+          <div className="rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-sm font-bold text-ink-900">
+            {fixedClinicName || "（未設定）"}
+          </div>
+          <p className="text-[11px] text-ink-400 mt-1">
+            この権限では自動的にこの院に登録されます
+          </p>
+        </div>
+      )}
 
       <div>
         <label
@@ -122,7 +154,7 @@ export default function NewPatientForm() {
         </Link>
         <button
           type="submit"
-          disabled={submitting || !chartNumber || !name}
+          disabled={submitting || !chartNumber || !name || !effectiveClinic}
           className="flex-[2] text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition disabled:bg-ink-100 disabled:text-ink-300"
         >
           {submitting ? "登録中..." : "登録する"}
