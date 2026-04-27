@@ -258,31 +258,34 @@ export async function updateDiagnosisNote(
 
 // --- Daily logs ----------------------------------------------------------
 
-// Postgres "relation does not exist" error code. We treat it as "feature not
-// installed yet" so pages keep rendering until the migration is applied.
-const ERR_TABLE_MISSING = "42P01";
-
-function isMissingTable(err: { code?: string; message?: string } | null) {
-  if (!err) return false;
-  if (err.code === ERR_TABLE_MISSING) return true;
-  return /relation .*daily_logs.* does not exist/i.test(err.message || "");
+// Pages must keep rendering even if the daily_logs migration hasn't been
+// applied yet, or if RLS blocks the anon key. We swallow any read-side error
+// and log it so server logs still surface the cause.
+function logDailyLogReadError(where: string, err: unknown) {
+  // eslint-disable-next-line no-console
+  console.error(`[daily_logs] read failed in ${where}:`, err);
 }
 
 export async function getDailyLog(
   patientId: string,
   date: string,
 ): Promise<DailyLog | null> {
-  const { data, error } = await getClient()
-    .from("daily_logs")
-    .select("*")
-    .eq("patient_id", patientId)
-    .eq("log_date", date)
-    .maybeSingle();
-  if (error) {
-    if (isMissingTable(error)) return null;
-    throw new Error(error.message);
+  try {
+    const { data, error } = await getClient()
+      .from("daily_logs")
+      .select("*")
+      .eq("patient_id", patientId)
+      .eq("log_date", date)
+      .maybeSingle();
+    if (error) {
+      logDailyLogReadError("getDailyLog", error);
+      return null;
+    }
+    return (data as DailyLog) || null;
+  } catch (e) {
+    logDailyLogReadError("getDailyLog (throw)", e);
+    return null;
   }
-  return (data as DailyLog) || null;
 }
 
 export async function listDailyLogsForPatient(
@@ -290,19 +293,24 @@ export async function listDailyLogsForPatient(
   fromDate?: string,
   toDate?: string,
 ): Promise<DailyLog[]> {
-  let q = getClient()
-    .from("daily_logs")
-    .select("*")
-    .eq("patient_id", patientId)
-    .order("log_date", { ascending: false });
-  if (fromDate) q = q.gte("log_date", fromDate);
-  if (toDate) q = q.lte("log_date", toDate);
-  const { data, error } = await q;
-  if (error) {
-    if (isMissingTable(error)) return [];
-    throw new Error(error.message);
+  try {
+    let q = getClient()
+      .from("daily_logs")
+      .select("*")
+      .eq("patient_id", patientId)
+      .order("log_date", { ascending: false });
+    if (fromDate) q = q.gte("log_date", fromDate);
+    if (toDate) q = q.lte("log_date", toDate);
+    const { data, error } = await q;
+    if (error) {
+      logDailyLogReadError("listDailyLogsForPatient", error);
+      return [];
+    }
+    return (data || []) as DailyLog[];
+  } catch (e) {
+    logDailyLogReadError("listDailyLogsForPatient (throw)", e);
+    return [];
   }
-  return (data || []) as DailyLog[];
 }
 
 export type UpsertLogInput = {
