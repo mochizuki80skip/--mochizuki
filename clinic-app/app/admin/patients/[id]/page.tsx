@@ -102,20 +102,12 @@ export default async function PatientDetailPage({
           </div>
         )}
 
-        <div className="mt-5 grid grid-cols-2 gap-2">
-          <Link
-            href={`/diagnose?patient=${patient.id}`}
-            className="text-center rounded-full bg-accent text-ink-900 font-bold text-sm py-2.5 shadow-soft hover:bg-accent-400 transition"
-          >
-            ＋ 診断を実施
-          </Link>
-          <Link
-            href={`/me?chart=${encodeURIComponent(patient.chart_number)}`}
-            className="text-center rounded-full border border-ink-200 text-ink-700 font-bold text-sm py-2.5"
-          >
-            患者画面を確認
-          </Link>
-        </div>
+        <Link
+          href={`/diagnose?patient=${patient.id}`}
+          className="mt-5 block w-full text-center rounded-full bg-accent text-ink-900 font-bold text-sm py-2.5 shadow-soft hover:bg-accent-400 transition"
+        >
+          ＋ 診断を実施
+        </Link>
       </section>
 
       {/* QR code: hand to patient on first visit */}
