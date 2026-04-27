@@ -3,18 +3,20 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminRole } from "@/lib/auth";
-
-const ROLE_LABEL: Record<AdminRole, string> = {
-  master: "Master",
-  main: "1号店",
-  branch: "2号店",
-};
+import { getClinic } from "@/lib/clinics";
 
 const ROLE_TONE: Record<AdminRole, string> = {
   master: "bg-ink-900 text-white",
   main: "bg-accent-100 text-accent-600 border border-accent",
   branch: "bg-sky-100 text-sky-700 border border-sky-300",
 };
+
+function roleLabel(role: AdminRole): string {
+  if (role === "master") return "Master";
+  // Show the actual clinic name on the badge so when env vars change
+  // (e.g. clinic rename), the UI follows automatically.
+  return getClinic(role)?.name || role;
+}
 
 export default function AdminHeader({ role }: { role: AdminRole }) {
   const router = useRouter();
@@ -46,7 +48,7 @@ export default function AdminHeader({ role }: { role: AdminRole }) {
           ROLE_TONE[role],
         ].join(" ")}
       >
-        {ROLE_LABEL[role]}
+        {roleLabel(role)}
       </span>
       <button
         onClick={logout}

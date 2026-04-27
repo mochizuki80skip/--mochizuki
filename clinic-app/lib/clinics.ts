@@ -20,12 +20,12 @@ export type Clinic = {
 const CLINICS: Clinic[] = [
   {
     id: "main",
-    name: process.env.NEXT_PUBLIC_CLINIC_MAIN_NAME || "リカバリー鍼灸院 1号店",
+    name: process.env.NEXT_PUBLIC_CLINIC_MAIN_NAME || "長泉三島院",
     reservation_url: process.env.NEXT_PUBLIC_CLINIC_MAIN_RESERVATION_URL || "",
   },
   {
     id: "branch",
-    name: process.env.NEXT_PUBLIC_CLINIC_BRANCH_NAME || "リカバリー鍼灸院 2号店",
+    name: process.env.NEXT_PUBLIC_CLINIC_BRANCH_NAME || "裾野長泉院",
     reservation_url:
       process.env.NEXT_PUBLIC_CLINIC_BRANCH_RESERVATION_URL || "",
   },
