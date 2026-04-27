@@ -53,36 +53,60 @@ export default async function PatientDashboard() {
       </Link>
 
       {/* Reservation button — opens the clinic-specific external site in a
-          new tab. We render it disabled with a helpful note when the patient
-          isn't tied to a clinic yet, or when the URL hasn't been configured. */}
+          new tab. We use the brand's secondary colour (ink-900 / black) with
+          a yellow accent for the clinic label so it stays on-palette while
+          standing out clearly against the page. */}
       {clinic?.reservation_url ? (
         <a
           href={clinic.reservation_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="mb-5 flex items-center justify-between rounded-full border-2 border-ink-900 bg-white text-ink-900 font-black tracking-widest py-3 px-5 hover:bg-ink-50 transition"
+          className="group mb-5 flex items-center justify-between rounded-full bg-ink-900 text-white font-black tracking-widest py-4 px-5 shadow-soft hover:bg-ink-800 active:scale-[0.99] transition"
         >
-          <span className="text-[10px] tracking-widest text-ink-400">
-            {clinic.name}
-          </span>
-          <span className="flex items-center gap-1">
-            来院予約する
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
+          <span className="flex items-center gap-2">
+            <span
               aria-hidden
+              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-accent text-ink-900"
             >
-              <path
-                d="M14 4h6v6M20 4l-9 9M5 6h5M5 12h3M5 18h11"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                aria-hidden
+              >
+                <path
+                  d="M7 4v3M17 4v3M4 9h16M5 6h14a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1z"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </span>
+            <span className="flex flex-col items-start">
+              <span className="text-[10px] tracking-widest text-accent leading-none">
+                {clinic.name}
+              </span>
+              <span className="text-sm leading-tight mt-0.5">来院予約する</span>
+            </span>
           </span>
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+            className="text-ink-300 group-hover:text-white transition"
+          >
+            <path
+              d="M14 4h6v6M20 4l-9 9"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
         </a>
       ) : (
         <div className="mb-5 rounded-full border border-dashed border-ink-200 text-ink-400 text-xs text-center py-3 px-5">
