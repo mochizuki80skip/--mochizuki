@@ -4,6 +4,7 @@ import { listDailyLogsForPatient, listDiagnosesForPatient } from "@/lib/db";
 import { contentForType } from "@/lib/content";
 import HistoryCalendar from "@/components/HistoryCalendar";
 import TrendChart from "@/components/TrendChart";
+import SymptomHeatmap from "@/components/SymptomHeatmap";
 import SymptomRanking from "@/components/SymptomRanking";
 import PatientHeader from "../PatientHeader";
 
@@ -68,7 +69,11 @@ export default async function PatientDashboard() {
         />
       </section>
 
-      <section className="mb-5">
+      <section className="mb-5 space-y-3">
+        <SymptomHeatmap
+          logs={logs}
+          hrefForDate={(ymd) => `/me/log/${ymd}`}
+        />
         <SymptomRanking logs={logs} days={14} />
       </section>
 
