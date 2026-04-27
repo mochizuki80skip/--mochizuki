@@ -266,6 +266,27 @@ function logDailyLogReadError(where: string, err: unknown) {
   console.error(`[daily_logs] read failed in ${where}:`, err);
 }
 
+// Defensive default for old rows that pre-date the pains/sleep_hours/BP columns.
+function normalizeLog(row: Record<string, unknown>): DailyLog {
+  return {
+    id: row.id as string,
+    patient_id: row.patient_id as string,
+    log_date: row.log_date as string,
+    mood: (row.mood as number | null) ?? null,
+    sleep_quality: (row.sleep_quality as number | null) ?? null,
+    sleep_hours: (row.sleep_hours as number | null) ?? null,
+    bp_systolic: (row.bp_systolic as number | null) ?? null,
+    bp_diastolic: (row.bp_diastolic as number | null) ?? null,
+    symptoms: Array.isArray(row.symptoms) ? (row.symptoms as string[]) : [],
+    pains: Array.isArray(row.pains)
+      ? (row.pains as DailyLog["pains"])
+      : [],
+    notes: (row.notes as string | null) ?? null,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  };
+}
+
 export async function getDailyLog(
   patientId: string,
   date: string,
@@ -281,7 +302,7 @@ export async function getDailyLog(
       logDailyLogReadError("getDailyLog", error);
       return null;
     }
-    return (data as DailyLog) || null;
+    return data ? normalizeLog(data as Record<string, unknown>) : null;
   } catch (e) {
     logDailyLogReadError("getDailyLog (throw)", e);
     return null;
@@ -306,7 +327,7 @@ export async function listDailyLogsForPatient(
       logDailyLogReadError("listDailyLogsForPatient", error);
       return [];
     }
-    return (data || []) as DailyLog[];
+    return (data || []).map((r) => normalizeLog(r as Record<string, unknown>));
   } catch (e) {
     logDailyLogReadError("listDailyLogsForPatient (throw)", e);
     return [];
@@ -318,7 +339,11 @@ export type UpsertLogInput = {
   log_date: string;
   mood: number | null;
   sleep_quality: number | null;
+  sleep_hours: number | null;
+  bp_systolic: number | null;
+  bp_diastolic: number | null;
   symptoms: string[];
+  pains: import("./types").PainRecord[];
   notes: string | null;
 };
 

@@ -74,7 +74,7 @@ export default async function DiagnosisAdminDetailPage({
 
       <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft mb-5">
         <h2 className="text-xs tracking-widest text-ink-400 mb-2">
-          3-AXIS RADAR{" "}
+          体質スコア / 3軸{" "}
           {prev && (
             <span className="text-ink-500 normal-case tracking-normal ml-1">
               （前回 {formatDateShort(prev.diagnosed_at)} と比較）

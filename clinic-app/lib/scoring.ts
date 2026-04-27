@@ -85,3 +85,14 @@ export const LEVEL_LABEL: Record<AxisLevel, { ja: string; tone: string }> = {
   off:      { ja: "不調傾向", tone: "text-warn" },
   strong:   { ja: "強い不調", tone: "text-ng" },
 };
+
+/**
+ * Single 0-100 number that summarises overall constitution health, computed
+ * as the average of the three axes. High = healthy (consistent with the
+ * inverted score direction).
+ */
+export function constitutionScore(axes: Record<AxisKey, AxisResult>): number {
+  return Math.round(
+    (axes.nerve.normalized + axes.circ.normalized + axes.metab.normalized) / 3,
+  );
+}

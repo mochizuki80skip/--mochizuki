@@ -42,11 +42,24 @@ export default function TrendChart({ rows, width = 320, height = 200 }: Props) {
 
   const yTicks = [0, 25, 50, 75, 100];
 
+  // Overall constitution score = average of 3 axes per diagnosis.
+  const overall = ordered.map(
+    (r) =>
+      (r.scores.nerve.normalized +
+        r.scores.circ.normalized +
+        r.scores.metab.normalized) /
+      3,
+  );
+
   return (
     <div>
-      <div className="flex items-center gap-3 mb-2 text-[11px]">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mb-2 text-[11px]">
+        <span className="flex items-center gap-1.5 text-ink-900 font-bold">
+          <span className="inline-block w-3 h-0.5 rounded bg-ink-900" />
+          体質スコア
+        </span>
         {AXIS_ORDER.map((k) => (
-          <span key={k} className="flex items-center gap-1.5 text-ink-700">
+          <span key={k} className="flex items-center gap-1.5 text-ink-500">
             <span
               className="inline-block w-3 h-0.5 rounded"
               style={{ background: COLORS[k] }}
@@ -60,7 +73,7 @@ export default function TrendChart({ rows, width = 320, height = 200 }: Props) {
         height={height}
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label="3軸スコアの推移"
+        aria-label="体質スコアの推移"
         className="block"
       >
         {/* Grid lines + Y labels */}
@@ -103,7 +116,7 @@ export default function TrendChart({ rows, width = 320, height = 200 }: Props) {
           </text>
         ))}
 
-        {/* Lines per axis */}
+        {/* Per-axis lines (rendered first so the overall line sits on top) */}
         {AXIS_ORDER.map((k) => {
           const path = ordered
             .map(
@@ -112,12 +125,12 @@ export default function TrendChart({ rows, width = 320, height = 200 }: Props) {
             )
             .join(" ");
           return (
-            <g key={k}>
+            <g key={k} opacity={0.55}>
               <path
                 d={path}
                 fill="none"
                 stroke={COLORS[k]}
-                strokeWidth={2}
+                strokeWidth={1.5}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -126,15 +139,45 @@ export default function TrendChart({ rows, width = 320, height = 200 }: Props) {
                   key={r.id}
                   cx={xFor(i)}
                   cy={yFor(r.scores[k].normalized)}
-                  r={3}
+                  r={2}
                   fill={COLORS[k]}
                   stroke="#fff"
-                  strokeWidth={1.5}
+                  strokeWidth={1}
                 />
               ))}
             </g>
           );
         })}
+
+        {/* Overall constitution score line */}
+        {(() => {
+          const path = overall
+            .map((v, i) => `${i === 0 ? "M" : "L"} ${xFor(i)} ${yFor(v)}`)
+            .join(" ");
+          return (
+            <g>
+              <path
+                d={path}
+                fill="none"
+                stroke="#0F1115"
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {overall.map((v, i) => (
+                <circle
+                  key={ordered[i].id}
+                  cx={xFor(i)}
+                  cy={yFor(v)}
+                  r={3.5}
+                  fill="#0F1115"
+                  stroke="#fff"
+                  strokeWidth={2}
+                />
+              ))}
+            </g>
+          );
+        })()}
       </svg>
       <p className="text-[10px] text-ink-400 text-center mt-1">
         数値が大きいほど良好。上向きへの推移は改善を意味します。

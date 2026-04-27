@@ -80,7 +80,7 @@ export default async function PatientDashboard() {
       {diagnoses.length >= 2 && (
         <section className="mb-5 rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
           <h2 className="text-xs tracking-widest text-ink-400 mb-3">
-            3軸スコアの推移
+            体質スコアの推移
           </h2>
           <div className="overflow-x-auto -mx-1 px-1">
             <TrendChart rows={diagnoses} />

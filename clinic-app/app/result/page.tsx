@@ -14,6 +14,7 @@ import {
   markResultSaved,
   isResultSaved,
 } from "@/lib/storage";
+import { constitutionScore } from "@/lib/scoring";
 import { AXIS_LABEL, type DiagnoseResult } from "@/lib/types";
 
 export default function ResultPage() {
@@ -106,17 +107,28 @@ export default function ResultPage() {
         </span>
       </div>
 
-      {/* Type card */}
+      {/* Type card with overall constitution score */}
       <section className="rounded-2xl border border-ink-100 bg-gradient-to-b from-accent-50 to-white p-5 shadow-soft mb-5">
-        <div className="text-[11px] tracking-[0.2em] text-accent-600 font-bold mb-1">
-          YOUR TYPE
+        <div className="flex items-start gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="text-[11px] tracking-[0.2em] text-accent-600 font-bold mb-1">
+              YOUR TYPE
+            </div>
+            <h1 className="text-[26px] font-black text-ink-900 leading-tight">
+              {content.name}
+            </h1>
+            {primary && (
+              <div className="mt-1 text-xs text-ink-500">主軸 : {primary}</div>
+            )}
+          </div>
+          <div className="shrink-0 text-right">
+            <div className="text-[10px] tracking-widest text-ink-400">体質スコア</div>
+            <div className="text-3xl font-black text-ink-900 tabular-nums leading-tight">
+              {constitutionScore(result.axes)}
+              <span className="text-xs text-ink-400">/100</span>
+            </div>
+          </div>
         </div>
-        <h1 className="text-[26px] font-black text-ink-900 leading-tight">
-          {content.name}
-        </h1>
-        {primary && (
-          <div className="mt-1 text-xs text-ink-500">主軸 : {primary}</div>
-        )}
         <p className="mt-3 text-sm leading-relaxed text-ink-700">
           {content.tagline}
         </p>
@@ -125,7 +137,7 @@ export default function ResultPage() {
       {/* Radar */}
       <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft mb-5">
         <h2 className="text-xs tracking-widest text-ink-400 mb-2">
-          3-AXIS RADAR
+          体質スコア / 3軸
         </h2>
         <div className="flex justify-center">
           <RadarChart axes={result.axes} size={300} />

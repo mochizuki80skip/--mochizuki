@@ -29,7 +29,7 @@ export default function DiagnosisDetail({ row }: { row: DiagnosisRow }) {
 
       <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
         <h2 className="text-xs tracking-widest text-ink-400 mb-2">
-          3-AXIS RADAR
+          体質スコア / 3軸
         </h2>
         <div className="flex justify-center">
           <RadarChart axes={row.scores} size={300} />

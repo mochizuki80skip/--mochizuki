@@ -70,9 +70,20 @@ export type DailyLog = {
   patient_id: string;
   log_date: string;       // YYYY-MM-DD
   mood: number | null;    // 1..5 (5 = best)
-  sleep_quality: number | null; // 1..5 (5 = best)
-  symptoms: string[];
+  sleep_quality: number | null; // 1..5 (5 = best) — legacy
+  sleep_hours: number | null;   // 0..14 in 0.5 increments
+  bp_systolic: number | null;   // mmHg
+  bp_diastolic: number | null;  // mmHg
+  symptoms: string[];           // neuro/autonomic symptom keys
+  pains: PainRecord[];          // body part pain entries
   notes: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type PainRecord = {
+  area: string;
+  side: "left" | "right" | "both" | null;
+  strength: number; // 1..5
+  free_text?: string | null;
 };

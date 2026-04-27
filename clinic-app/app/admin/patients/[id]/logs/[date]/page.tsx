@@ -3,23 +3,19 @@ import { notFound } from "next/navigation";
 import { requireAdmin } from "@/lib/guards";
 import { getDailyLog, getPatientById } from "@/lib/db";
 import {
-  CATEGORY_LABEL,
+  BODY_PART_LABEL,
+  PAIN_SIDE_LABEL,
   SYMPTOMS_BY_CATEGORY,
+  CATEGORY_LABEL,
+  formatSleepHours,
   moodFor,
-  type SymptomCategory,
+  symptomLabelFor,
 } from "@/lib/symptoms";
 import AdminHeader from "../../../../AdminHeader";
 
 export const dynamic = "force-dynamic";
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const CATEGORIES: SymptomCategory[] = [
-  "pain",
-  "nerve",
-  "circ",
-  "metab",
-  "other",
-];
 
 function formatDate(date: string): string {
   const d = new Date(`${date}T00:00:00`);
@@ -40,8 +36,13 @@ export default async function StaffLogView({
   const log = await getDailyLog(patient.id, params.date);
 
   const mood = log ? moodFor(log.mood) : null;
-  const sleep = log ? moodFor(log.sleep_quality) : null;
   const selected = new Set(log?.symptoms || []);
+  const knownSymptomKeys = new Set(
+    SYMPTOMS_BY_CATEGORY.nerve_auto.map((s) => s.key),
+  );
+  const legacySymptoms = (log?.symptoms || []).filter(
+    (k) => !knownSymptomKeys.has(k),
+  );
 
   return (
     <main className="mx-auto max-w-md px-5 pt-6 pb-12 fade-up">
@@ -65,46 +66,113 @@ export default async function StaffLogView({
         </div>
       ) : (
         <div className="space-y-5 mt-5">
-          <section className="grid grid-cols-2 gap-2">
-            <SummaryCard label="気分" value={mood?.emoji} sub={mood?.label} />
+          {/* Top row: mood, sleep, BP */}
+          <section className="grid grid-cols-3 gap-2">
             <SummaryCard
-              label="睡眠の質"
-              value={sleep ? `${sleep.value}/5` : null}
-              sub={sleep?.label}
+              label="本日の調子"
+              value={mood?.emoji}
+              sub={mood?.label}
+            />
+            <SummaryCard
+              label="睡眠時間"
+              value={
+                log.sleep_hours != null
+                  ? formatSleepHours(log.sleep_hours)
+                  : null
+              }
+            />
+            <SummaryCard
+              label="血圧"
+              value={
+                log.bp_systolic != null && log.bp_diastolic != null
+                  ? `${log.bp_systolic}/${log.bp_diastolic}`
+                  : log.bp_systolic != null
+                  ? `${log.bp_systolic}/—`
+                  : null
+              }
+              sub={
+                log.bp_systolic != null || log.bp_diastolic != null
+                  ? "mmHg"
+                  : undefined
+              }
             />
           </section>
 
+          {/* Pain */}
           <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
             <h2 className="text-xs tracking-widest text-ink-400 font-bold mb-3">
-              感じた不調 ({selected.size})
+              痛み ({log.pains.length})
+            </h2>
+            {log.pains.length === 0 ? (
+              <p className="text-xs text-ink-500">なし</p>
+            ) : (
+              <ul className="space-y-2">
+                {log.pains.map((p, i) => {
+                  const label = BODY_PART_LABEL[p.area] || p.area;
+                  const sideLabel = p.side ? PAIN_SIDE_LABEL[p.side] : null;
+                  return (
+                    <li
+                      key={`${p.area}-${i}`}
+                      className="flex items-center gap-3 rounded-xl bg-rose-50 border border-rose-200 px-3 py-2.5"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-rose-900">
+                          {sideLabel && (
+                            <span className="text-rose-600 mr-1">
+                              {sideLabel}
+                            </span>
+                          )}
+                          {label}
+                        </div>
+                        {p.area === "other" && p.free_text && (
+                          <div className="text-[11px] text-rose-700 mt-0.5">
+                            {p.free_text}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <div className="text-[10px] tracking-widest text-rose-600 font-bold">
+                          強さ
+                        </div>
+                        <div className="text-base font-black text-rose-700 tabular-nums leading-tight">
+                          {p.strength}
+                          <span className="text-[10px] text-rose-500">/5</span>
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
+
+          {/* Neuro / autonomic symptoms */}
+          <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
+            <h2 className="text-xs tracking-widest text-ink-400 font-bold mb-3">
+              {CATEGORY_LABEL.nerve_auto} ({selected.size})
             </h2>
             {selected.size === 0 ? (
               <p className="text-xs text-ink-500">なし</p>
             ) : (
-              <div className="space-y-3">
-                {CATEGORIES.map((c) => {
-                  const items = SYMPTOMS_BY_CATEGORY[c].filter((s) =>
-                    selected.has(s.key),
-                  );
-                  if (items.length === 0) return null;
-                  return (
-                    <div key={c}>
-                      <div className="text-[10px] tracking-widest text-ink-400 mb-1">
-                        {CATEGORY_LABEL[c]}
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {items.map((s) => (
-                          <span
-                            key={s.key}
-                            className="rounded-full bg-rose-50 text-rose-700 px-3 py-1 text-xs font-bold border border-rose-200"
-                          >
-                            {s.label}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="flex flex-wrap gap-1.5">
+                {SYMPTOMS_BY_CATEGORY.nerve_auto
+                  .filter((s) => selected.has(s.key))
+                  .map((s) => (
+                    <span
+                      key={s.key}
+                      className="rounded-full bg-amber-50 text-amber-700 px-3 py-1 text-xs font-bold border border-amber-200"
+                    >
+                      {s.label}
+                    </span>
+                  ))}
+                {legacySymptoms.map((k) => (
+                  <span
+                    key={k}
+                    className="rounded-full bg-ink-50 text-ink-500 px-3 py-1 text-xs border border-ink-200"
+                  >
+                    {symptomLabelFor(k)}
+                  </span>
+                ))}
               </div>
             )}
           </section>
@@ -140,17 +208,15 @@ function SummaryCard({
 }: {
   label: string;
   value: string | null | undefined;
-  sub: string | null | undefined;
+  sub?: string | null | undefined;
 }) {
   return (
     <div className="rounded-xl border border-ink-100 bg-white p-3 shadow-soft text-center">
       <div className="text-[10px] tracking-widest text-ink-400">{label}</div>
-      <div className="text-2xl leading-tight mt-1 h-8 flex items-center justify-center">
-        {value || <span className="text-ink-300 text-sm">未記入</span>}
+      <div className="text-base leading-tight mt-1 min-h-[1.75rem] flex items-center justify-center font-black text-ink-900">
+        {value || <span className="text-ink-300 text-xs font-normal">未記入</span>}
       </div>
-      {sub && (
-        <div className="text-[10px] text-ink-500 mt-0.5">{sub}</div>
-      )}
+      {sub && <div className="text-[10px] text-ink-500 mt-0.5">{sub}</div>}
     </div>
   );
 }
