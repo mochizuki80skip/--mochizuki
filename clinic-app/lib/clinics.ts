@@ -42,6 +42,17 @@ export function getClinic(id: string | null | undefined): Clinic | null {
   return CLINICS.find((c) => c.id === id) || null;
 }
 
+/**
+ * Compact name suitable for badges and dense UI. Strips the brand prefix
+ * "リカバリー鍼灸院" (with or without a separator) so the badge shows just
+ * the location, e.g. "長泉三島院" instead of "リカバリー鍼灸院長泉三島院".
+ */
+export function getClinicShortName(id: string | null | undefined): string {
+  const c = getClinic(id);
+  if (!c) return "";
+  return c.name.replace(/^リカバリー鍼灸院[\s　]*/, "");
+}
+
 export function isValidClinicId(id: string | null | undefined): id is ClinicId {
   return typeof id === "string" && VALID_IDS.has(id as ClinicId);
 }

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AdminRole } from "@/lib/auth";
-import { getClinic } from "@/lib/clinics";
+import { getClinicShortName } from "@/lib/clinics";
 
 const ROLE_TONE: Record<AdminRole, string> = {
   master: "bg-ink-900 text-white",
@@ -13,9 +13,9 @@ const ROLE_TONE: Record<AdminRole, string> = {
 
 function roleLabel(role: AdminRole): string {
   if (role === "master") return "Master";
-  // Show the actual clinic name on the badge so when env vars change
-  // (e.g. clinic rename), the UI follows automatically.
-  return getClinic(role)?.name || role;
+  // Use the short clinic name (brand prefix stripped) so the badge stays
+  // compact even when env vars include the full "リカバリー鍼灸院..." form.
+  return getClinicShortName(role) || role;
 }
 
 export default function AdminHeader({ role }: { role: AdminRole }) {
