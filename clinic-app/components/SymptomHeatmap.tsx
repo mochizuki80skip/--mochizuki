@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { moodFor } from "@/lib/symptoms";
 import type { DailyLog } from "@/lib/types";
+import ScrollEndOnMount from "./ScrollEndOnMount";
 
 type Props = {
   logs: DailyLog[];
@@ -45,8 +46,10 @@ export default function SymptomHeatmap({
         最近 {days} 日の体調
       </div>
       {/* Pull the scroll viewport to the card edges so the swipe affordance
-          reads cleanly on mobile, then re-add visual padding inside. */}
-      <div className="-mx-4 overflow-x-auto">
+          reads cleanly on mobile, then re-add visual padding inside.
+          ScrollEndOnMount jumps the initial scroll position to the right end
+          so the most recent day (today) is visible without swiping. */}
+      <ScrollEndOnMount className="-mx-4 overflow-x-auto">
         <div className="flex gap-1 px-4 pb-1">
           {cells.map(({ date, key, log }) => {
             const m = log ? moodFor(log.mood) : null;
@@ -76,7 +79,7 @@ export default function SymptomHeatmap({
             );
           })}
         </div>
-      </div>
+      </ScrollEndOnMount>
       <div className="flex items-center gap-3 mt-3 text-[10px] text-ink-400">
         <span className="flex items-center gap-1">
           😄 良好 → 😣 悪い
