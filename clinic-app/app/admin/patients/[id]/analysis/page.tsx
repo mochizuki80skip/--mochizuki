@@ -15,6 +15,7 @@ import AdminHeader from "../../../AdminHeader";
 import PeriodPicker from "./PeriodPicker";
 import CopySummaryButton from "./CopySummaryButton";
 import PainBodyDiagram from "@/components/PainBodyDiagram";
+import SymptomRanking from "@/components/SymptomRanking";
 
 export const dynamic = "force-dynamic";
 
@@ -166,33 +167,16 @@ export default async function AnalysisPage({
 
       {/* Pains / Symptoms */}
       <section className="mb-5 grid grid-cols-1 gap-3">
-        {/* Body silhouette with pain markers — replaces the old plain
-            ranking list. The diagram includes its own ordered list to the
-            right (or below on narrow screens). */}
+        {/* Body silhouette with pain markers — visual map of where pain is. */}
         <PainBodyDiagram pains={result.pains} />
-        <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
-          <h2 className="text-[10px] tracking-widest text-ink-400 font-bold mb-2">
-            症状ランキング
-          </h2>
-          {result.symptoms.length === 0 ? (
-            <p className="text-xs text-ink-500">記録された症状はありません</p>
-          ) : (
-            <ul className="space-y-1.5">
-              {result.symptoms.slice(0, 5).map((s) => (
-                <li
-                  key={s.key}
-                  className="flex items-center gap-2 text-xs"
-                >
-                  <span className="text-amber-600 font-bold">●</span>
-                  <span className="font-bold text-ink-900">{s.label}</span>
-                  <span className="ml-auto text-ink-500 tabular-nums">
-                    {s.count}日
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {/* Detailed ranking with intensity gauges (moved from patient detail) */}
+        <SymptomRanking
+          logs={logs}
+          fromDate={result.period.from}
+          toDate={result.period.to}
+          title={`多かった不調 (期間内 ${result.period.days}日)`}
+          topN={8}
+        />
       </section>
 
       {/* Treatment recommendation */}

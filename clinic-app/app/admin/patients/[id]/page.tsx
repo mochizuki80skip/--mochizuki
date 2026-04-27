@@ -11,7 +11,6 @@ import { getBaseUrl } from "@/lib/baseUrl";
 import TrendChart from "@/components/TrendChart";
 import PatientQRCode from "@/components/PatientQRCode";
 import SymptomHeatmap from "@/components/SymptomHeatmap";
-import SymptomRanking from "@/components/SymptomRanking";
 import AdminHeader from "../../AdminHeader";
 import { getClinic } from "@/lib/clinics";
 import { listVisitsForPatient } from "@/lib/db";
@@ -141,37 +140,13 @@ export default async function PatientDetailPage({
         </div>
       </details>
 
-      {/* Period analysis — yellow-tinted card to match the brand palette */}
-      <Link
-        href={`/admin/patients/${patient.id}/analysis`}
-        className="mb-5 flex items-center justify-between rounded-2xl border-2 border-accent bg-gradient-to-br from-accent-50 to-white px-5 py-4 shadow-soft hover:from-accent-100 hover:to-accent-50 transition"
-      >
-        <span className="flex items-center gap-3">
-          <span
-            aria-hidden
-            className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent text-ink-900 shadow-glow"
-          >
-            📊
-          </span>
-          <span className="flex flex-col items-start">
-            <span className="text-[10px] tracking-widest text-accent-600 font-bold leading-none">
-              ANALYSIS
-            </span>
-            <span className="text-sm font-black text-ink-900 leading-tight mt-0.5">
-              体調を分析する
-            </span>
-          </span>
-        </span>
-        <span className="text-accent-600 text-2xl leading-none">›</span>
-      </Link>
-
-      {/* Daily log summary surfaces — staff sees mood/symptoms at a glance */}
-      <section className="mb-5 space-y-3">
+      {/* Daily log summary + entry point to deeper analysis */}
+      <section className="mb-5">
         <SymptomHeatmap
           logs={logs}
           hrefForDate={(ymd) => `/admin/patients/${patient.id}/logs/${ymd}`}
+          analysisHref={`/admin/patients/${patient.id}/analysis`}
         />
-        <SymptomRanking logs={logs} />
       </section>
 
       <section className="mb-5">

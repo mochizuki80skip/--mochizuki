@@ -9,6 +9,11 @@ type Props = {
   days?: number;
   /** Build the URL the staff visits when tapping a cell. */
   hrefForDate: (ymd: string) => string;
+  /**
+   * When provided, a "📊 体調を分析する" CTA is rendered at the bottom of
+   * this card, taking the user to the deeper analysis page.
+   */
+  analysisHref?: string;
 };
 
 function ymd(d: Date): string {
@@ -24,6 +29,7 @@ export default function SymptomHeatmap({
   logs,
   days = 14,
   hrefForDate,
+  analysisHref,
 }: Props) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -88,6 +94,31 @@ export default function SymptomHeatmap({
           <span className="text-rose-500 font-bold">×</span> 不調の項目数
         </span>
       </div>
+
+      {analysisHref && (
+        <Link
+          href={analysisHref}
+          className="mt-4 -mx-1 flex items-center justify-between rounded-xl border-2 border-accent bg-gradient-to-br from-accent-50 to-white px-4 py-3 hover:from-accent-100 hover:to-accent-50 transition"
+        >
+          <span className="flex items-center gap-2.5">
+            <span
+              aria-hidden
+              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-accent text-ink-900 shadow-glow text-sm"
+            >
+              📊
+            </span>
+            <span className="flex flex-col items-start">
+              <span className="text-[10px] tracking-widest text-accent-600 font-bold leading-none">
+                ANALYSIS
+              </span>
+              <span className="text-sm font-black text-ink-900 leading-tight mt-0.5">
+                体調を分析する
+              </span>
+            </span>
+          </span>
+          <span className="text-accent-600 text-xl leading-none">›</span>
+        </Link>
+      )}
     </div>
   );
 }

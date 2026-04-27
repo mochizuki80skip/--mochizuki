@@ -10,6 +10,11 @@ type Props = {
   /** Days window for the count. Default 30. */
   days?: number;
   topN?: number;
+  /** Optional explicit period (overrides `days` when both ends are set). */
+  fromDate?: string;
+  toDate?: string;
+  /** Override the card title. Defaults to "多かった不調 (過去 N 日)". */
+  title?: string;
 };
 
 type RankItem = {
@@ -43,16 +48,31 @@ export default function SymptomRanking({
   logs,
   days = 30,
   topN = 5,
+  fromDate,
+  toDate,
+  title,
 }: Props) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
-  const cutoffKey = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}-${String(cutoff.getDate()).padStart(2, "0")}`;
+  // Period resolution: explicit from/to wins; otherwise fall back to a
+  // rolling window of `days` ending today.
+  let cutoffStart: string;
+  let cutoffEnd: string;
+  if (fromDate && toDate) {
+    cutoffStart = fromDate;
+    cutoffEnd = toDate;
+  } else {
+    const today = new Date();
+    cutoffEnd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const start = new Date();
+    start.setDate(start.getDate() - days);
+    cutoffStart = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-${String(start.getDate()).padStart(2, "0")}`;
+  }
 
   const items = new Map<string, RankItem & { sumStrength: number }>();
   let totalLogs = 0;
 
   for (const l of logs) {
-    if (l.log_date < cutoffKey) continue;
+    if (l.log_date < cutoffStart) continue;
+    if (l.log_date > cutoffEnd) continue;
     totalLogs++;
     // Pains
     for (const p of l.pains || []) {
@@ -127,7 +147,7 @@ export default function SymptomRanking({
     <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft min-w-0">
       <div className="flex items-baseline justify-between mb-3 gap-2">
         <h2 className="text-[10px] tracking-widest text-ink-400 font-bold">
-          多かった不調 (過去 {days} 日)
+          {title ?? `多かった不調 (過去 ${days} 日)`}
         </h2>
         <span className="text-[10px] text-ink-400 tabular-nums">
           {totalLogs} 日分の記録
