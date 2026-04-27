@@ -43,8 +43,6 @@ export default async function PatientDetailPage({
   ]);
   const baseUrl = getBaseUrl();
   const patientLoginUrl = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}&name=${encodeURIComponent(patient.name)}`;
-  const today = new Date();
-  const todayKeyStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
   return (
     <main className="mx-auto max-w-2xl px-5 pt-6 pb-12 fade-up">
@@ -114,7 +112,7 @@ export default async function PatientDetailPage({
           >
             ＋ 体質診断を実施
           </Link>
-          <RecordVisitButton patientId={patient.id} todayKey={todayKeyStr} />
+          <RecordVisitButton patientId={patient.id} recentCount={visits.length} />
         </div>
       </section>
 
@@ -143,20 +141,20 @@ export default async function PatientDetailPage({
         </div>
       </details>
 
-      {/* Period analysis — placed directly below the QR section as requested */}
+      {/* Period analysis — yellow-tinted card to match the brand palette */}
       <Link
         href={`/admin/patients/${patient.id}/analysis`}
-        className="mb-5 flex items-center justify-between rounded-2xl border-2 border-ink-900 bg-white px-5 py-4 shadow-soft hover:bg-ink-50 transition"
+        className="mb-5 flex items-center justify-between rounded-2xl border-2 border-accent bg-gradient-to-br from-accent-50 to-white px-5 py-4 shadow-soft hover:from-accent-100 hover:to-accent-50 transition"
       >
         <span className="flex items-center gap-3">
           <span
             aria-hidden
-            className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent text-ink-900"
+            className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-accent text-ink-900 shadow-glow"
           >
             📊
           </span>
           <span className="flex flex-col items-start">
-            <span className="text-[10px] tracking-widest text-ink-400 leading-none">
+            <span className="text-[10px] tracking-widest text-accent-600 font-bold leading-none">
               ANALYSIS
             </span>
             <span className="text-sm font-black text-ink-900 leading-tight mt-0.5">
@@ -164,7 +162,7 @@ export default async function PatientDetailPage({
             </span>
           </span>
         </span>
-        <span className="text-ink-300 text-2xl leading-none">›</span>
+        <span className="text-accent-600 text-2xl leading-none">›</span>
       </Link>
 
       {/* Daily log summary surfaces — staff sees mood/symptoms at a glance */}

@@ -497,6 +497,44 @@ export async function deleteVisit(
   if (error) throw new Error(error.message);
 }
 
+export async function batchUpdateVisits(input: {
+  patientId: string;
+  added: string[];
+  removed: string[];
+  recordedBy: "patient" | "staff";
+}): Promise<{ added: number; removed: number }> {
+  const sb = getClient();
+  let addedCount = 0;
+  let removedCount = 0;
+
+  if (input.added.length > 0) {
+    const rows = input.added.map((d) => ({
+      patient_id: input.patientId,
+      visit_date: d,
+      recorded_by: input.recordedBy,
+    }));
+    // upsert with ON CONFLICT (patient_id, visit_date) DO NOTHING-equivalent
+    // — duplicate dates are silently no-ops thanks to the unique index.
+    const { error } = await sb
+      .from("visits")
+      .upsert(rows, { onConflict: "patient_id,visit_date" });
+    if (error) throw new Error(error.message);
+    addedCount = rows.length;
+  }
+
+  if (input.removed.length > 0) {
+    const { error } = await sb
+      .from("visits")
+      .delete()
+      .eq("patient_id", input.patientId)
+      .in("visit_date", input.removed);
+    if (error) throw new Error(error.message);
+    removedCount = input.removed.length;
+  }
+
+  return { added: addedCount, removed: removedCount };
+}
+
 export async function getLastVisitBefore(
   patientId: string,
   beforeIsoDate: string,

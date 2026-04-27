@@ -23,6 +23,13 @@ type Props = {
    */
   emptyDayBasePath?: string;
   initialMonth?: string;
+  /**
+   * When provided, day clicks call this callback with YYYY-MM-DD instead of
+   * navigating. Used by parent components to render an inline detail panel.
+   */
+  onDayClick?: (ymd: string) => void;
+  /** YYYY-MM-DD of the currently-selected day, highlighted on the grid. */
+  selectedDate?: string | null;
 };
 
 const WEEK_LABELS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -54,6 +61,8 @@ export default function HistoryCalendar({
   visits = [],
   emptyDayBasePath,
   initialMonth,
+  onDayClick,
+  selectedDate,
 }: Props) {
   const today = new Date();
   const todayKey = ymdKey(today);
@@ -164,25 +173,13 @@ export default function HistoryCalendar({
           const visitEntries = visitByDay[key];
           const isToday = todayKey === key;
           const isFuture = key > todayKey;
+          const isSelected = selectedDate === key;
           const dow = d.getDay();
           const baseDay = [
             "aspect-square flex flex-col items-center justify-center rounded-lg text-sm tabular-nums",
             dow === 0 ? "text-rose-500" : dow === 6 ? "text-sky-500" : "text-ink-700",
-            isToday ? "ring-1 ring-accent" : "",
+            isSelected ? "ring-2 ring-accent" : isToday ? "ring-1 ring-accent" : "",
           ].join(" ");
-
-          // Decide on tap target:
-          //  - log entry exists: open log
-          //  - else diagnosis: open diagnosis
-          //  - else visit only: open visit's href
-          //  - else empty + emptyDayHref provided + not future: open new log
-          //  - else: non-interactive
-          let href: string | null = null;
-          if (logEntries?.[0]) href = logEntries[0].href;
-          else if (diagEntries?.[0]) href = diagEntries[0].href;
-          else if (visitEntries?.[0]) href = visitEntries[0].href;
-          else if (emptyDayBasePath && !isFuture)
-            href = `${emptyDayBasePath}/${key}`;
 
           const dots = (
             <div className="mt-0.5 flex gap-0.5 items-center justify-center h-2">
@@ -199,11 +196,55 @@ export default function HistoryCalendar({
           );
 
           const hasEntry = !!(diagEntries || logEntries || visitEntries);
-          const cellBg = hasEntry
+
+          // Click target precedence:
+          //  - if onDayClick callback supplied: callback (no nav, parent
+          //    renders an inline panel for the date)
+          //  - else log entry exists: open log
+          //  - else diagnosis: open diagnosis
+          //  - else visit only: open visit's href
+          //  - else empty + emptyDayBasePath + not future: navigate
+          let href: string | null = null;
+          if (!onDayClick) {
+            if (logEntries?.[0]) href = logEntries[0].href;
+            else if (diagEntries?.[0]) href = diagEntries[0].href;
+            else if (visitEntries?.[0]) href = visitEntries[0].href;
+            else if (emptyDayBasePath && !isFuture)
+              href = `${emptyDayBasePath}/${key}`;
+          }
+
+          const cellBg = isSelected
+            ? "bg-accent-100 hover:bg-accent-100"
+            : hasEntry
             ? "bg-accent-50 hover:bg-accent-100"
-            : href
+            : href || onDayClick
             ? "hover:bg-ink-50"
             : "";
+
+          if (onDayClick) {
+            // In callback mode every (non-future) day is clickable so the
+            // patient can also tap an empty day to start adding records.
+            const interactive = !isFuture;
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => interactive && onDayClick(key)}
+                disabled={!interactive}
+                className={`${baseDay} ${cellBg} transition`}
+              >
+                <span
+                  className={[
+                    hasEntry ? "font-bold text-ink-900" : "",
+                    isFuture ? "text-ink-300" : "",
+                  ].join(" ")}
+                >
+                  {d.getDate()}
+                </span>
+                {dots}
+              </button>
+            );
+          }
 
           if (href) {
             return (

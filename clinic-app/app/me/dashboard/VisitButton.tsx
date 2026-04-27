@@ -1,92 +1,27 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 type Props = {
-  /** Has the patient already recorded a visit for today? */
-  recordedToday: boolean;
-  /** Today as YYYY-MM-DD; passed in so the server clock is the source of truth. */
-  todayKey: string;
+  /** Visit count in the last ~30 days, used for the helper text. */
+  recentCount: number;
 };
 
-export default function VisitButton({ recordedToday, todayKey }: Props) {
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function record() {
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch("/api/me/visits", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) {
-        setError("記録に失敗しました");
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError("通信エラーが発生しました");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function undo() {
-    const ok = window.confirm("今日の来院記録を取り消しますか？");
-    if (!ok) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/me/visits/${todayKey}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        setError("取り消しに失敗しました");
-        return;
-      }
-      router.refresh();
-    } catch {
-      setError("通信エラーが発生しました");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (recordedToday) {
-    return (
-      <div className="mb-3 flex items-center gap-2 rounded-full border border-sky-300 bg-sky-50 text-sky-700 font-bold tracking-widest py-3 px-5">
-        <span aria-hidden>✓</span>
-        <span className="text-sm">今日の来院 記録済み</span>
-        <button
-          type="button"
-          onClick={undo}
-          disabled={busy}
-          className="ml-auto text-[11px] text-sky-700 underline hover:no-underline"
-        >
-          取り消す
-        </button>
-      </div>
-    );
-  }
-
+/**
+ * Patient mypage visit button. Links to the dedicated multi-select calendar
+ * page (/me/visits) where visits can be added/removed in batch.
+ */
+export default function VisitButton({ recentCount }: Props) {
   return (
-    <>
-      <button
-        type="button"
-        onClick={record}
-        disabled={busy}
-        className="mb-3 block w-full rounded-full border-2 border-sky-500 bg-white text-sky-700 font-black tracking-widest py-3 px-5 hover:bg-sky-50 active:scale-[0.99] transition disabled:opacity-50"
-      >
-        {busy ? "記録中..." : "✓ 今日の来院を記録"}
-      </button>
-      {error && (
-        <p className="mb-3 text-xs text-rose-600 text-center">{error}</p>
-      )}
-    </>
+    <Link
+      href="/me/visits"
+      className="mb-3 flex items-center justify-between rounded-full border-2 border-sky-500 bg-white text-sky-700 font-black tracking-widest py-3 px-5 hover:bg-sky-50 active:scale-[0.99] transition"
+    >
+      <span className="flex items-center gap-2">
+        <span aria-hidden>📅</span>
+        <span className="text-sm">来院記録を編集</span>
+      </span>
+      <span className="text-[10px] text-sky-500 font-bold tracking-widest">
+        直近 {recentCount} 回 ›
+      </span>
+    </Link>
   );
 }

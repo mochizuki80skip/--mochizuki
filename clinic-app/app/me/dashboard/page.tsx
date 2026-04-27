@@ -2,7 +2,6 @@ import Link from "next/link";
 import { requirePatient } from "@/lib/guards";
 import { listDailyLogsForPatient, listDiagnosesForPatient } from "@/lib/db";
 import { contentForType } from "@/lib/content";
-import HistoryCalendar from "@/components/HistoryCalendar";
 import TrendChart from "@/components/TrendChart";
 import SymptomHeatmap from "@/components/SymptomHeatmap";
 import SymptomRanking from "@/components/SymptomRanking";
@@ -10,6 +9,7 @@ import PatientHeader from "../PatientHeader";
 import { getClinic } from "@/lib/clinics";
 import { listVisitsForPatient } from "@/lib/db";
 import VisitButton from "./VisitButton";
+import PatientCalendarSection from "./PatientCalendarSection";
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +31,6 @@ export default async function PatientDashboard() {
     listVisitsForPatient(patient.id),
   ]);
   const clinic = getClinic(patient.clinic_id);
-  const today = todayKey();
-  const recordedToday = visits.some((v) => v.visit_date === today);
 
   return (
     <main className="mx-auto max-w-md px-5 pt-6 pb-12 fade-up">
@@ -57,7 +55,7 @@ export default async function PatientDashboard() {
         ＋ 今日の体調を記録する
       </Link>
 
-      <VisitButton recordedToday={recordedToday} todayKey={today} />
+      <VisitButton recentCount={visits.length} />
 
       {/* Reservation button — opens the clinic-specific external site in a
           new tab. We use the brand's secondary colour (ink-900 / black) with
@@ -125,26 +123,15 @@ export default async function PatientDashboard() {
 
       <section className="mb-5">
         {/*
-          On the patient calendar every day routes through /me/log/[date]
-          (including diagnosis-only days) so the patient can fill in the day
-          record AND see the diagnosis link from the same screen.
+          PatientCalendarSection wraps the calendar with a tap-to-expand
+          detail panel: tapping any day shows what data exists for that
+          day (diagnosis / log / visit) and lets the patient add or
+          delete records inline.
         */}
-        <HistoryCalendar
-          diagnoses={diagnoses.map((d) => ({
-            date: d.diagnosed_at,
-            href: `/me/log/${d.diagnosed_at.slice(0, 10)}`,
-          }))}
-          logs={logs.map((l) => ({
-            date: `${l.log_date}T00:00:00`,
-            href: `/me/log/${l.log_date}`,
-          }))}
-          visits={visits.map((v) => ({
-            date: `${v.visit_date}T00:00:00`,
-            // Patients land on the day record when tapping a visit-only day
-            // since there's no dedicated "visit detail" view for them.
-            href: `/me/log/${v.visit_date}`,
-          }))}
-          emptyDayBasePath="/me/log"
+        <PatientCalendarSection
+          diagnoses={diagnoses}
+          logs={logs}
+          visits={visits}
         />
       </section>
 
