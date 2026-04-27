@@ -220,8 +220,12 @@ function Field({
   required?: boolean;
   hint?: string;
 }) {
+  // Safari (esp. iOS) gives <input type="date"> an intrinsic min-width that
+  // ignores w-full, leaking past the form column. min-w-0 + appearance-none
+  // lets it shrink, and we drop the native picker chrome consistently.
+  const isDate = type === "date";
   return (
-    <div>
+    <div className="min-w-0">
       <label
         htmlFor={id}
         className="block text-xs tracking-widest text-ink-400 mb-1.5"
@@ -235,7 +239,10 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         required={required}
-        className="block w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-base text-ink-900 placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-accent"
+        className={[
+          "block w-full min-w-0 rounded-xl border border-ink-200 bg-white px-4 py-3 text-base text-ink-900 placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-accent",
+          isDate ? "appearance-none" : "",
+        ].join(" ")}
       />
       {hint && <p className="text-[11px] text-ink-400 mt-1">{hint}</p>}
     </div>

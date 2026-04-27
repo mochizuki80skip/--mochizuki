@@ -222,8 +222,11 @@ function Field({
   placeholder?: string;
   required?: boolean;
 }) {
+  // See EditPatientForm: Safari's <input type="date"> intrinsic min-width
+  // overflows the form column without min-w-0 + appearance-none.
+  const isDate = type === "date";
   return (
-    <div>
+    <div className="min-w-0">
       <label
         htmlFor={id}
         className="block text-xs tracking-widest text-ink-400 mb-1.5"
@@ -238,7 +241,10 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="block w-full rounded-xl border border-ink-200 bg-white px-4 py-3 text-base text-ink-900 placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-accent"
+        className={[
+          "block w-full min-w-0 rounded-xl border border-ink-200 bg-white px-4 py-3 text-base text-ink-900 placeholder:text-ink-300 focus:outline-none focus:ring-2 focus:ring-accent",
+          isDate ? "appearance-none" : "",
+        ].join(" ")}
       />
     </div>
   );
