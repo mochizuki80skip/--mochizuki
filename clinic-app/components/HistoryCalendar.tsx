@@ -15,11 +15,11 @@ type Props = {
   /** Optional daily-log entries. Different colour dot, separate href. */
   logs?: CalendarEntry[];
   /**
-   * When provided, days without any entry are tappable and route to this
-   * function's result (used by the patient calendar to allow "tap empty day
-   * to add a log"). When omitted, empty days are non-interactive.
+   * When provided, days without any entry are tappable and route to
+   * `${emptyDayBasePath}/${YYYY-MM-DD}` (e.g. "/me/log" → "/me/log/2026-04-27").
+   * String form keeps this serialisable across the server/client boundary.
    */
-  emptyDayHref?: (ymd: string) => string | null;
+  emptyDayBasePath?: string;
   initialMonth?: string;
 };
 
@@ -49,7 +49,7 @@ function indexBy(entries: CalendarEntry[]): Record<string, CalendarEntry[]> {
 export default function HistoryCalendar({
   diagnoses,
   logs = [],
-  emptyDayHref,
+  emptyDayBasePath,
   initialMonth,
 }: Props) {
   const today = new Date();
@@ -163,7 +163,8 @@ export default function HistoryCalendar({
           let href: string | null = null;
           if (logEntries?.[0]) href = logEntries[0].href;
           else if (diagEntries?.[0]) href = diagEntries[0].href;
-          else if (emptyDayHref && !isFuture) href = emptyDayHref(key);
+          else if (emptyDayBasePath && !isFuture)
+            href = `${emptyDayBasePath}/${key}`;
 
           const dots = (
             <div className="mt-0.5 flex gap-0.5 items-center justify-center h-2">

@@ -66,7 +66,7 @@ export default async function PatientDashboard() {
             date: `${l.log_date}T00:00:00`,
             href: `/me/log/${l.log_date}`,
           }))}
-          emptyDayHref={(ymd) => `/me/log/${ymd}`}
+          emptyDayBasePath="/me/log"
         />
       </section>
 
