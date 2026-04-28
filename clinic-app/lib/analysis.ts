@@ -146,6 +146,57 @@ function inPeriod(date: string, p: AnalysisPeriod): boolean {
   return date >= p.from && date <= p.to;
 }
 
+/**
+ * Aggregate pain entries from a list of daily logs into per-(area,side)
+ * stats. Reused both by analyzePatient and direct callers (e.g. the patient
+ * mypage which only needs pain stats for the body map).
+ */
+export function aggregatePainsForLogs(
+  logs: DailyLog[],
+  fromDate: string,
+  toDate: string,
+): PainStat[] {
+  const period: AnalysisPeriod = { from: fromDate, to: toDate };
+  const filtered = logs.filter((l) => inPeriod(l.log_date, period));
+  const map = new Map<
+    string,
+    PainStat & { sumStrength: number }
+  >();
+  for (const l of filtered) {
+    for (const p of l.pains || []) {
+      const key = `${p.area}:${p.side ?? ""}`;
+      const existing = map.get(key);
+      if (existing) {
+        existing.count++;
+        existing.sumStrength += p.strength;
+        if (p.strength > existing.maxStrength) {
+          existing.maxStrength = p.strength;
+        }
+      } else {
+        map.set(key, {
+          area: p.area,
+          side: p.side,
+          label: painLabel(p.area, p.side),
+          count: 1,
+          avgStrength: 0,
+          maxStrength: p.strength,
+          sumStrength: p.strength,
+        });
+      }
+    }
+  }
+  return Array.from(map.values())
+    .map((p) => ({
+      area: p.area,
+      side: p.side,
+      label: p.label,
+      count: p.count,
+      avgStrength: Math.round((p.sumStrength / p.count) * 10) / 10,
+      maxStrength: p.maxStrength,
+    }))
+    .sort((a, b) => b.count - a.count);
+}
+
 function moodTrend(logs: DailyLog[]): "up" | "down" | "flat" | null {
   // Compare the average of the first half to the second half. Skips logs with
   // no mood. Returns null when there isn't enough data on one side.
@@ -324,38 +375,8 @@ export function analyzePatient(opts: {
     diastolic: bpDia == null ? null : Math.round(bpDia),
   };
 
-  // Pains aggregated by area+side
-  const painMap = new Map<string, PainStat>();
-  for (const l of logs) {
-    for (const p of l.pains || []) {
-      const key = `${p.area}:${p.side ?? ""}`;
-      const existing = painMap.get(key);
-      if (existing) {
-        existing.count++;
-        existing.avgStrength =
-          (existing.avgStrength * (existing.count - 1) + p.strength) /
-          existing.count;
-        if (p.strength > existing.maxStrength) {
-          existing.maxStrength = p.strength;
-        }
-      } else {
-        painMap.set(key, {
-          area: p.area,
-          side: p.side,
-          label: painLabel(p.area, p.side),
-          count: 1,
-          avgStrength: p.strength,
-          maxStrength: p.strength,
-        });
-      }
-    }
-  }
-  const pains = Array.from(painMap.values())
-    .sort((a, b) => b.count - a.count)
-    .map((p) => ({
-      ...p,
-      avgStrength: Math.round(p.avgStrength * 10) / 10,
-    }));
+  // Pains aggregated by area+side (shared logic with patient mypage).
+  const pains = aggregatePainsForLogs(logs, period.from, period.to);
 
   // Symptoms aggregated by key
   const symptomMap = new Map<string, number>();
