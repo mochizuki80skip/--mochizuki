@@ -111,6 +111,12 @@ export default async function PatientDetailPage({
           >
             ＋ 体質診断を実施
           </Link>
+          <Link
+            href={`/admin/patients/${patient.id}/charts`}
+            className="block w-full text-center rounded-full border-2 border-ink-900 text-ink-900 font-bold text-sm py-2.5 hover:bg-ink-50 transition"
+          >
+            🩺 鍼灸カルテを開く
+          </Link>
           <RecordVisitButton patientId={patient.id} recentCount={visits.length} />
         </div>
       </section>

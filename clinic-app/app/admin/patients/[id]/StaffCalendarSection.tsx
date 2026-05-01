@@ -184,23 +184,31 @@ export default function StaffCalendarSection({
             {/* Visit — staff can add/delete inline */}
             <Row icon="🔵" label="来院" empty={!day.visit}>
               {day.visit ? (
-                <div className="flex items-center justify-between rounded-lg bg-sky-50 border border-sky-200 px-3 py-2">
-                  <span className="text-sm font-bold text-sky-900">
-                    ✓ 来院記録あり
-                    {day.visit.recorded_by === "patient" && (
-                      <span className="text-[10px] text-sky-500 ml-1">
-                        (患者本人記録)
-                      </span>
-                    )}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => deleteVisit(sel)}
-                    disabled={busy}
-                    className="text-xs text-sky-700 hover:text-rose-600 underline disabled:opacity-50"
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between rounded-lg bg-sky-50 border border-sky-200 px-3 py-2">
+                    <span className="text-sm font-bold text-sky-900">
+                      ✓ 来院記録あり
+                      {day.visit.recorded_by === "patient" && (
+                        <span className="text-[10px] text-sky-500 ml-1">
+                          (患者本人記録)
+                        </span>
+                      )}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => deleteVisit(sel)}
+                      disabled={busy}
+                      className="text-xs text-sky-700 hover:text-rose-600 underline disabled:opacity-50"
+                    >
+                      取り消す
+                    </button>
+                  </div>
+                  <Link
+                    href={`/admin/patients/${patientId}/charts/new?visit_id=${day.visit.id}`}
+                    className="block w-full text-center rounded-full bg-ink-900 text-white font-bold text-sm py-2.5 hover:bg-ink-700 transition"
                   >
-                    取り消す
-                  </button>
+                    🩺 鍼灸カルテを開く
+                  </Link>
                 </div>
               ) : (
                 <button

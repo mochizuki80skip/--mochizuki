@@ -1,6 +1,9 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   Answer,
+  ChartComment,
+  ChartMarker,
+  ChartRecord,
   DailyLog,
   DiagnoseType,
   DiagnosisRow,
@@ -555,4 +558,150 @@ export async function getLastVisitBefore(
     logVisitsReadError("getLastVisitBefore (throw)", e);
     return null;
   }
+}
+
+// --- Chart records / comments ------------------------------------------
+
+function logChartReadError(where: string, err: unknown) {
+  // eslint-disable-next-line no-console
+  console.error(`[chart] read failed in ${where}:`, err);
+}
+
+function normalizeChart(row: Record<string, unknown>): ChartRecord {
+  return {
+    id: row.id as string,
+    visit_id: row.visit_id as string,
+    patient_id: row.patient_id as string,
+    recorded_by: (row.recorded_by as ChartRecord["recorded_by"]) ?? "main",
+    markers: Array.isArray(row.markers)
+      ? (row.markers as ChartMarker[])
+      : [],
+    free_note: (row.free_note as string | null) ?? null,
+    created_at: row.created_at as string,
+    updated_at: row.updated_at as string,
+  };
+}
+
+export async function getChartByVisit(
+  visitId: string,
+): Promise<ChartRecord | null> {
+  try {
+    const { data, error } = await getClient()
+      .from("chart_records")
+      .select("*")
+      .eq("visit_id", visitId)
+      .maybeSingle();
+    if (error) {
+      logChartReadError("getChartByVisit", error);
+      return null;
+    }
+    return data ? normalizeChart(data as Record<string, unknown>) : null;
+  } catch (e) {
+    logChartReadError("getChartByVisit (throw)", e);
+    return null;
+  }
+}
+
+export async function getChartById(id: string): Promise<ChartRecord | null> {
+  try {
+    const { data, error } = await getClient()
+      .from("chart_records")
+      .select("*")
+      .eq("id", id)
+      .maybeSingle();
+    if (error) {
+      logChartReadError("getChartById", error);
+      return null;
+    }
+    return data ? normalizeChart(data as Record<string, unknown>) : null;
+  } catch (e) {
+    logChartReadError("getChartById (throw)", e);
+    return null;
+  }
+}
+
+export async function listChartsForPatient(
+  patientId: string,
+): Promise<ChartRecord[]> {
+  try {
+    const { data, error } = await getClient()
+      .from("chart_records")
+      .select("*")
+      .eq("patient_id", patientId)
+      .order("created_at", { ascending: false });
+    if (error) {
+      logChartReadError("listChartsForPatient", error);
+      return [];
+    }
+    return (data || []).map((r) => normalizeChart(r as Record<string, unknown>));
+  } catch (e) {
+    logChartReadError("listChartsForPatient (throw)", e);
+    return [];
+  }
+}
+
+export type UpsertChartInput = {
+  visit_id: string;
+  patient_id: string;
+  recorded_by: ChartRecord["recorded_by"];
+  markers: ChartMarker[];
+  free_note: string | null;
+};
+
+export async function upsertChart(input: UpsertChartInput): Promise<ChartRecord> {
+  const { data, error } = await getClient()
+    .from("chart_records")
+    .upsert(
+      {
+        ...input,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "visit_id" },
+    )
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return normalizeChart(data as Record<string, unknown>);
+}
+
+export async function listCommentsForChart(
+  chartId: string,
+): Promise<ChartComment[]> {
+  try {
+    const { data, error } = await getClient()
+      .from("chart_comments")
+      .select("*")
+      .eq("chart_id", chartId)
+      .order("created_at", { ascending: true });
+    if (error) {
+      logChartReadError("listCommentsForChart", error);
+      return [];
+    }
+    return (data || []) as ChartComment[];
+  } catch (e) {
+    logChartReadError("listCommentsForChart (throw)", e);
+    return [];
+  }
+}
+
+export async function createChartComment(input: {
+  chart_id: string;
+  author_role: ChartComment["author_role"];
+  body: string;
+}): Promise<ChartComment> {
+  const { data, error } = await getClient()
+    .from("chart_comments")
+    .insert(input)
+    .select()
+    .single();
+  if (error) throw new Error(error.message);
+  return data as ChartComment;
+}
+
+export async function deleteChartComment(id: string): Promise<void> {
+  const { error } = await getClient()
+    .from("chart_comments")
+    .delete()
+    .eq("id", id);
+  if (error) throw new Error(error.message);
 }

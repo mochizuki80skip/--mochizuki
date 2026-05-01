@@ -205,3 +205,51 @@ export type PainRecord = {
   strength: number; // 1..5
   free_text?: string | null;
 };
+
+// ==========================================================================
+// 鍼灸カルテ (chart_records / chart_comments)
+// ==========================================================================
+
+export type ChartView = "front" | "back";
+export type ChartLayer = "skeleton" | "muscle";
+export type ChartMarkerType =
+  | "needle"   // 鍼 (赤針)
+  | "intra"    // 円皮鍼 (青丸)
+  | "moxa"     // 灸 (紫四角)
+  | "manual"   // 手技 (緑手)
+  | "muscle"   // 筋肉調整 (オレンジバンド + 部位選択)
+  | "skeletal"; // 骨格矯正 (グレーひし形 + 部位選択)
+
+export type ChartMarker = {
+  /** 一意ID — クライアント側で付与 (UUIDでなくとも良い) */
+  id: string;
+  view: ChartView;
+  /** SVGの 0..100 座標 (%) */
+  x: number;
+  y: number;
+  type: ChartMarkerType;
+  /** "muscle"/"skeletal" のときのみ — 部位名 (例: "僧帽筋", "頸椎") */
+  part?: string | null;
+  /** 任意メモ */
+  note?: string | null;
+};
+
+export type ChartRecord = {
+  id: string;
+  visit_id: string;
+  patient_id: string;
+  recorded_by: "master" | "main" | "branch";
+  markers: ChartMarker[];
+  free_note: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ChartComment = {
+  id: string;
+  chart_id: string;
+  author_role: "master" | "main" | "branch";
+  body: string;
+  created_at: string;
+  updated_at: string;
+};
