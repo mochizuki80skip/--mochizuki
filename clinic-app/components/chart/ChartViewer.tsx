@@ -4,17 +4,16 @@ import { useState } from "react";
 import ChartCanvas from "./ChartCanvas";
 import { MARKER_META } from "./MarkerIcon";
 import type {
-  ChartLayer,
   ChartMarker,
   ChartView,
 } from "@/lib/types";
+import type { AcupointMode } from "@/lib/acupoints";
 
 type Props = {
   markers: ChartMarker[];
   freeNote: string | null;
-  /** デフォルトビュー */
   defaultView?: ChartView;
-  /** ビュー/レイヤー切替を出さない (サムネイル時) */
+  /** ビュー/設定切替を出さない (サムネイル表示時) */
   compact?: boolean;
 };
 
@@ -25,11 +24,10 @@ export default function ChartViewer({
   compact,
 }: Props) {
   const [view, setView] = useState<ChartView>(defaultView);
-  const [layer, setLayer] = useState<ChartLayer>("skeleton");
   const [showAcupoints, setShowAcupoints] = useState(false);
+  const [acupointMode, setAcupointMode] = useState<AcupointMode>("main");
 
   if (compact) {
-    // ミニマル: 正面と背面を横並び表示、操作不可
     return (
       <div className="grid grid-cols-2 gap-2">
         {(["front", "back"] as const).map((v) => (
@@ -42,12 +40,12 @@ export default function ChartViewer({
             </div>
             <ChartCanvas
               view={v}
-              layer="skeleton"
               showAcupoints={false}
+              acupointMode="main"
               markers={markers}
               editable={false}
               selectedType="needle"
-              onAdd={() => {}}
+              onAddPoint={() => {}}
               onLongPressMarker={() => {}}
             />
           </div>
@@ -81,22 +79,6 @@ export default function ChartViewer({
       </div>
 
       <div className="flex items-center gap-2 flex-wrap">
-        <div className="grid grid-cols-2 gap-1 p-1 bg-ink-50 rounded-full">
-          {(["skeleton", "muscle"] as const).map((l) => (
-            <button
-              key={l}
-              onClick={() => setLayer(l)}
-              className={[
-                "rounded-full px-3 py-1 text-xs font-bold transition",
-                layer === l
-                  ? "bg-white text-ink-900 shadow-soft"
-                  : "text-ink-500 hover:text-ink-700",
-              ].join(" ")}
-            >
-              {l === "skeleton" ? "骨格" : "筋肉"}
-            </button>
-          ))}
-        </div>
         <button
           onClick={() => setShowAcupoints((v) => !v)}
           className={[
@@ -108,17 +90,35 @@ export default function ChartViewer({
         >
           ● 経穴 {showAcupoints ? "表示" : "非表示"}
         </button>
+        {showAcupoints && (
+          <div className="grid grid-cols-2 gap-1 p-1 bg-ink-50 rounded-full">
+            {(["main", "full"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setAcupointMode(m)}
+                className={[
+                  "rounded-full px-3 py-1 text-xs font-bold transition tabular-nums",
+                  acupointMode === m
+                    ? "bg-white text-ink-900 shadow-soft"
+                    : "text-ink-500 hover:text-ink-700",
+                ].join(" ")}
+              >
+                {m === "main" ? "主要 40" : "全 361"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-ink-100 bg-white p-2 shadow-soft">
         <ChartCanvas
           view={view}
-          layer={layer}
           showAcupoints={showAcupoints}
+          acupointMode={acupointMode}
           markers={markers}
           editable={false}
           selectedType="needle"
-          onAdd={() => {}}
+          onAddPoint={() => {}}
           onLongPressMarker={() => {}}
         />
       </div>
@@ -126,30 +126,28 @@ export default function ChartViewer({
       {/* Marker legend */}
       <div className="rounded-2xl border border-ink-100 bg-white p-3 shadow-soft">
         <div className="text-[11px] tracking-widest text-ink-400 font-bold mb-2">
-          配置内容（このビューに {markers.filter((m) => m.view === view).length} 件）
+          配置内容
         </div>
         <ul className="grid grid-cols-2 gap-1.5 text-xs">
-          {markers
-            .filter((m) => m.view === view)
-            .map((m) => {
-              const meta = MARKER_META[m.type];
-              return (
-                <li key={m.id} className="flex items-center gap-1.5">
-                  <span
-                    aria-hidden
-                    className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ background: meta.color }}
-                  />
-                  <span className="text-ink-700 truncate">
-                    {meta.label}
-                    {m.part ? ` / ${m.part}` : ""}
-                  </span>
-                </li>
-              );
-            })}
-          {markers.filter((m) => m.view === view).length === 0 && (
+          {markers.map((m) => {
+            const meta = MARKER_META[m.type];
+            return (
+              <li key={m.id} className="flex items-center gap-1.5">
+                <span
+                  aria-hidden
+                  className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ background: meta.color }}
+                />
+                <span className="text-ink-700 truncate">
+                  {meta.label}
+                  {m.part ? ` / ${m.part}` : ""}
+                </span>
+              </li>
+            );
+          })}
+          {markers.length === 0 && (
             <li className="col-span-2 text-ink-400 text-center py-2">
-              このビューに配置されたマーカーはありません
+              マーカーはまだありません
             </li>
           )}
         </ul>
