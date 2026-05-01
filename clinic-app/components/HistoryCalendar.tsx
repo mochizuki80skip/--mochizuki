@@ -174,28 +174,8 @@ export default function HistoryCalendar({
           const isToday = todayKey === key;
           const isFuture = key > todayKey;
           const isSelected = selectedDate === key;
-          const dow = d.getDay();
-          const baseDay = [
-            "aspect-square flex flex-col items-center justify-center rounded-lg text-sm tabular-nums",
-            dow === 0 ? "text-rose-500" : dow === 6 ? "text-sky-500" : "text-ink-700",
-            isSelected ? "ring-2 ring-accent" : isToday ? "ring-1 ring-accent" : "",
-          ].join(" ");
-
-          const dots = (
-            <div className="mt-0.5 flex gap-0.5 items-center justify-center h-2">
-              {diagEntries && (
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent" />
-              )}
-              {logEntries && (
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              )}
-              {visitEntries && (
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500" />
-              )}
-            </div>
-          );
-
           const hasEntry = !!(diagEntries || logEntries || visitEntries);
+          const dow = d.getDay();
 
           // Click target precedence:
           //  - if onDayClick callback supplied: callback (no nav, parent
@@ -213,12 +193,43 @@ export default function HistoryCalendar({
               href = `${emptyDayBasePath}/${key}`;
           }
 
+          // Whether this cell is actually tappable (a Link or button).
+          const isInteractive = !isFuture && !!(href || onDayClick);
+
+          // Subtle border on every interactive cell so it reads as a button,
+          // stronger emphasis for has-entry / today / selected.
+          let borderClass = "border-transparent";
+          if (isSelected) borderClass = "border-accent ring-2 ring-accent";
+          else if (isToday) borderClass = "border-accent ring-1 ring-accent";
+          else if (hasEntry) borderClass = "border-accent-200";
+          else if (isInteractive) borderClass = "border-ink-100";
+
+          const baseDay = [
+            "aspect-square flex flex-col items-center justify-center rounded-lg text-sm tabular-nums border transition",
+            dow === 0 ? "text-rose-500" : dow === 6 ? "text-sky-500" : "text-ink-700",
+            borderClass,
+          ].join(" ");
+
+          const dots = (
+            <div className="mt-0.5 flex gap-0.5 items-center justify-center h-2">
+              {diagEntries && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent" />
+              )}
+              {logEntries && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              )}
+              {visitEntries && (
+                <span className="inline-block w-1.5 h-1.5 rounded-full bg-sky-500" />
+              )}
+            </div>
+          );
+
           const cellBg = isSelected
             ? "bg-accent-100 hover:bg-accent-100"
             : hasEntry
             ? "bg-accent-50 hover:bg-accent-100"
-            : href || onDayClick
-            ? "hover:bg-ink-50"
+            : isInteractive
+            ? "bg-white hover:bg-ink-50"
             : "";
 
           if (onDayClick) {
