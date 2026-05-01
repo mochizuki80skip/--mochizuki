@@ -46,15 +46,27 @@ export async function POST(req: Request) {
   }
 
   // Patient context: prefer cookie (patient self-flow), then admin-supplied id.
-  let patientId: string | null = getAuthenticatedPatientId();
-  if (!patientId && isAdminAuthenticated() && typeof body.patient_id === "string") {
+  const patientCookieId = getAuthenticatedPatientId();
+  const isAdmin = isAdminAuthenticated();
+  let patientId: string | null = patientCookieId;
+  if (!patientId && isAdmin && typeof body.patient_id === "string") {
     patientId = body.patient_id;
   }
+
+  // The diagnosis was performed by the patient if their cookie is what
+  // identified them; otherwise (admin-supplied id) the staff ran it on the
+  // patient's behalf. The result page uses this to send the user back to the
+  // right place: own マイページ vs admin patient management.
+  const role: "patient" | "admin" | null = patientCookieId
+    ? "patient"
+    : isAdmin
+    ? "admin"
+    : null;
 
   // Phase 2A only persists diagnoses tied to a patient. Anonymous trial flows
   // stay client-side until we explicitly add anonymous tracking.
   if (!patientId) {
-    return NextResponse.json({ ok: true, saved: false });
+    return NextResponse.json({ ok: true, saved: false, role });
   }
 
   const row = await saveDiagnosis({
@@ -64,5 +76,5 @@ export async function POST(req: Request) {
     answers: Array.isArray(body.answers) ? (body.answers as Answer[]) : [],
   });
 
-  return NextResponse.json({ ok: true, saved: true, id: row.id });
+  return NextResponse.json({ ok: true, saved: true, id: row.id, role, patient_id: patientId });
 }

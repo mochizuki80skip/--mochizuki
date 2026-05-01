@@ -22,6 +22,11 @@ export default function ResultPage() {
   const [result, setResult] = useState<DiagnoseResult | null>(null);
   const [tab, setTab] = useState<"summary" | "advice">("summary");
   const [patientId, setPatientId] = useState<string | null>(null);
+  // Who performed the diagnosis. Determines where the bottom CTA goes:
+  //   "patient" → 自分のマイページ (cookie auth, no re-login needed)
+  //   "admin"   → スタッフのお客様管理画面
+  //   null      → 匿名トライアル
+  const [role, setRole] = useState<"patient" | "admin" | null>(null);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "skipped" | "error">("idle");
 
   useEffect(() => {
@@ -56,6 +61,12 @@ export default function ResultPage() {
     })
       .then((res) => res.json().catch(() => ({})))
       .then((json) => {
+        if (json?.role === "patient" || json?.role === "admin") {
+          setRole(json.role);
+        }
+        if (typeof json?.patient_id === "string") {
+          setPatientId(json.patient_id);
+        }
         if (json?.saved) {
           markResultSaved();
           setSaveState("saved");
@@ -216,15 +227,23 @@ export default function ResultPage() {
         </section>
       )}
 
-      {/* Bottom actions */}
+      {/* Bottom actions — destination depends on who performed the diagnosis. */}
       <div className="mt-8 grid gap-3">
-        {patientId ? (
+        {role === "admin" && patientId ? (
+          <Link
+            href={`/admin/patients/${patientId}`}
+            onClick={() => clearDiagnose()}
+            className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition active:scale-[0.99]"
+          >
+            お客様管理画面に戻る
+          </Link>
+        ) : role === "patient" ? (
           <Link
             href="/me/dashboard"
             onClick={() => clearDiagnose()}
             className="block w-full text-center rounded-full bg-accent text-ink-900 font-black tracking-widest py-3.5 shadow-soft hover:bg-accent-400 transition active:scale-[0.99]"
           >
-            マイページに戻る
+            マイページへ（ログイン不要）
           </Link>
         ) : (
           <Link
