@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { saveDiagnosis } from "@/lib/db";
 import { getAuthenticatedPatientId, isAdminAuthenticated } from "@/lib/auth";
-import type { Answer, AxisKey, AxisResult, DiagnoseType } from "@/lib/types";
+import type { Answer, DiagnoseType, DiagnosisScores } from "@/lib/types";
 
 export const runtime = "nodejs";
 
@@ -13,7 +13,7 @@ const TYPE_KEYS: DiagnoseType[] = [
   "compound",
 ];
 
-function isValidScores(s: unknown): s is Record<AxisKey, AxisResult> {
+function isValidScores(s: unknown): s is DiagnosisScores {
   if (!s || typeof s !== "object") return false;
   const o = s as Record<string, unknown>;
   return ["nerve", "circ", "metab"].every((k) => {
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
   const row = await saveDiagnosis({
     patient_id: patientId,
-    scores: body.scores as Record<AxisKey, AxisResult>,
+    scores: body.scores as DiagnosisScores,
     type_key: body.type_key as DiagnoseType,
     answers: Array.isArray(body.answers) ? (body.answers as Answer[]) : [],
   });

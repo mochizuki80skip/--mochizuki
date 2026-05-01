@@ -11,14 +11,14 @@ export const dynamic = "force-dynamic";
 // scores (poor health) and the "current" one shows clear improvement on every
 // axis (higher scores) — the value proposition for returning patients.
 const SAMPLE_PREV_AXES: Record<AxisKey, AxisResult> = {
-  nerve: { axis: "nerve", raw: 22, normalized: 15, level: "strong" },
-  circ: { axis: "circ", raw: 18, normalized: 35, level: "off" },
-  metab: { axis: "metab", raw: 17, normalized: 40, level: "off" },
+  nerve: { axis: "nerve", raw: 15, normalized: 15, level: "strong" },
+  circ: { axis: "circ", raw: 12, normalized: 35, level: "off" },
+  metab: { axis: "metab", raw: 11, normalized: 40, level: "off" },
 };
 const SAMPLE_AXES: Record<AxisKey, AxisResult> = {
-  nerve: { axis: "nerve", raw: 17, normalized: 40, level: "off" },
-  circ: { axis: "circ", raw: 15, normalized: 50, level: "off" },
-  metab: { axis: "metab", raw: 14, normalized: 55, level: "mild" },
+  nerve: { axis: "nerve", raw: 11, normalized: 40, level: "off" },
+  circ: { axis: "circ", raw: 9, normalized: 50, level: "off" },
+  metab: { axis: "metab", raw: 8, normalized: 55, level: "mild" },
 };
 
 export default async function Home() {
@@ -232,7 +232,7 @@ export default async function Home() {
         </p>
         <ol className="space-y-3">
           {[
-            { n: "01", t: "15問の問診", d: "1問あたり10秒。タップで直感的に回答" },
+            { n: "01", t: "18問の問診", d: "1問あたり10秒。タップで直感的に回答" },
             { n: "02", t: "3軸レーダーで可視化", d: "あなたのタイプを判定" },
             { n: "03", t: "今日からできる改善案", d: "睡眠 / 食事 / 運動 / ストレス" },
           ].map((s) => (

@@ -1,20 +1,37 @@
 import { QUESTIONS } from "./questions";
-import type {
-  Answer,
-  AxisKey,
-  AxisLevel,
-  AxisResult,
-  DiagnoseResult,
-  DiagnoseType,
+import { SESSION_MESSAGES, patternFor } from "./treatment";
+import {
+  BENSHO_FOR_AXIS,
+  type Answer,
+  type AxisKey,
+  type AxisLevel,
+  type AxisResult,
+  type BenshoKey,
+  type BenshoResult,
+  type DiagnoseResult,
+  type DiagnoseType,
+  type TreatmentEntry,
+  type TreatmentPlan,
 } from "./types";
 
 const AXES: AxisKey[] = ["nerve", "circ", "metab"];
+/** 大分類 tiebreak: 神経 > 循環 > 代謝 (per spec). */
+const AXIS_TIEBREAK_RANK: Record<AxisKey, number> = {
+  nerve: 0,
+  circ: 1,
+  metab: 2,
+};
 
+/**
+ * Each 大分類 raw is the sum of 6 underlying questions (2 弁証 × 3 questions),
+ * each 0..3 → 大分類 raw range is 0..18. Higher raw = more symptomatic.
+ * Thresholds calibrated to ~25/45/65% of max.
+ */
 const LEVEL_THRESHOLDS: { min: number; level: AxisLevel }[] = [
-  { min: 20, level: "strong" }, // 20-25
-  { min: 15, level: "off" },    // 15-19
-  { min: 10, level: "mild" },   // 10-14
-  { min: 0,  level: "balanced" }, // 5-9
+  { min: 13, level: "strong" },   // 13-18
+  { min: 9,  level: "off" },      // 9-12
+  { min: 5,  level: "mild" },     // 5-8
+  { min: 0,  level: "balanced" }, // 0-4
 ];
 
 function levelFromRaw(raw: number): AxisLevel {
@@ -27,14 +44,29 @@ function levelFromRaw(raw: number): AxisLevel {
 export function computeResult(answers: Answer[]): DiagnoseResult {
   const map = new Map(answers.map((a) => [a.id, a.value]));
 
+  // ----- 6 弁証 raw scores (0..9 each) -----
+  const benshoMap = {} as Record<BenshoKey, BenshoResult>;
+  const benshoKeys: BenshoKey[] = [
+    "kikyo", "kitai", "kekkyo", "oketsu", "inkyo", "tanshitsu",
+  ];
+  for (const bk of benshoKeys) {
+    const items = QUESTIONS.filter((q) => q.bensho === bk);
+    const raw = items.reduce((sum, q) => sum + (map.get(q.id) ?? 0), 0);
+    benshoMap[bk] = {
+      key: bk,
+      raw,
+      // staff convention: high = strong tendency
+      normalized: Math.round((raw / 9) * 100),
+    };
+  }
+
+  // ----- 3 大分類 results (raw 0..18) -----
   const axisResults = {} as Record<AxisKey, AxisResult>;
   for (const axis of AXES) {
-    const items = QUESTIONS.filter((q) => q.axis === axis);
-    const raw = items.reduce((sum, q) => sum + (map.get(q.id) ?? 1), 0);
-    // Questions are framed as "how often do you experience this DYSFUNCTION",
-    // so high raw = many symptoms. We invert to display: high score = healthy,
-    // low score = poor (raw 5 → 100, raw 25 → 0).
-    const normalized = Math.round(((25 - raw) / 20) * 100);
+    const [a, b] = BENSHO_FOR_AXIS[axis];
+    const raw = benshoMap[a].raw + benshoMap[b].raw;
+    // patient convention: high = healthy. Invert so 0 raw → 100, 18 raw → 0.
+    const normalized = Math.round(((18 - raw) / 18) * 100);
     axisResults[axis] = {
       axis,
       raw,
@@ -43,10 +75,10 @@ export function computeResult(answers: Answer[]): DiagnoseResult {
     };
   }
 
-  // Determine type by ranking dysregulation
+  // ----- type_key (legacy 5-type for content lookup & list filters) -----
   const ranked = AXES
     .map((a) => axisResults[a])
-    .sort((a, b) => b.raw - a.raw);
+    .sort((x, y) => y.raw - x.raw || AXIS_TIEBREAK_RANK[x.axis] - AXIS_TIEBREAK_RANK[y.axis]);
 
   const top = ranked[0];
   const second = ranked[1];
@@ -70,12 +102,54 @@ export function computeResult(answers: Answer[]): DiagnoseResult {
     else type = "metab_low";
   }
 
+  // ----- treatment plan -----
+  const treatment = buildTreatmentPlan(axisResults, benshoMap);
+
   return {
     axes: axisResults,
+    bensho: benshoMap,
+    treatment,
     type,
     primary,
     secondary,
     createdAt: new Date().toISOString(),
+  };
+}
+
+/**
+ * Rank 大分類 by raw score desc (tiebreak: 神経 > 循環 > 代謝).
+ * For each 大分類, pick the higher-scoring of its two 弁証.
+ * Tiebreak within 大分類: take the first 弁証 in BENSHO_FOR_AXIS order.
+ */
+function buildTreatmentPlan(
+  axes: Record<AxisKey, AxisResult>,
+  bensho: Record<BenshoKey, BenshoResult>,
+): TreatmentPlan {
+  const ordered: AxisKey[] = [...AXES].sort((a, b) => {
+    const diff = axes[b].raw - axes[a].raw;
+    if (diff !== 0) return diff;
+    return AXIS_TIEBREAK_RANK[a] - AXIS_TIEBREAK_RANK[b];
+  });
+
+  const priority: TreatmentEntry[] = [];
+  for (const axis of ordered) {
+    const [a, b] = BENSHO_FOR_AXIS[axis];
+    // Pick dominant 弁証. Tiebreak: first 弁証 in axis order (a wins).
+    const dominant: BenshoKey = bensho[b].raw > bensho[a].raw ? b : a;
+    const pat = patternFor(axis, dominant);
+    if (!pat) continue;
+    priority.push({
+      axis,
+      bensho: dominant,
+      chiho: pat.chiho,
+      points: pat.points,
+      axisScore: axes[axis].raw,
+    });
+  }
+
+  return {
+    priority,
+    sessions: { ...SESSION_MESSAGES },
   };
 }
 
@@ -88,8 +162,8 @@ export const LEVEL_LABEL: Record<AxisLevel, { ja: string; tone: string }> = {
 
 /**
  * Single 0-100 number that summarises overall constitution health, computed
- * as the average of the three axes. High = healthy (consistent with the
- * inverted score direction).
+ * as the average of the three axis-normalised scores. High = healthy
+ * (consistent with the inverted patient-facing direction).
  */
 export function constitutionScore(axes: Record<AxisKey, AxisResult>): number {
   return Math.round(

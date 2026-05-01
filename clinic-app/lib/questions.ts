@@ -1,115 +1,159 @@
 import type { Question } from "./types";
 
-// 15-question constitution diagnosis.
-// 5 questions per axis (nerve / circ / metab).
-// All items are framed as "how often / how strongly do you experience this?"
-// Likert 1-5: 1=ほぼない, 2=あまりない, 3=ときどき, 4=よくある, 5=いつも
-//
-// Items selected from autonomic dysregulation / circulatory stagnation /
-// metabolic-digestive dysfunction patterns commonly screened in clinical
-// intake at 鍼灸院, blended with behavioral psychology cues
-// (sleep hygiene, stress reactivity, eating behavior).
+// ===========================================================================
+// 18-question TCM 弁証 screening.
+// 6 弁証 (kikyo/kitai/kekkyo/oketsu/inkyo/tanshitsu) × 3 questions each.
+// Likert 0-3 (frequency): 0=まったくない 1=たまにある 2=よくある 3=ほぼいつもある
+// 大分類 (axis) groupings:
+//   nerve = 気虚 + 気滞 (q1-q6)
+//   circ  = 血虚 + 瘀血 (q7-q12)
+//   metab = 陰虚 + 痰湿 (q13-q18)
+// ===========================================================================
 
 export const QUESTIONS: Question[] = [
-  // ===== 神経軸 =====
+  // ===== 気虚 (kikyo) =====
   {
-    id: "n1",
+    id: "q1",
     axis: "nerve",
-    text: "寝つきが悪い、または夜中に目が覚めることがある",
-    hint: "副交感神経の働きや睡眠の質を確認します",
+    bensho: "kikyo",
+    text: "朝起きてもすぐに疲れを感じる",
+    hint: "エネルギー(気)の不足を確認します",
   },
   {
-    id: "n2",
+    id: "q2",
     axis: "nerve",
-    text: "些細なことでイライラしたり、不安を感じやすい",
-    hint: "ストレス反応の過敏さを確認します",
+    bensho: "kikyo",
+    text: "少し動いただけで息切れ・倦怠感がある",
+    hint: "気の推動力の弱さを確認します",
   },
   {
-    id: "n3",
+    id: "q3",
     axis: "nerve",
-    text: "音や光、人混みに敏感で疲れやすい",
-    hint: "感覚情報の処理状態を確認します",
+    bensho: "kikyo",
+    text: "風邪をひきやすい、または治りにくい",
+    hint: "衛気(免疫)の働きを確認します",
   },
+
+  // ===== 気滞 (kitai) =====
   {
-    id: "n4",
+    id: "q4",
     axis: "nerve",
-    text: "肩や首、顎まわりがいつも緊張している感じがある",
-    hint: "慢性的な筋緊張は交感神経優位のサインです",
+    bensho: "kitai",
+    text: "胸やお腹、脇腹が張った感じがする",
+    hint: "気のめぐりの停滞を確認します",
   },
   {
-    id: "n5",
+    id: "q5",
     axis: "nerve",
-    text: "考えがまとまらず、集中力が続かない",
-    hint: "脳神経の疲労・自律神経の乱れを確認します",
+    bensho: "kitai",
+    text: "ため息やゲップが多く出る",
+    hint: "気の上下のめぐりを確認します",
   },
-  // ===== 循環軸 =====
   {
-    id: "c1",
+    id: "q6",
+    axis: "nerve",
+    bensho: "kitai",
+    text: "気分の浮き沈みやイライラを感じやすい",
+    hint: "情志(感情)による気滞を確認します",
+  },
+
+  // ===== 血虚 (kekkyo) =====
+  {
+    id: "q7",
     axis: "circ",
-    text: "手足が冷えやすい(特に末端)",
-    hint: "末梢循環の状態を確認します",
+    bensho: "kekkyo",
+    text: "顔色が青白い・くすんで見えると言われる",
+    hint: "血の量・滋養の不足を確認します",
   },
   {
-    id: "c2",
+    id: "q8",
     axis: "circ",
-    text: "立ちくらみや、めまいを感じることがある",
-    hint: "起立性の循環調節を確認します",
+    bensho: "kekkyo",
+    text: "髪のパサつき・抜け毛・爪の割れが気になる",
+    hint: "血の滋潤作用を確認します",
   },
   {
-    id: "c3",
+    id: "q9",
     axis: "circ",
-    text: "顔色がくすむ、唇や爪の色が薄い",
-    hint: "酸素運搬・微小循環のサインです",
+    bensho: "kekkyo",
+    text: "立ちくらみ・動悸・目のかすみがある",
+    hint: "心血・肝血の不足を確認します",
   },
+
+  // ===== 瘀血 (oketsu) =====
   {
-    id: "c4",
+    id: "q10",
     axis: "circ",
-    text: "夕方になると足や顔がむくみやすい",
-    hint: "リンパ・体液循環の停滞を確認します",
+    bensho: "oketsu",
+    text: "肩こりや腰痛など、決まった部位の痛みがある",
+    hint: "局所の血の停滞を確認します",
   },
   {
-    id: "c5",
+    id: "q11",
     axis: "circ",
-    text: "肩こりや腰のだるさが慢性的にある",
-    hint: "局所循環の停滞を確認します",
-  },
-  // ===== 代謝軸 =====
-  {
-    id: "m1",
-    axis: "metab",
-    text: "朝起きても疲れが残っている、回復した感じがしない",
-    hint: "夜間のエネルギー回復・代謝を確認します",
+    bensho: "oketsu",
+    text: "手足の冷え・しびれを感じる",
+    hint: "末梢循環(瘀血)を確認します",
   },
   {
-    id: "m2",
+    id: "q12",
+    axis: "circ",
+    bensho: "oketsu",
+    text: "目の下のクマや唇・歯茎の色がくすんでいる",
+    hint: "微小循環の停滞サインを確認します",
+  },
+
+  // ===== 陰虚 (inkyo) =====
+  {
+    id: "q13",
     axis: "metab",
-    text: "食後に強い眠気や倦怠感を感じる",
-    hint: "血糖・代謝のスイッチング機能を確認します",
+    bensho: "inkyo",
+    text: "のぼせ・ほてりを感じやすい",
+    hint: "陰(冷却・潤い)の不足を確認します",
   },
   {
-    id: "m3",
+    id: "q14",
     axis: "metab",
-    text: "便秘・下痢など、お通じの不調がある",
-    hint: "消化吸収・排出機能を確認します",
+    bensho: "inkyo",
+    text: "寝汗をかく、または口・喉が乾きやすい",
+    hint: "陰液(津液)の不足を確認します",
   },
   {
-    id: "m4",
+    id: "q15",
     axis: "metab",
-    text: "肌荒れ・口内炎・吹き出物ができやすい",
-    hint: "老廃物の排出・炎症コントロールを確認します",
+    bensho: "inkyo",
+    text: "手のひら・足の裏・胸が熱く感じる",
+    hint: "五心煩熱(陰虚火旺)を確認します",
+  },
+
+  // ===== 痰湿 (tanshitsu) =====
+  {
+    id: "q16",
+    axis: "metab",
+    bensho: "tanshitsu",
+    text: "体が重だるい・むくみやすい",
+    hint: "水湿の停滞を確認します",
   },
   {
-    id: "m5",
+    id: "q17",
     axis: "metab",
-    text: "体重や体型が変動しやすい(増えやすい/減りやすい)",
-    hint: "ホルモン・代謝バランスを確認します",
+    bensho: "tanshitsu",
+    text: "痰がからむ、鼻水・後鼻漏が多い",
+    hint: "痰湿の生成・停滞を確認します",
+  },
+  {
+    id: "q18",
+    axis: "metab",
+    bensho: "tanshitsu",
+    text: "お腹が張る・胃もたれ・軟便がある",
+    hint: "脾の運化失調による痰湿を確認します",
   },
 ];
 
+// 0-3 frequency Likert. "value" is what gets saved on the Answer.
 export const LIKERT_OPTIONS: { value: number; label: string }[] = [
-  { value: 1, label: "ほぼない" },
-  { value: 2, label: "あまりない" },
-  { value: 3, label: "ときどき" },
-  { value: 4, label: "よくある" },
-  { value: 5, label: "いつも" },
+  { value: 0, label: "まったくない" },
+  { value: 1, label: "たまにある" },
+  { value: 2, label: "よくある" },
+  { value: 3, label: "ほぼいつもある" },
 ];

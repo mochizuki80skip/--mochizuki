@@ -4,6 +4,8 @@ import { canAccessPatient, requireAdmin } from "@/lib/guards";
 import { getPatientById, listDiagnosesForPatient } from "@/lib/db";
 import { contentForType } from "@/lib/content";
 import RadarChart from "@/components/RadarChart";
+import BenshoRadarChart from "@/components/BenshoRadarChart";
+import TreatmentPlanCard from "@/components/TreatmentPlanCard";
 import AxisBar from "@/components/AxisBar";
 import { AXIS_LABEL } from "@/lib/types";
 import AdminHeader from "../../../../AdminHeader";
@@ -138,6 +140,29 @@ export default async function DiagnosisAdminDetailPage({
           <AxisBar key={k} result={row.scores[k]} />
         ))}
       </section>
+
+      {/* 6軸 弁証 radar — staff-only view, only when the diagnosis has the
+          extended TCM data. Older rows (pre-redesign) fall back to 3軸のみ. */}
+      {row.scores.bensho && (
+        <section className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft mb-5">
+          <h2 className="text-xs tracking-widest text-ink-400 mb-2">
+            弁証スコア / 6軸（スタッフ用）
+          </h2>
+          <div className="flex justify-center">
+            <BenshoRadarChart bensho={row.scores.bensho} size={300} />
+          </div>
+          <p className="text-[11px] text-ink-400 text-center mt-1">
+            数値が大きいほど、その弁証の傾向が強いことを示します
+          </p>
+        </section>
+      )}
+
+      {/* Treatment plan — priority order, dominant 弁証 per 大分類, 経穴, 回数別 */}
+      {row.scores.treatment && (
+        <section className="mb-5">
+          <TreatmentPlanCard plan={row.scores.treatment} />
+        </section>
+      )}
 
       <section className="mb-5">
         <StaffNoteEditor

@@ -46,7 +46,9 @@ export default function ResultPage() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        scores: r.axes,
+        // Persist 3 大分類 axes plus the new 6-弁証 + treatment data so the
+        // staff view can read them back. Old rows simply don't have these.
+        scores: { ...r.axes, bensho: r.bensho, treatment: r.treatment },
         type_key: r.type,
         answers: answers || [],
         patient_id: getPatientContext(),

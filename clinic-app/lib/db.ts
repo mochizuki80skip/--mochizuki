@@ -1,11 +1,10 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type {
   Answer,
-  AxisKey,
-  AxisResult,
   DailyLog,
   DiagnoseType,
   DiagnosisRow,
+  DiagnosisScores,
   Patient,
   Visit,
 } from "./types";
@@ -125,7 +124,7 @@ export async function getDiagnosis(id: string): Promise<DiagnosisRow | null> {
 
 export type SaveDiagnosisInput = {
   patient_id: string | null;
-  scores: Record<AxisKey, AxisResult>;
+  scores: DiagnosisScores;
   type_key: DiagnoseType;
   answers: Answer[];
 };

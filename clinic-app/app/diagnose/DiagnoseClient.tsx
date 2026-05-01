@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { LIKERT_OPTIONS, QUESTIONS } from "@/lib/questions";
 import { computeResult } from "@/lib/scoring";
 import { saveAnswers, saveResult, setPatientContext } from "@/lib/storage";
-import { AXIS_LABEL } from "@/lib/types";
+import { AXIS_LABEL, BENSHO_LABEL } from "@/lib/types";
 import type { Answer } from "@/lib/types";
 import ProgressBar from "@/components/ProgressBar";
 
@@ -16,8 +16,6 @@ export default function DiagnoseClient() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
 
   // ?patient=<id> sets the patient context for this diagnosis session.
-  // Used by both the patient self-flow (from /me/dashboard) and admin flow
-  // (from /admin/patients/[id]). The API route validates auth before saving.
   useEffect(() => {
     const pid = searchParams.get("patient");
     if (pid) setPatientContext(pid);
@@ -26,11 +24,11 @@ export default function DiagnoseClient() {
   const q = QUESTIONS[idx];
   const current = answers[q.id];
 
-  // keyboard support: 1-5 for direct select, ←→ for nav
+  // keyboard support: 1-4 for direct select (mapped to value 0-3), ←→ for nav
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (["1", "2", "3", "4", "5"].includes(e.key)) {
-        setAnswer(parseInt(e.key, 10));
+      if (["1", "2", "3", "4"].includes(e.key)) {
+        setAnswer(parseInt(e.key, 10) - 1);
       } else if (e.key === "ArrowRight") {
         goNext();
       } else if (e.key === "ArrowLeft") {
@@ -41,14 +39,6 @@ export default function DiagnoseClient() {
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, answers]);
-
-  const axisColor = useMemo(() => {
-    return {
-      nerve: "bg-accent-100 text-accent-600",
-      circ: "bg-accent-100 text-accent-600",
-      metab: "bg-accent-100 text-accent-600",
-    } as const;
-  }, []);
 
   function setAnswer(v: number) {
     setAnswers((prev) => ({ ...prev, [q.id]: v }));
@@ -69,7 +59,7 @@ export default function DiagnoseClient() {
   function finalize() {
     const list: Answer[] = QUESTIONS.map((q) => ({
       id: q.id,
-      value: answers[q.id] ?? 1,
+      value: answers[q.id] ?? 0,
     }));
     saveAnswers(list);
     const result = computeResult(list);
@@ -98,10 +88,8 @@ export default function DiagnoseClient() {
       {/* Question */}
       <div key={q.id} className="mt-8 fade-up">
         <div className="flex items-center gap-2 mb-4">
-          <span
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold tracking-widest ${axisColor[q.axis]}`}
-          >
-            {AXIS_LABEL[q.axis].ja}
+          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold tracking-widest bg-accent-100 text-accent-600">
+            {AXIS_LABEL[q.axis].ja} / {BENSHO_LABEL[q.bensho].ja}
           </span>
           <span className="text-[11px] tracking-widest text-ink-400">
             Q{idx + 1}.
@@ -115,10 +103,10 @@ export default function DiagnoseClient() {
         )}
       </div>
 
-      {/* Likert options */}
+      {/* Likert options (0-3 frequency) */}
       <fieldset className="mt-8 grid grid-cols-1 gap-2.5">
         <legend className="sr-only">回答を選択</legend>
-        {LIKERT_OPTIONS.map((opt) => {
+        {LIKERT_OPTIONS.map((opt, i) => {
           const selected = current === opt.value;
           return (
             <button
@@ -142,7 +130,7 @@ export default function DiagnoseClient() {
                       : "bg-ink-100 text-ink-500",
                   ].join(" ")}
                 >
-                  {opt.value}
+                  {i + 1}
                 </span>
                 {opt.label}
               </span>
@@ -174,7 +162,7 @@ export default function DiagnoseClient() {
           </button>
         </div>
         <p className="text-center text-[11px] text-ink-400 mt-3">
-          数字キー 1-5 / 矢印キーでも操作できます
+          数字キー 1-4 / 矢印キーでも操作できます
         </p>
       </div>
     </main>
