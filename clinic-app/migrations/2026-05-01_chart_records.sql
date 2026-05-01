@@ -54,7 +54,12 @@ alter table chart_records enable row level security;
 alter table chart_comments enable row level security;
 
 -- 開発中は anon key からの全操作を許可 (本番では絞る想定)
-create policy if not exists "chart_records anon all"
+-- PostgreSQL の create policy は if not exists に対応していないため、
+-- drop policy if exists を先に実行してから create する。
+drop policy if exists "chart_records anon all" on chart_records;
+create policy "chart_records anon all"
   on chart_records for all using (true) with check (true);
-create policy if not exists "chart_comments anon all"
+
+drop policy if exists "chart_comments anon all" on chart_comments;
+create policy "chart_comments anon all"
   on chart_comments for all using (true) with check (true);
