@@ -52,12 +52,14 @@
   // State
   // -------------------------------------------------------------------
 
+  const MAX_SELECTIONS = 3;
+
   const state = {
     clinic: '192',
     firstTime: null,        // null | true | false
     courseId: null,         // number (threease) | string (promo) | null
     weekStart: jstMidnightOf(new Date()),
-    selectedIso: null,
+    selectedIsos: [],       // 第1〜第3希望の ISO 文字列（最大MAX_SELECTIONS）
     availability: null,     // { available: [...] }
     fetchToken: 0,
     promoCode: getPromoFromUrl(),
@@ -212,12 +214,14 @@
   function recomputeStepStates() {
     setStepState(1, 'active', state.firstTime !== null);
     setStepState(2, state.firstTime === null ? 'locked' : 'active', state.courseId !== null);
+    // Step 3 is "done" (collapsed) only when user explicitly moves to step 4.
+    // While they may be adding 2nd/3rd choices, keep step 3 active.
     setStepState(
       3,
       state.firstTime === null || state.courseId === null ? 'locked' : 'active',
-      state.selectedIso !== null
+      false
     );
-    setStepState(4, state.selectedIso === null ? 'locked' : 'active', false);
+    setStepState(4, state.selectedIsos.length === 0 ? 'locked' : 'active', false);
     updateSummaries();
     updateBookingPanel();
   }
@@ -246,8 +250,10 @@
 
     const s3 = document.getElementById('sum-3');
     const e3 = document.querySelector('[data-edit="3"]');
-    if (state.selectedIso) {
-      s3.textContent = fmtDateTimeJp(state.selectedIso);
+    if (state.selectedIsos.length > 0) {
+      const first = fmtDateTimeJp(state.selectedIsos[0]);
+      const more = state.selectedIsos.length > 1 ? ` ほか${state.selectedIsos.length - 1}件` : '';
+      s3.textContent = first + more;
       e3.hidden = false;
     } else { s3.textContent = ''; e3.hidden = true; }
   }
@@ -295,7 +301,7 @@
         courses.some((c) => c.id === state.courseId);
       if (state.courseId && !stillValid) {
         state.courseId = null;
-        state.selectedIso = null;
+        state.selectedIsos = [];
       }
       recomputeStepStates();
     } catch (e) {
@@ -452,8 +458,15 @@
         if (d.wIdx === 6) cls.push('is-sat');
         if (iso) {
           cls.push('avail');
-          if (iso === state.selectedIso) cls.push('is-selected');
-          html += `<button class="${cls.join(' ')}" data-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 予約可">●</button>`;
+          const priorityIdx = state.selectedIsos.indexOf(iso);
+          if (priorityIdx >= 0) {
+            cls.push('is-selected');
+            cls.push('is-priority-' + (priorityIdx + 1));
+          }
+          const badge = priorityIdx >= 0
+            ? `<span class="priority-badge">第${priorityIdx + 1}希望</span>`
+            : '●';
+          html += `<button class="${cls.join(' ')}" data-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 予約可">${badge}</button>`;
         } else {
           cls.push('none');
           html += `<div class="${cls.join(' ')}" aria-label="満員">―</div>`;
@@ -487,22 +500,30 @@
     document.getElementById('m-firsttime').textContent =
       state.firstTime === null ? '—' : (state.firstTime ? '初回' : '2回目以降');
     document.getElementById('m-course').textContent = card ? card.name : '—';
-    document.getElementById('m-datetime').textContent =
-      state.selectedIso ? fmtDateTimeJp(state.selectedIso) : '—';
+    const dtSummary = state.selectedIsos.length === 0
+      ? '—'
+      : state.selectedIsos.map((iso, i) => `第${i + 1}希望: ${fmtDateTimeJp(iso)}`).join('\n');
+    const dtCell = document.getElementById('m-datetime');
+    dtCell.textContent = dtSummary;
+    dtCell.style.whiteSpace = 'pre-line';
 
     // LINE message text
     const ta = document.getElementById('m-text');
-    if (state.selectedIso && card) {
+    if (state.selectedIsos.length > 0 && card) {
       const courseLine = buildCourseLine(card);
       const promoLine = card.isPromo
         ? `\n※ ${card.name.replace(/^【.*?】/, '')}（チラシご持参）`
         : '';
+      const dtLines = state.selectedIsos
+        .map((iso, i) => `  第${i + 1}希望: ${fmtDateTimeJp(iso)}`)
+        .join('\n');
       ta.value =
 `【予約希望】
 院: ${clinic.name}
 来院: ${state.firstTime ? '初回' : '2回目以降'}
 ${courseLine}
-日時: ${fmtDateTimeJp(state.selectedIso)}${promoLine}
+日時:
+${dtLines}${promoLine}
 お名前:
 ご連絡先: `;
     } else {
@@ -533,7 +554,7 @@ ${courseLine}
   }
 
   async function copyAndOpenLine() {
-    if (!state.selectedIso) return;
+    if (state.selectedIsos.length === 0) return;
     const ta = document.getElementById('m-text');
     const text = ta.value;
     let copied = false;
@@ -591,9 +612,9 @@ ${courseLine}
         t.setAttribute('aria-selected', on ? 'true' : 'false');
       });
       state.clinic = tab.dataset.clinic;
-      // Reset downstream
+      // Reset downstream (different clinic = different schedule)
       state.courseId = null;
-      state.selectedIso = null;
+      state.selectedIsos = [];
       state.availability = null;
       state._coursesList = null;
       renderCourses();
@@ -615,9 +636,9 @@ ${courseLine}
       state.firstTime = v;
       if (changed) {
         state.courseId = null;
-        state.selectedIso = null;
-        state.availability = null;
+        state.selectedIsos = [];
         state._coursesList = null;
+        // state.availability is independent of firstTime — don't reset.
       }
       document.querySelectorAll('.choice[data-firsttime]').forEach((b) => {
         b.classList.toggle('is-selected', b === ftBtn);
@@ -636,7 +657,7 @@ ${courseLine}
       const id = /^\d+$/.test(raw) ? parseInt(raw, 10) : raw;
       if (state.courseId !== id) {
         state.courseId = id;
-        state.selectedIso = null;
+        state.selectedIsos = [];
       }
       document.querySelectorAll('.course-card').forEach((b) => {
         b.classList.toggle('is-selected', b === courseBtn);
@@ -647,15 +668,27 @@ ${courseLine}
       return;
     }
 
-    // Step 3: time slot
+    // Step 3: time slot (multi-select up to 3, in priority order)
     const slot = e.target.closest('.slot.avail');
     if (slot && slot.dataset.iso) {
-      state.selectedIso = slot.dataset.iso;
-      document.querySelectorAll('.slot.avail').forEach((b) => {
-        b.classList.toggle('is-selected', b === slot);
-      });
+      const iso = slot.dataset.iso;
+      const idx = state.selectedIsos.indexOf(iso);
+      if (idx >= 0) {
+        // Already selected → deselect
+        state.selectedIsos.splice(idx, 1);
+      } else {
+        if (state.selectedIsos.length >= MAX_SELECTIONS) {
+          // Replace last one (lowest priority)
+          state.selectedIsos.pop();
+        }
+        state.selectedIsos.push(iso);
+      }
+      renderGrid(); // re-render so priority badges update
       recomputeStepStates();
-      activateStep(4);
+      // Only auto-scroll to step 4 on the FIRST selection
+      if (state.selectedIsos.length === 1 && idx < 0) {
+        activateStep(4);
+      }
       return;
     }
 
@@ -671,17 +704,15 @@ ${courseLine}
       return;
     }
 
-    // Week navigation
+    // Week navigation (keep prior week selections; iso is unambiguous)
     if (e.target.id === 'prev-week') {
       state.weekStart = addDays(state.weekStart, -7);
-      state.selectedIso = null;
       recomputeStepStates();
       fetchAvailability();
       return;
     }
     if (e.target.id === 'next-week') {
       state.weekStart = addDays(state.weekStart, 7);
-      state.selectedIso = null;
       recomputeStepStates();
       fetchAvailability();
       return;

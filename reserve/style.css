@@ -376,6 +376,26 @@ html, body {
   outline: 2px solid var(--gold);
   outline-offset: -2px;
 }
+.priority-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.slot.avail.is-priority-1 { background: var(--gold-deep); color: var(--white); outline-color: var(--gold-deep); }
+.slot.avail.is-priority-2 { background: var(--gold); color: var(--white); outline-color: var(--gold); }
+.slot.avail.is-priority-3 { background: #d6c191; color: var(--ink); outline-color: #d6c191; }
+
+.multi-hint {
+  font-size: 11px;
+  color: var(--gold-deep);
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  background: var(--gold-bg);
+  border-radius: 6px;
+  border: 1px solid var(--gold-soft);
+  line-height: 1.5;
+}
 
 /* ---- Updated stamp ---- */
 .updated {
