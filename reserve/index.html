@@ -27,6 +27,11 @@
     <button class="tab" data-clinic="193" role="tab" aria-selected="false">裾野長泉院</button>
   </nav>
 
+  <div class="promo-banner" id="promo-banner" hidden>
+    <span class="promo-banner-icon" aria-hidden="true">🎁</span>
+    <span class="promo-banner-text">チラシ限定メニューが解禁中です</span>
+  </div>
+
   <main class="wizard">
 
     <!-- STEP 1 ---------------------------------------------- -->
@@ -102,7 +107,7 @@
     <section class="step" data-step="4" data-state="locked" id="step-4">
       <header class="step-head">
         <span class="step-num">4</span>
-        <h2>LINEで予約</h2>
+        <h2>本予約</h2>
       </header>
       <div class="step-body">
         <div class="step-locked-msg">前のステップを完了してください</div>
@@ -114,16 +119,45 @@
           <dt>日時</dt><dd id="m-datetime">—</dd>
         </dl>
 
-        <label class="message-label" for="m-text">LINEで送る文章</label>
-        <textarea id="m-text" rows="8" readonly></textarea>
+        <p class="book-intro">下記いずれかの方法で予約を確定してください</p>
 
-        <button class="primary" id="copy-and-go">
-          コピーして公式LINEを開く
-        </button>
-        <p class="modal-note">
-          LINE のトーク画面に入ったら、<strong>長押し → 貼り付け → 送信</strong> してください。
-          <br>当院から折り返しご連絡し、予約を確定します。
-        </p>
+        <!-- Method 1: LINE -->
+        <div class="book-method book-method--line">
+          <div class="book-method-head">
+            <h3><span class="book-num">1</span>公式LINEで予約</h3>
+            <span class="badge-rec">おすすめ</span>
+          </div>
+          <p class="book-method-desc">下の文面をコピーしてLINEで送信。当院から折返しで予約確定のご連絡をします。</p>
+          <textarea id="m-text" rows="7" readonly></textarea>
+          <button class="primary primary-line" id="copy-and-go">
+            コピーして公式LINEを開く
+          </button>
+          <p class="book-tiny">送信後、<strong>長押し → 貼り付け → 送信</strong> で文面が送れます。</p>
+        </div>
+
+        <!-- Method 2: Phone -->
+        <div class="book-method book-method--phone">
+          <div class="book-method-head">
+            <h3><span class="book-num">2</span>電話で予約</h3>
+          </div>
+          <p class="book-method-desc">院に直接お電話でご予約。</p>
+          <a class="primary primary-phone" id="phone-link" href="#">
+            <span class="phone-icon" aria-hidden="true">📞</span>
+            <span class="phone-num" id="phone-num">—</span>
+          </a>
+          <p class="book-tiny" id="phone-hours"></p>
+        </div>
+
+        <!-- Method 3: Threease (スリーズプロ) -->
+        <div class="book-method book-method--threease">
+          <div class="book-method-head">
+            <h3><span class="book-num">3</span>スリーズプロで予約</h3>
+          </div>
+          <p class="book-method-desc">公式予約システム。お客様ご自身で予約を確定できます。</p>
+          <a class="primary primary-secondary" id="threease-link" href="#" target="_blank" rel="noopener">
+            スリーズプロを開く
+          </a>
+        </div>
       </div>
     </section>
 

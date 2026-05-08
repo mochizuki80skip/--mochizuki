@@ -1,32 +1,80 @@
 (function () {
   'use strict';
 
+  // -------------------------------------------------------------------
+  // Configuration
+  // -------------------------------------------------------------------
+
   const CLINICS = {
     '192': {
       name: 'リカバリー鍼灸院 長泉三島院',
       short: '長泉三島院',
       lineUrl: 'https://lin.ee/s6l4Yso',
+      // TODO: 実際の電話番号に差替え（数字のみ：tel: 用）
+      phone: '055-000-0000',
+      hours: '受付時間: 9:00 - 19:00',
+      threeaseUrl: 'https://reservation.threease.com/192',
     },
     '193': {
       name: 'リカバリー鍼灸院 裾野長泉院',
       short: '裾野長泉院',
       lineUrl: 'https://lin.ee/7RkbmAz',
+      // TODO: 実際の電話番号に差替え
+      phone: '055-000-0000',
+      hours: '受付時間: 9:00 - 19:00',
+      threeaseUrl: 'https://reservation.threease.com/193',
     },
+  };
+
+  // ?promo=CODE で表示される限定メニュー定義。
+  // forFirstTime: 'true' = 初回のみ / 'false' = 2回目以降のみ / 'both' = 両方
+  // forClinic:    '192' / '193' / 'both'
+  // threeaseCourseId: 数値 = その course の空き時間でフィルタ / null = 全空き時間表示
+  const PROMO_MENUS = {
+    'sample2026': [
+      {
+        id: 'promo-sample-1',
+        name: '【チラシ限定】お試しコース',
+        description: 'チラシをご持参の方限定の特別メニュー。',
+        duration: 30,
+        price: 3000,
+        threeaseCourseId: null,
+        forFirstTime: 'both',
+        forClinic: 'both',
+      },
+    ],
   };
 
   const WEEKDAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
 
+  // -------------------------------------------------------------------
+  // State
+  // -------------------------------------------------------------------
+
   const state = {
     clinic: '192',
     firstTime: null,        // null | true | false
-    courseId: null,         // number | null
+    courseId: null,         // number (threease) | string (promo) | null
     weekStart: jstMidnightOf(new Date()),
-    selectedIso: null,      // string | null
-    data: null,             // {courses, available} | null
+    selectedIso: null,
+    availability: null,     // { available: [...] }
     fetchToken: 0,
+    promoCode: getPromoFromUrl(),
   };
 
-  // ---- Date helpers (everything anchored in JST) ----
+  // In-memory cache: courses[clinic][forNew] = Promise<courses[]>
+  const courseCache = {};
+
+  function getPromoFromUrl() {
+    try {
+      const p = new URLSearchParams(window.location.search).get('promo');
+      return p && PROMO_MENUS[p] ? p : null;
+    } catch { return null; }
+  }
+
+  // -------------------------------------------------------------------
+  // Date helpers (everything anchored in JST)
+  // -------------------------------------------------------------------
 
   function jstYmd(d) {
     return d.toLocaleDateString('en-CA', { timeZone: 'Asia/Tokyo' });
@@ -58,7 +106,91 @@
     return '¥' + n.toLocaleString('ja-JP');
   }
 
-  // ---- Step state machine ----
+  // -------------------------------------------------------------------
+  // Course list (fast endpoint, prefetched & cached)
+  // -------------------------------------------------------------------
+
+  function getCoursesPromise(clinic, forNew) {
+    if (!courseCache[clinic]) courseCache[clinic] = {};
+    const key = String(forNew);
+    if (!courseCache[clinic][key]) {
+      const url = `/api/courses?clinic=${clinic}&for_new=${forNew}`;
+      courseCache[clinic][key] = fetch(url, { headers: { 'Accept': 'application/json' } })
+        .then((r) => {
+          if (!r.ok) throw new Error('courses fetch failed');
+          return r.json();
+        })
+        .then((d) => d.courses || [])
+        .catch((e) => {
+          // Allow retry on next call
+          delete courseCache[clinic][key];
+          throw e;
+        });
+    }
+    return courseCache[clinic][key];
+  }
+
+  function prefetchCourses(clinic) {
+    // Fire and forget for both for_new values
+    getCoursesPromise(clinic, true).catch(() => {});
+    getCoursesPromise(clinic, false).catch(() => {});
+  }
+
+  // -------------------------------------------------------------------
+  // Promo menu helpers
+  // -------------------------------------------------------------------
+
+  function getActivePromos() {
+    if (!state.promoCode) return [];
+    const promos = PROMO_MENUS[state.promoCode] || [];
+    return promos.filter((p) => {
+      if (p.forClinic && p.forClinic !== 'both' && p.forClinic !== state.clinic) return false;
+      if (state.firstTime === null) return true;
+      if (p.forFirstTime === 'both') return true;
+      if (p.forFirstTime === 'true' && state.firstTime === true) return true;
+      if (p.forFirstTime === 'false' && state.firstTime === false) return true;
+      return false;
+    });
+  }
+
+  function getAllCardsForStep2(threaseCourses) {
+    const promos = getActivePromos().map((p) => ({
+      id: p.id,
+      name: p.name,
+      description: p.description,
+      duration: p.duration,
+      price: p.price,
+      isPromo: true,
+      threeaseCourseId: p.threeaseCourseId,
+    }));
+    return [...promos, ...threaseCourses];
+  }
+
+  function getSelectedCardObject() {
+    if (!state.courseId) return null;
+    const promos = getActivePromos();
+    const promo = promos.find((p) => p.id === state.courseId);
+    if (promo) {
+      return {
+        id: promo.id,
+        name: promo.name,
+        description: promo.description,
+        duration: promo.duration,
+        price: promo.price,
+        isPromo: true,
+        threeaseCourseId: promo.threeaseCourseId,
+      };
+    }
+    if (state._coursesList) {
+      const c = state._coursesList.find((c) => c.id === state.courseId);
+      if (c) return c;
+    }
+    return null;
+  }
+
+  // -------------------------------------------------------------------
+  // Step state machine
+  // -------------------------------------------------------------------
 
   function recomputeStepStates() {
     setStepState(1, 'active', state.firstTime !== null);
@@ -70,51 +202,37 @@
     );
     setStepState(4, state.selectedIso === null ? 'locked' : 'active', false);
     updateSummaries();
+    updateBookingPanel();
   }
 
-  function setStepState(n, state_, done) {
+  function setStepState(n, st, done) {
     const el = document.getElementById('step-' + n);
     if (!el) return;
-    if (done) el.dataset.state = 'done';
-    else el.dataset.state = state_;
+    el.dataset.state = done ? 'done' : st;
   }
 
   function updateSummaries() {
-    // Step 1
     const s1 = document.getElementById('sum-1');
     const e1 = document.querySelector('[data-edit="1"]');
     if (state.firstTime !== null) {
       s1.textContent = state.firstTime ? '初回' : '2回目以降';
       e1.hidden = false;
-    } else {
-      s1.textContent = '';
-      e1.hidden = true;
-    }
+    } else { s1.textContent = ''; e1.hidden = true; }
 
-    // Step 2
     const s2 = document.getElementById('sum-2');
     const e2 = document.querySelector('[data-edit="2"]');
-    const course = state.data && state.courseId
-      ? state.data.courses.find((c) => c.id === state.courseId)
-      : null;
-    if (course) {
-      s2.textContent = course.name;
+    const card = getSelectedCardObject();
+    if (card) {
+      s2.textContent = card.name;
       e2.hidden = false;
-    } else {
-      s2.textContent = '';
-      e2.hidden = true;
-    }
+    } else { s2.textContent = ''; e2.hidden = true; }
 
-    // Step 3
     const s3 = document.getElementById('sum-3');
     const e3 = document.querySelector('[data-edit="3"]');
     if (state.selectedIso) {
       s3.textContent = fmtDateTimeJp(state.selectedIso);
       e3.hidden = false;
-    } else {
-      s3.textContent = '';
-      e3.hidden = true;
-    }
+    } else { s3.textContent = ''; e3.hidden = true; }
   }
 
   function activateStep(n) {
@@ -125,54 +243,9 @@
     }
   }
 
-  // ---- Data fetch ----
-
-  async function fetchData() {
-    if (state.firstTime === null) return;
-    const start = jstYmdCompact(state.weekStart);
-    const end = jstYmdCompact(addDays(state.weekStart, 6));
-    const url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}&for_new=${state.firstTime}`;
-
-    const myToken = ++state.fetchToken;
-
-    showCoursesLoading(true);
-    showCoursesError(null);
-    showGridLoading(true);
-    showGridError(null);
-
-    try {
-      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      if (!r.ok) {
-        const body = await r.text().catch(() => '');
-        throw new Error(`サーバーエラー (${r.status}) ${body.slice(0, 120)}`);
-      }
-      const data = await r.json();
-      if (myToken !== state.fetchToken) return;
-      state.data = data;
-      // If previously selected courseId is gone from new course list, clear it
-      if (state.courseId && !data.courses.find((c) => c.id === state.courseId)) {
-        state.courseId = null;
-        state.selectedIso = null;
-      }
-      renderCourses();
-      renderGrid();
-      recomputeStepStates();
-    } catch (e) {
-      if (myToken !== state.fetchToken) return;
-      const msg = (e && e.message) || '取得に失敗しました';
-      showCoursesError(msg);
-      showGridError(msg);
-      state.data = null;
-      renderCourses();
-      renderGrid();
-      recomputeStepStates();
-    } finally {
-      if (myToken === state.fetchToken) {
-        showCoursesLoading(false);
-        showGridLoading(false);
-      }
-    }
-  }
+  // -------------------------------------------------------------------
+  // Loading / error UI helpers
+  // -------------------------------------------------------------------
 
   function showCoursesLoading(on) { document.getElementById('courses-loading').hidden = !on; }
   function showCoursesError(msg) {
@@ -185,34 +258,116 @@
     if (msg) { el.textContent = msg; el.hidden = false; } else { el.hidden = true; }
   }
 
-  // ---- Render: course list ----
+  // -------------------------------------------------------------------
+  // Step 2: load and render courses
+  // -------------------------------------------------------------------
+
+  async function loadCoursesForCurrentSelection() {
+    if (state.firstTime === null) return;
+    showCoursesLoading(true);
+    showCoursesError(null);
+    const myToken = ++state.fetchToken;
+    try {
+      const courses = await getCoursesPromise(state.clinic, state.firstTime);
+      if (myToken !== state.fetchToken) return;
+      state._coursesList = courses;
+      renderCourses();
+      // If previously selected courseId is no longer in the list (and not a promo), clear
+      const stillValid =
+        getActivePromos().some((p) => p.id === state.courseId) ||
+        courses.some((c) => c.id === state.courseId);
+      if (state.courseId && !stillValid) {
+        state.courseId = null;
+        state.selectedIso = null;
+      }
+      recomputeStepStates();
+    } catch (e) {
+      if (myToken !== state.fetchToken) return;
+      showCoursesError('コース取得に失敗しました');
+    } finally {
+      if (myToken === state.fetchToken) showCoursesLoading(false);
+    }
+  }
 
   function renderCourses() {
     const list = document.getElementById('course-list');
     list.innerHTML = '';
-    if (!state.data) return;
-    const courses = state.data.courses || [];
-    if (!courses.length) {
+    const cards = getAllCardsForStep2(state._coursesList || []);
+    if (!cards.length) {
       list.innerHTML = '<div class="status">表示できるコースがありません</div>';
       return;
     }
-    for (const c of courses) {
+    for (const c of cards) {
       const btn = document.createElement('button');
       btn.className = 'choice course-card';
-      if (state.courseId === c.id) btn.classList.add('is-selected');
+      if (c.isPromo) btn.classList.add('is-promo');
+      if (String(state.courseId) === String(c.id)) btn.classList.add('is-selected');
       btn.dataset.courseId = String(c.id);
       const meta = [];
       if (c.duration) meta.push(`${c.duration}分`);
       if (typeof c.price === 'number') meta.push(fmtPrice(c.price));
+      let descShort = '';
+      if (c.description) {
+        const txt = c.description.replace(/\\n|\n/g, ' ').slice(0, 90);
+        descShort = txt + (c.description.length > 90 ? '…' : '');
+      }
       btn.innerHTML =
+        (c.isPromo ? '<span class="promo-badge">限定</span>' : '') +
         `<span class="choice-title">${escapeHtml(c.name || '')}</span>` +
         (meta.length ? `<span class="choice-meta">${meta.join(' / ')}</span>` : '') +
-        (c.description ? `<span class="choice-desc">${escapeHtml(c.description.slice(0, 80))}${c.description.length > 80 ? '…' : ''}</span>` : '');
+        (descShort ? `<span class="choice-desc">${escapeHtml(descShort)}</span>` : '');
       list.appendChild(btn);
     }
   }
 
-  // ---- Render: calendar grid ----
+  // -------------------------------------------------------------------
+  // Step 3: availability fetch and grid render
+  // -------------------------------------------------------------------
+
+  async function fetchAvailability() {
+    if (state.firstTime === null) return;
+    const start = jstYmdCompact(state.weekStart);
+    const end = jstYmdCompact(addDays(state.weekStart, 6));
+    const url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}&for_new=${state.firstTime}`;
+
+    showGridLoading(true);
+    showGridError(null);
+
+    try {
+      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) {
+        const body = await r.text().catch(() => '');
+        throw new Error(`サーバーエラー (${r.status}) ${body.slice(0, 120)}`);
+      }
+      const data = await r.json();
+      state.availability = data;
+      renderGrid();
+    } catch (e) {
+      const msg = (e && e.message) || '取得に失敗しました';
+      showGridError(msg);
+      state.availability = null;
+      renderGrid();
+    } finally {
+      showGridLoading(false);
+    }
+  }
+
+  function getSlotsForSelection() {
+    if (!state.availability || !state.courseId) return [];
+    const card = getSelectedCardObject();
+    if (!card) return [];
+    if (card.isPromo) {
+      if (card.threeaseCourseId == null) {
+        return state.availability.available.filter((a) => a.course_ids.length > 0);
+      }
+      return state.availability.available.filter((a) =>
+        a.course_ids.indexOf(card.threeaseCourseId) !== -1
+      );
+    }
+    return state.availability.available.filter((a) =>
+      a.course_ids.indexOf(card.id) !== -1
+    );
+  }
 
   function renderGrid() {
     const grid = document.getElementById('grid');
@@ -226,23 +381,19 @@
     document.getElementById('week-label').textContent =
       `${startYmd.slice(0, 4)}/${startYmd.slice(5, 7)}/${startYmd.slice(8, 10)} 〜 ${endYmd.slice(5, 7)}/${endYmd.slice(8, 10)}`;
 
-    if (!state.data || !state.courseId) {
+    if (!state.availability || !state.courseId) {
       updateUpdatedAt();
       return;
     }
 
-    // Filter availability by course_id
-    const slotsForCourse = state.data.available.filter((a) => a.course_ids.indexOf(state.courseId) !== -1);
-
-    // Group by date
+    const slots = getSlotsForSelection();
     const byDate = new Map();
-    for (const s of slotsForCourse) {
+    for (const s of slots) {
       const t = fmtTimeFromIso(s.iso);
       if (!byDate.has(s.date)) byDate.set(s.date, new Map());
       byDate.get(s.date).set(t, s.iso);
     }
 
-    // Days array
     const days = [];
     for (let i = 0; i < 7; i++) {
       const d = addDays(state.weekStart, i);
@@ -256,7 +407,6 @@
       });
     }
 
-    // Time labels: union of available times
     const timeSet = new Set();
     for (const d of days) {
       const m = byDate.get(d.ymd);
@@ -308,7 +458,6 @@
       html += '</div>';
     }
     html += '</div>';
-
     grid.innerHTML = html;
     updateUpdatedAt();
   }
@@ -322,37 +471,60 @@
     document.getElementById('updated').textContent = `最終更新: ${now}`;
   }
 
-  // ---- Render: LINE text ----
+  // -------------------------------------------------------------------
+  // Step 4: booking panel (LINE / phone / threease)
+  // -------------------------------------------------------------------
 
-  function updateLineText() {
-    if (!state.selectedIso) {
-      document.getElementById('m-text').value = '';
-      return;
-    }
+  function updateBookingPanel() {
     const clinic = CLINICS[state.clinic];
-    const course = state.data && state.courseId
-      ? state.data.courses.find((c) => c.id === state.courseId)
-      : null;
+    const card = getSelectedCardObject();
 
     document.getElementById('m-clinic').textContent = clinic.name;
-    document.getElementById('m-firsttime').textContent = state.firstTime ? '初回' : '2回目以降';
-    document.getElementById('m-course').textContent = course ? course.name : '—';
-    document.getElementById('m-datetime').textContent = fmtDateTimeJp(state.selectedIso);
+    document.getElementById('m-firsttime').textContent =
+      state.firstTime === null ? '—' : (state.firstTime ? '初回' : '2回目以降');
+    document.getElementById('m-course').textContent = card ? card.name : '—';
+    document.getElementById('m-datetime').textContent =
+      state.selectedIso ? fmtDateTimeJp(state.selectedIso) : '—';
 
-    const courseLine = course
-      ? `コース: ${course.name}${course.duration ? ` (${course.duration}分` : ''}${typeof course.price === 'number' ? `${course.duration ? '・' : ' ('}${fmtPrice(course.price)}` : ''}${course.duration || typeof course.price === 'number' ? ')' : ''}`
-      : '';
-
-    const text =
+    // LINE message text
+    const ta = document.getElementById('m-text');
+    if (state.selectedIso && card) {
+      const courseLine = buildCourseLine(card);
+      const promoLine = card.isPromo
+        ? `\n※ ${card.name.replace(/^【.*?】/, '')}（チラシご持参）`
+        : '';
+      ta.value =
 `【予約希望】
 院: ${clinic.name}
 来院: ${state.firstTime ? '初回' : '2回目以降'}
 ${courseLine}
-日時: ${fmtDateTimeJp(state.selectedIso)}
+日時: ${fmtDateTimeJp(state.selectedIso)}${promoLine}
 お名前:
 ご連絡先: `;
+    } else {
+      ta.value = '';
+    }
 
-    document.getElementById('m-text').value = text;
+    // Phone link
+    const phoneLink = document.getElementById('phone-link');
+    const phoneNum = document.getElementById('phone-num');
+    const phoneHours = document.getElementById('phone-hours');
+    phoneLink.href = `tel:${clinic.phone.replace(/[^0-9+]/g, '')}`;
+    phoneNum.textContent = clinic.phone;
+    phoneHours.textContent = clinic.hours || '';
+
+    // Threease link
+    const threaseLink = document.getElementById('threease-link');
+    threaseLink.href = clinic.threeaseUrl;
+  }
+
+  function buildCourseLine(card) {
+    if (!card) return 'コース: ';
+    const parts = [];
+    if (card.duration) parts.push(`${card.duration}分`);
+    if (typeof card.price === 'number') parts.push(fmtPrice(card.price));
+    const meta = parts.length ? ` (${parts.join('・')})` : '';
+    return `コース: ${card.name}${meta}`;
   }
 
   async function copyAndOpenLine() {
@@ -363,16 +535,14 @@ ${courseLine}
     try {
       await navigator.clipboard.writeText(text);
       copied = true;
-    } catch (e) {
+    } catch {
       try {
         ta.removeAttribute('readonly');
         ta.focus();
         ta.select();
         copied = document.execCommand('copy');
         ta.setAttribute('readonly', 'readonly');
-      } catch (e2) {
-        copied = false;
-      }
+      } catch { copied = false; }
     }
 
     const btn = document.getElementById('copy-and-go');
@@ -388,7 +558,9 @@ ${courseLine}
     }, 600);
   }
 
-  // ---- Helpers ----
+  // -------------------------------------------------------------------
+  // Helpers
+  // -------------------------------------------------------------------
 
   function escapeHtml(s) {
     return String(s)
@@ -399,7 +571,9 @@ ${courseLine}
       .replace(/'/g, '&#39;');
   }
 
-  // ---- Event wiring ----
+  // -------------------------------------------------------------------
+  // Event wiring
+  // -------------------------------------------------------------------
 
   document.addEventListener('click', (e) => {
     // Clinic tabs
@@ -412,44 +586,50 @@ ${courseLine}
         t.setAttribute('aria-selected', on ? 'true' : 'false');
       });
       state.clinic = tab.dataset.clinic;
-      // Clinic change resets everything below
+      // Reset downstream
       state.courseId = null;
       state.selectedIso = null;
-      state.data = null;
+      state.availability = null;
+      state._coursesList = null;
       renderCourses();
       renderGrid();
-      updateLineText();
       recomputeStepStates();
-      if (state.firstTime !== null) fetchData();
+      prefetchCourses(state.clinic);
+      if (state.firstTime !== null) {
+        loadCoursesForCurrentSelection();
+        fetchAvailability();
+      }
       return;
     }
 
-    // Step 1: first-time choice
+    // Step 1
     const ftBtn = e.target.closest('.choice[data-firsttime]');
     if (ftBtn) {
       const v = ftBtn.dataset.firsttime === 'true';
-      if (state.firstTime !== v) {
-        state.firstTime = v;
-        // Reset downstream
+      const changed = state.firstTime !== v;
+      state.firstTime = v;
+      if (changed) {
         state.courseId = null;
         state.selectedIso = null;
-        state.data = null;
+        state.availability = null;
+        state._coursesList = null;
       }
-      // Visual select
       document.querySelectorAll('.choice[data-firsttime]').forEach((b) => {
         b.classList.toggle('is-selected', b === ftBtn);
       });
-      updateLineText();
       recomputeStepStates();
       activateStep(2);
-      fetchData();
+      // Load courses (instant if cached) and start fetching availability in parallel
+      loadCoursesForCurrentSelection();
+      fetchAvailability();
       return;
     }
 
     // Step 2: course choice
     const courseBtn = e.target.closest('.course-card');
     if (courseBtn) {
-      const id = parseInt(courseBtn.dataset.courseId, 10);
+      const raw = courseBtn.dataset.courseId;
+      const id = /^\d+$/.test(raw) ? parseInt(raw, 10) : raw;
       if (state.courseId !== id) {
         state.courseId = id;
         state.selectedIso = null;
@@ -457,7 +637,6 @@ ${courseLine}
       document.querySelectorAll('.course-card').forEach((b) => {
         b.classList.toggle('is-selected', b === courseBtn);
       });
-      updateLineText();
       renderGrid();
       recomputeStepStates();
       activateStep(3);
@@ -471,17 +650,15 @@ ${courseLine}
       document.querySelectorAll('.slot.avail').forEach((b) => {
         b.classList.toggle('is-selected', b === slot);
       });
-      updateLineText();
       recomputeStepStates();
       activateStep(4);
       return;
     }
 
-    // Edit buttons (collapse-back)
+    // Edit (collapse-back) buttons
     const edit = e.target.closest('.step-edit');
     if (edit) {
       const n = parseInt(edit.dataset.edit, 10);
-      if (n === 1) { /* keep current selection but show as active */ }
       const target = document.getElementById('step-' + n);
       if (target) target.dataset.state = 'active';
       if (target && target.scrollIntoView) {
@@ -494,27 +671,37 @@ ${courseLine}
     if (e.target.id === 'prev-week') {
       state.weekStart = addDays(state.weekStart, -7);
       state.selectedIso = null;
-      updateLineText();
       recomputeStepStates();
-      fetchData();
+      fetchAvailability();
       return;
     }
     if (e.target.id === 'next-week') {
       state.weekStart = addDays(state.weekStart, 7);
       state.selectedIso = null;
-      updateLineText();
       recomputeStepStates();
-      fetchData();
+      fetchAvailability();
       return;
     }
 
-    // Copy & go
+    // Copy & go (LINE)
     if (e.target.id === 'copy-and-go') {
       copyAndOpenLine();
       return;
     }
   });
 
-  // ---- Init ----
+  // -------------------------------------------------------------------
+  // Init
+  // -------------------------------------------------------------------
+
+  // Show promo banner if active
+  if (state.promoCode) {
+    const banner = document.getElementById('promo-banner');
+    if (banner) banner.hidden = false;
+  }
+
+  // Fire prefetch immediately so course list is instant after step 1
+  prefetchCourses(state.clinic);
+
   recomputeStepStates();
 })();

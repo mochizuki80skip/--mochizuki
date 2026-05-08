@@ -45,27 +45,20 @@ export default async function handler(req, res) {
   try {
     // 1. Calendar: which times have any availability this week?
     const calendarUrl = `${provider}/calendar?start_date=${start}&end_date=${end}`;
-    // 2. Course list (general, filtered by for_new_customers only)
-    const coursesUrl = `${provider}/courses?per=100&page=1&home=false&for_new_customers=${forNew}`;
-
-    const [calendar, coursesData] = await Promise.all([
-      fetchJson(calendarUrl),
-      fetchJson(coursesUrl),
-    ]);
+    const calendar = await fetchJson(calendarUrl);
 
     const slots = (calendar && calendar.calendar && calendar.calendar.available_slots) || [];
-    const courses = (coursesData && coursesData.courses) || [];
 
-    // 3. Collect all unique candidate times across the week
+    // 2. Collect all unique candidate times across the week
     const timeSet = new Set();
     for (const day of slots) {
       for (const t of (day.available_times || [])) timeSet.add(t);
     }
     const times = [...timeSet];
 
-    // 4. For each candidate time, fetch which courses are bookable.
+    // 3. For each candidate time, fetch which courses are bookable.
     //    Done in batches to avoid overwhelming upstream.
-    const timeResults = await fetchInBatches(times, 8, async (t) => {
+    const timeResults = await fetchInBatches(times, 16, async (t) => {
       const url = `${provider}/courses?per=100&page=1&home=false&start_time=${encodeURIComponent(t)}&for_new_customers=${forNew}`;
       try {
         const d = await fetchJson(url);
@@ -97,13 +90,6 @@ export default async function handler(req, res) {
       start,
       end,
       for_new: forNew,
-      courses: courses.map((c) => ({
-        id: c.id,
-        name: c.product_name || c.name,
-        description: c.description || '',
-        duration: c.duration,
-        price: c.price,
-      })),
       available,
     });
   } catch (err) {
