@@ -276,7 +276,7 @@ html, body {
   text-align: center;
   font-weight: 700;
 }
-.mark-avail { color: var(--avail); }
+.mark-avail { color: #c2342a; }
 .mark-none { color: var(--ink-faint); }
 
 /* ---- Status messages ---- */
@@ -299,6 +299,24 @@ html, body {
 .grid-wrap {
   margin-top: 4px;
 }
+.week-block + .week-block { margin-top: 18px; }
+.week-block-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 2px 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+.week-block-tag {
+  font-weight: 700;
+  color: var(--gold-deep);
+  letter-spacing: 0.05em;
+}
+.week-block-range {
+  font-variant-numeric: tabular-nums;
+}
+
 .grid-table {
   background: var(--surface);
   border: 1px solid var(--line);
@@ -360,12 +378,19 @@ html, body {
   font-family: inherit;
 }
 .slot.avail {
-  background: var(--avail-bg);
-  color: var(--avail);
+  background: var(--surface);
+  color: #c2342a;
   cursor: pointer;
   transition: background .12s;
 }
-.slot.avail:hover { background: #f5e8c8; }
+.avail-mark {
+  display: inline-block;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1;
+  color: #c2342a;
+}
+.slot.avail:hover { background: #fdf3f1; }
 .slot.avail:active { transform: scale(0.92); }
 .slot.avail.is-selected {
   background: var(--ink);

@@ -448,7 +448,7 @@
 
   async function fetchAvailability() {
     const start = jstYmdCompact(state.weekStart);
-    const end = jstYmdCompact(addDays(state.weekStart, 6));
+    const end = jstYmdCompact(addDays(state.weekStart, 13));
     const url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}`;
 
     showGridLoading(true);
@@ -484,9 +484,9 @@
     grid.innerHTML = '';
     empty.hidden = true;
 
-    // Week label
+    // Range label (2 weeks)
     const startYmd = jstYmd(state.weekStart);
-    const endYmd = jstYmd(addDays(state.weekStart, 6));
+    const endYmd = jstYmd(addDays(state.weekStart, 13));
     document.getElementById('week-label').textContent =
       `${startYmd.slice(0, 4)}/${startYmd.slice(5, 7)}/${startYmd.slice(8, 10)} 〜 ${endYmd.slice(5, 7)}/${endYmd.slice(8, 10)}`;
 
@@ -503,11 +503,11 @@
       byDate.get(s.date).set(t, s.iso);
     }
 
-    const days = [];
-    for (let i = 0; i < 7; i++) {
+    const allDays = [];
+    for (let i = 0; i < 14; i++) {
       const d = addDays(state.weekStart, i);
       const ymd = jstYmd(d);
-      days.push({
+      allDays.push({
         date: d,
         ymd,
         weekday: WEEKDAYS_JP[jstWeekdayIdx(d)],
@@ -516,8 +516,9 @@
       });
     }
 
+    // Common time axis across both weeks for visual alignment
     const timeSet = new Set();
-    for (const d of days) {
+    for (const d of allDays) {
       const m = byDate.get(d.ymd);
       if (m) for (const t of m.keys()) timeSet.add(t);
     }
@@ -530,50 +531,61 @@
     }
 
     const todayYmd = jstYmd(new Date());
+    const weeks = [allDays.slice(0, 7), allDays.slice(7, 14)];
 
-    let html = '<div class="grid-table" role="table">';
-    html += '<div class="grid-row grid-header" role="row">';
-    html += '<div class="cell time-label-cell" role="columnheader"></div>';
-    for (const d of days) {
-      const cls = ['cell', 'day-cell'];
-      if (d.ymd === todayYmd) cls.push('is-today');
-      if (d.wIdx === 0) cls.push('is-sun');
-      if (d.wIdx === 6) cls.push('is-sat');
-      html += `<div class="${cls.join(' ')}" role="columnheader">`;
-      html += `<span class="day-wday">${d.weekday}</span>`;
-      html += `<span class="day-md">${d.monthDay}</span>`;
-      html += '</div>';
-    }
-    html += '</div>';
-
-    for (const t of times) {
-      html += '<div class="grid-row" role="row">';
-      html += `<div class="cell time-label-cell" role="rowheader">${t}</div>`;
+    let html = '';
+    weeks.forEach((days, wi) => {
+      html += `<div class="week-block" data-week="${wi}">`;
+      const headStartYmd = days[0].ymd;
+      const headEndYmd = days[6].ymd;
+      const weekTitle = wi === 0 ? '今週〜' : '翌週〜';
+      html += `<div class="week-block-title"><span class="week-block-tag">${weekTitle}</span><span class="week-block-range">${headStartYmd.slice(5, 7)}/${headStartYmd.slice(8, 10)} 〜 ${headEndYmd.slice(5, 7)}/${headEndYmd.slice(8, 10)}</span></div>`;
+      html += '<div class="grid-table" role="table">';
+      html += '<div class="grid-row grid-header" role="row">';
+      html += '<div class="cell time-label-cell" role="columnheader"></div>';
       for (const d of days) {
-        const m = byDate.get(d.ymd);
-        const iso = m ? m.get(t) : null;
-        const cls = ['cell', 'slot'];
+        const cls = ['cell', 'day-cell'];
+        if (d.ymd === todayYmd) cls.push('is-today');
         if (d.wIdx === 0) cls.push('is-sun');
         if (d.wIdx === 6) cls.push('is-sat');
-        if (iso) {
-          cls.push('avail');
-          const priorityIdx = state.selectedIsos.indexOf(iso);
-          if (priorityIdx >= 0) {
-            cls.push('is-selected');
-            cls.push('is-priority-' + (priorityIdx + 1));
-          }
-          const badge = priorityIdx >= 0
-            ? `<span class="priority-badge">第${priorityIdx + 1}希望</span>`
-            : '●';
-          html += `<button class="${cls.join(' ')}" data-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 予約可">${badge}</button>`;
-        } else {
-          cls.push('none');
-          html += `<div class="${cls.join(' ')}" aria-label="満員">―</div>`;
-        }
+        html += `<div class="${cls.join(' ')}" role="columnheader">`;
+        html += `<span class="day-wday">${d.weekday}</span>`;
+        html += `<span class="day-md">${d.monthDay}</span>`;
+        html += '</div>';
       }
       html += '</div>';
-    }
-    html += '</div>';
+
+      for (const t of times) {
+        html += '<div class="grid-row" role="row">';
+        html += `<div class="cell time-label-cell" role="rowheader">${t}</div>`;
+        for (const d of days) {
+          const m = byDate.get(d.ymd);
+          const iso = m ? m.get(t) : null;
+          const cls = ['cell', 'slot'];
+          if (d.wIdx === 0) cls.push('is-sun');
+          if (d.wIdx === 6) cls.push('is-sat');
+          if (iso) {
+            cls.push('avail');
+            const priorityIdx = state.selectedIsos.indexOf(iso);
+            if (priorityIdx >= 0) {
+              cls.push('is-selected');
+              cls.push('is-priority-' + (priorityIdx + 1));
+            }
+            const badge = priorityIdx >= 0
+              ? `<span class="priority-badge">第${priorityIdx + 1}希望</span>`
+              : '<span class="avail-mark">〇</span>';
+            html += `<button class="${cls.join(' ')}" data-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 予約可">${badge}</button>`;
+          } else {
+            cls.push('none');
+            html += `<div class="${cls.join(' ')}" aria-label="満員">―</div>`;
+          }
+        }
+        html += '</div>';
+      }
+      html += '</div>';
+      html += '</div>';
+    });
+
     grid.innerHTML = html;
     updateUpdatedAt();
   }
@@ -807,13 +819,13 @@ ${dtLines}${promoLine}
 
     // Week navigation (keep prior week selections; iso is unambiguous)
     if (e.target.id === 'prev-week') {
-      state.weekStart = addDays(state.weekStart, -7);
+      state.weekStart = addDays(state.weekStart, -14);
       recomputeStepStates();
       fetchAvailability();
       return;
     }
     if (e.target.id === 'next-week') {
-      state.weekStart = addDays(state.weekStart, 7);
+      state.weekStart = addDays(state.weekStart, 14);
       recomputeStepStates();
       fetchAvailability();
       return;

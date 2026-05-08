@@ -100,7 +100,7 @@
     const kind = getKind();
     const isOverride = kind === 'override';
     $('f-target-wrap').hidden = !isOverride;
-    $('f-targetCourseId').required = isOverride;
+    $('f-targetCourseId').required = false;
     $('f-duration-wrap').hidden = isOverride;
     // Name field is required only for addon-type promos
     $('f-name').required = !isOverride;
@@ -323,9 +323,10 @@
     e.preventDefault();
     const kind = getKind();
     const targetRaw = $('f-targetCourseId').value;
+    const nameTrim = $('f-name').value.trim();
     const body = {
       code: $('f-code').value.trim(),
-      name: $('f-name').value.trim(),
+      name: nameTrim,
       description: $('f-description').value.trim(),
       duration: kind === 'addon' && $('f-duration').value !== '' ? Number($('f-duration').value) : null,
       price: $('f-price').value === '' ? null : Number($('f-price').value),
@@ -336,6 +337,12 @@
     };
     $('form-error').hidden = true;
     $('form-info').hidden = true;
+    // Friendly client check: override mode without target AND without name has nothing to display
+    if (kind === 'override' && body.targetCourseId == null && !nameTrim) {
+      $('form-error').textContent = '対象既存メニューを選ぶか、種別を「新メニュー追加」に切り替えてメニュー名を入力してください。';
+      $('form-error').hidden = false;
+      return;
+    }
     try {
       const r = await apiFetch('/api/admin/promos', { method: 'POST', body });
       const data = await r.json();
