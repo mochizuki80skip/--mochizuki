@@ -68,8 +68,12 @@ export function validatePromo(p) {
     return 'targetCourseId must be a number or null';
   }
   const isOverride = typeof p.targetCourseId === 'number';
-  // name is required only for addon-style promos (no target course to fall back to)
-  if (!isOverride) {
+  const hasContent = (typeof p.price === 'number')
+    || (typeof p.name === 'string' && p.name.trim() !== '')
+    || (typeof p.description === 'string' && p.description.trim() !== '');
+  // name is required only when adding a brand-new menu
+  // (no target course AND has content to display)
+  if (!isOverride && hasContent) {
     if (!p.name || typeof p.name !== 'string' || !p.name.trim()) return 'name is required';
   } else if (p.name != null && typeof p.name !== 'string') {
     return 'name must be a string';

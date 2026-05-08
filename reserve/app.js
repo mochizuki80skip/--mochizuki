@@ -248,7 +248,14 @@
 
   function getAllCardsForStep2(threaseCourses) {
     const promos = getActivePromos();
-    const addonPromos = promos.filter((p) => !p.targetCourseId).map((p) => ({
+    const addonPromos = promos.filter((p) => {
+      if (p.targetCourseId) return false;
+      // Only show promo as a new menu card if it has display content
+      const hasContent = (typeof p.name === 'string' && p.name.trim() !== '')
+        || (typeof p.price === 'number')
+        || (typeof p.description === 'string' && p.description.trim() !== '');
+      return hasContent;
+    }).map((p) => ({
       id: p.id,
       name: p.name,
       description: p.description,
