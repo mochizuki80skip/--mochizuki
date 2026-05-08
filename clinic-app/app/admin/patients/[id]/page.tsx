@@ -49,12 +49,25 @@ export default async function PatientDetailPage({
   if (!patient) notFound();
   if (!canAccessPatient(patient, ctx)) redirect("/admin/forbidden");
 
-  const [diagnoses, logs, visits, charts] = await Promise.all([
-    listDiagnosesForPatient(patient.id),
-    listDailyLogsForPatient(patient.id),
-    listVisitsForPatient(patient.id),
-    listChartsForPatient(patient.id),
-  ]);
+  // Defensive fetching — keep the page rendering even if one query fails.
+  let diagnoses: Awaited<ReturnType<typeof listDiagnosesForPatient>> = [];
+  let logs: Awaited<ReturnType<typeof listDailyLogsForPatient>> = [];
+  let visits: Awaited<ReturnType<typeof listVisitsForPatient>> = [];
+  let charts: Awaited<ReturnType<typeof listChartsForPatient>> = [];
+  let dataError: string | null = null;
+  try {
+    [diagnoses, logs, visits, charts] = await Promise.all([
+      listDiagnosesForPatient(patient.id),
+      listDailyLogsForPatient(patient.id),
+      listVisitsForPatient(patient.id),
+      listChartsForPatient(patient.id),
+    ]);
+  } catch (e) {
+    dataError =
+      e instanceof Error ? e.message : "データの取得に失敗しました";
+    // eslint-disable-next-line no-console
+    console.error("[admin/patients/[id]] data fetch failed:", e);
+  }
   const baseUrl = getBaseUrl();
   const patientLoginUrl = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}&name=${encodeURIComponent(patient.name)}`;
 
@@ -84,6 +97,12 @@ export default async function PatientDetailPage({
         ]}
         defaultKey="summary"
       />
+
+      {dataError && (
+        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+          データの取得に失敗しました: {dataError}
+        </div>
+      )}
 
       {tab === "summary" && (
         <SummaryTab

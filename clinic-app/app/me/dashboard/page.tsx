@@ -47,12 +47,27 @@ export default async function PatientDashboard({
   searchParams: { [key: string]: string | string[] | undefined };
 }) {
   const patient = await requirePatient();
-  const [diagnoses, logs, visits, charts] = await Promise.all([
-    listDiagnosesForPatient(patient.id),
-    listDailyLogsForPatient(patient.id),
-    listVisitsForPatient(patient.id),
-    listChartsForPatient(patient.id),
-  ]);
+
+  // Wrap data fetching so any single query failure shows a recoverable error
+  // instead of crashing the whole page with a generic server-side exception.
+  let diagnoses: Awaited<ReturnType<typeof listDiagnosesForPatient>> = [];
+  let logs: Awaited<ReturnType<typeof listDailyLogsForPatient>> = [];
+  let visits: Awaited<ReturnType<typeof listVisitsForPatient>> = [];
+  let charts: Awaited<ReturnType<typeof listChartsForPatient>> = [];
+  let dataError: string | null = null;
+  try {
+    [diagnoses, logs, visits, charts] = await Promise.all([
+      listDiagnosesForPatient(patient.id),
+      listDailyLogsForPatient(patient.id),
+      listVisitsForPatient(patient.id),
+      listChartsForPatient(patient.id),
+    ]);
+  } catch (e) {
+    dataError =
+      e instanceof Error ? e.message : "データの取得に失敗しました";
+    // eslint-disable-next-line no-console
+    console.error("[me/dashboard] data fetch failed:", e);
+  }
   const clinic = getClinic(patient.clinic_id);
 
   const today = todayKey();
@@ -83,6 +98,12 @@ export default async function PatientDashboard({
         ]}
         defaultKey="home"
       />
+
+      {dataError && (
+        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+          データの取得に失敗しました: {dataError}
+        </div>
+      )}
 
       {tab === "home" && (
         <HomeTab clinic={clinic} diagnoses={diagnoses} charts={charts} />
