@@ -445,7 +445,7 @@
 
   async function fetchAvailability() {
     const start = jstYmdCompact(state.weekStart);
-    const end = jstYmdCompact(addDays(state.weekStart, 13));
+    const end = jstYmdCompact(addDays(state.weekStart, 6));
     // Pass course_id when a threease (numeric) course is selected so threease
     // returns availability filtered by that course's duration.
     let url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}`;
@@ -570,7 +570,7 @@
 
     // Range label (2 weeks)
     const startYmd = jstYmd(state.weekStart);
-    const endYmd = jstYmd(addDays(state.weekStart, 13));
+    const endYmd = jstYmd(addDays(state.weekStart, 6));
     document.getElementById('week-label').textContent =
       `${startYmd.slice(0, 4)}/${startYmd.slice(5, 7)}/${startYmd.slice(8, 10)} 〜 ${endYmd.slice(5, 7)}/${endYmd.slice(8, 10)}`;
 
@@ -588,7 +588,7 @@
     }
 
     const allDays = [];
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 7; i++) {
       const d = addDays(state.weekStart, i);
       const ymd = jstYmd(d);
       allDays.push({
@@ -627,15 +627,11 @@
     }
 
     const todayYmd = jstYmd(new Date());
-    const weeks = [allDays.slice(0, 7), allDays.slice(7, 14)];
+    const weeks = [allDays];
 
     let html = '';
-    weeks.forEach((days, wi) => {
-      html += `<div class="week-block" data-week="${wi}">`;
-      const headStartYmd = days[0].ymd;
-      const headEndYmd = days[6].ymd;
-      const weekTitle = wi === 0 ? '今週〜' : '翌週〜';
-      html += `<div class="week-block-title"><span class="week-block-tag">${weekTitle}</span><span class="week-block-range">${headStartYmd.slice(5, 7)}/${headStartYmd.slice(8, 10)} 〜 ${headEndYmd.slice(5, 7)}/${headEndYmd.slice(8, 10)}</span></div>`;
+    weeks.forEach((days) => {
+      html += `<div class="week-block">`;
       html += '<div class="grid-table" role="table">';
       html += '<div class="grid-row grid-header" role="row">';
       html += '<div class="cell time-label-cell" role="columnheader"></div>';
@@ -909,13 +905,13 @@ ${dtLines}${promoLine}
 
     // Week navigation (keep prior week selections; iso is unambiguous)
     if (e.target.id === 'prev-week') {
-      state.weekStart = addDays(state.weekStart, -14);
+      state.weekStart = addDays(state.weekStart, -7);
       recomputeStepStates();
       fetchAvailability();
       return;
     }
     if (e.target.id === 'next-week') {
-      state.weekStart = addDays(state.weekStart, 14);
+      state.weekStart = addDays(state.weekStart, 7);
       recomputeStepStates();
       fetchAvailability();
       return;

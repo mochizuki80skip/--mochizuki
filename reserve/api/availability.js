@@ -184,19 +184,21 @@ export default async function handler(req, res) {
     let r = null;
     let usedUrl = null;
     let rawText = null;
+    let lastBody = '';
     for (const u of tryUrls) {
       r = await fetch(u, { headers: UPSTREAM_HEADERS });
       usedUrl = u;
       if (r.ok) break;
-      if (r.status !== 404 && r.status !== 405) break;
+      // any non-OK response → try the next candidate URL (e.g. course-scoped
+      // path may return 500/404 if the course isn't valid at this clinic)
+      lastBody = await r.text().catch(() => '');
     }
     if (!r || !r.ok) {
-      const body = r ? await r.text().catch(() => '') : '';
       return res.status(502).json({
         error: 'upstream error',
         status: r ? r.status : 0,
         url: usedUrl,
-        body: body.slice(0, 1000),
+        body: lastBody.slice(0, 1000),
       });
     }
     rawText = await r.text();
