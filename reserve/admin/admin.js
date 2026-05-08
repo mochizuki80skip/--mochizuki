@@ -116,8 +116,6 @@
     // Pricing/name/description fields hidden in shortcut mode
     $('f-name-wrap').hidden = isShortcut;
     $('f-description-wrap').hidden = isShortcut;
-    // Duration: only addon mode shows it (existing menu doesn't change time)
-    $('f-duration-wrap').hidden = !isAddon;
     // Price: hidden in shortcut mode only
     $('f-price-wrap').hidden = isShortcut;
     $('f-shortcut-help').hidden = !isShortcut;
@@ -326,7 +324,6 @@
       $('f-code').value = p.code;
       $('f-name').value = p.name || '';
       $('f-description').value = p.description || '';
-      $('f-duration').value = p.duration ?? '';
       $('f-price').value = p.price ?? '';
       $('f-forClinic').value = p.forClinic || 'both';
       $('f-forFirstTime').value = p.forFirstTime || 'both';
@@ -356,7 +353,7 @@
       code: $('f-code').value.trim(),
       name: kind === 'shortcut' ? '' : nameTrim,
       description: kind === 'shortcut' ? '' : $('f-description').value.trim(),
-      duration: kind === 'addon' && $('f-duration').value !== '' ? Number($('f-duration').value) : null,
+      duration: null,
       price: kind === 'shortcut' || $('f-price').value === '' ? null : Number($('f-price').value),
       forClinic: $('f-forClinic').value,
       forFirstTime: $('f-forFirstTime').value,
