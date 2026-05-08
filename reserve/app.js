@@ -465,9 +465,47 @@
     }
   }
 
+  // Slot grid increment in minutes (threease calendar returns 30-min slots)
+  const SLOT_INCREMENT_MIN = 30;
+
+  function addMinutesHHMM(hhmm, minutesToAdd) {
+    const [h, m] = hhmm.split(':').map((s) => parseInt(s, 10));
+    const total = h * 60 + m + minutesToAdd;
+    if (total < 0 || total >= 24 * 60) return null;
+    const hh = String(Math.floor(total / 60)).padStart(2, '0');
+    const mm = String(total % 60).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+
   function getSlotsForSelection() {
     if (!state.availability || !state.courseId) return [];
-    return state.availability.available;
+    const all = state.availability.available;
+    const card = getSelectedCardObject();
+    const dur = card && typeof card.duration === 'number' ? card.duration : null;
+    // If we don't know the duration, or the course fits in one slot, return all
+    if (!dur || dur <= SLOT_INCREMENT_MIN) return all;
+
+    // For courses longer than one slot, require enough consecutive 30-min
+    // openings starting at the slot. Threease's calendar returns 30-min
+    // start times; if a course is 60 min, we need both 09:00 AND 09:30
+    // to actually book a 09:00 start.
+    const needed = Math.ceil(dur / SLOT_INCREMENT_MIN);
+    const byDate = new Map();
+    for (const s of all) {
+      const t = fmtTimeFromIso(s.iso);
+      if (!byDate.has(s.date)) byDate.set(s.date, new Set());
+      byDate.get(s.date).add(t);
+    }
+    return all.filter((s) => {
+      const t = fmtTimeFromIso(s.iso);
+      const slotsForDay = byDate.get(s.date);
+      if (!slotsForDay) return false;
+      for (let k = 1; k < needed; k++) {
+        const next = addMinutesHHMM(t, k * SLOT_INCREMENT_MIN);
+        if (!next || !slotsForDay.has(next)) return false;
+      }
+      return true;
+    });
   }
 
   function renderGrid() {
