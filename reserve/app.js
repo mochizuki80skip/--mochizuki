@@ -12,7 +12,6 @@
       lineUrl: 'https://lin.ee/s6l4Yso',
       // TODO: 実際の電話番号に差替え（数字のみ：tel: 用）
       phone: '055-000-0000',
-      hours: '受付時間: 平日 10:00-19:00 / 土日 9:00-18:00',
       threeaseUrl: 'https://reservation.threease.com/192',
     },
     '193': {
@@ -21,10 +20,27 @@
       lineUrl: 'https://lin.ee/7RkbmAz',
       // TODO: 実際の電話番号に差替え
       phone: '055-000-0000',
-      hours: '受付時間: 平日 10:00-19:00 / 土日 9:00-18:00',
       threeaseUrl: 'https://reservation.threease.com/193',
     },
   };
+
+  // 営業（電話受付）時間: JS の getUTCDay() インデックス（0=日, 6=土）
+  // 月-金: 10:00-19:00 / 土-日: 9:00-18:00
+  const HOURS_BY_WEEKDAY = {
+    0: { open: '9:00', close: '18:00' },
+    1: { open: '10:00', close: '19:00' },
+    2: { open: '10:00', close: '19:00' },
+    3: { open: '10:00', close: '19:00' },
+    4: { open: '10:00', close: '19:00' },
+    5: { open: '10:00', close: '19:00' },
+    6: { open: '9:00', close: '18:00' },
+  };
+
+  function getTodayHours() {
+    const todayJst = new Date(jstYmd(new Date()) + 'T00:00:00+09:00');
+    const dow = todayJst.getUTCDay();
+    return HOURS_BY_WEEKDAY[dow];
+  }
 
   // ?promo=CODE で表示される限定メニュー定義。
   // forFirstTime: 'true' = 初回のみ / 'false' = 2回目以降のみ / 'both' = 両方
@@ -325,10 +341,9 @@
   // -------------------------------------------------------------------
 
   async function fetchAvailability() {
-    if (state.firstTime === null) return;
     const start = jstYmdCompact(state.weekStart);
     const end = jstYmdCompact(addDays(state.weekStart, 6));
-    const url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}&for_new=${state.firstTime}`;
+    const url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}`;
 
     showGridLoading(true);
     showGridError(null);
@@ -354,19 +369,7 @@
 
   function getSlotsForSelection() {
     if (!state.availability || !state.courseId) return [];
-    const card = getSelectedCardObject();
-    if (!card) return [];
-    if (card.isPromo) {
-      if (card.threeaseCourseId == null) {
-        return state.availability.available.filter((a) => a.course_ids.length > 0);
-      }
-      return state.availability.available.filter((a) =>
-        a.course_ids.indexOf(card.threeaseCourseId) !== -1
-      );
-    }
-    return state.availability.available.filter((a) =>
-      a.course_ids.indexOf(card.id) !== -1
-    );
+    return state.availability.available;
   }
 
   function renderGrid() {
@@ -511,7 +514,8 @@ ${courseLine}
     const phoneHours = document.getElementById('phone-hours');
     phoneLink.href = `tel:${clinic.phone.replace(/[^0-9+]/g, '')}`;
     phoneNum.textContent = clinic.phone;
-    phoneHours.textContent = clinic.hours || '';
+    const today = getTodayHours();
+    phoneHours.textContent = `本日の電話受付時間: ${today.open} - ${today.close}`;
 
     // Threease link
     const threaseLink = document.getElementById('threease-link');
@@ -595,9 +599,9 @@ ${courseLine}
       renderGrid();
       recomputeStepStates();
       prefetchCourses(state.clinic);
+      fetchAvailability();
       if (state.firstTime !== null) {
         loadCoursesForCurrentSelection();
-        fetchAvailability();
       }
       return;
     }
@@ -619,9 +623,8 @@ ${courseLine}
       });
       recomputeStepStates();
       activateStep(2);
-      // Load courses (instant if cached) and start fetching availability in parallel
+      // Load courses (instant if cached). Availability is already prefetched at page load.
       loadCoursesForCurrentSelection();
-      fetchAvailability();
       return;
     }
 
@@ -700,8 +703,9 @@ ${courseLine}
     if (banner) banner.hidden = false;
   }
 
-  // Fire prefetch immediately so course list is instant after step 1
+  // Fire prefetches immediately so STEP2 & STEP3 are instant
   prefetchCourses(state.clinic);
+  fetchAvailability();
 
   recomputeStepStates();
 })();
