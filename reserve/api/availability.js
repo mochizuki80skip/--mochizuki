@@ -9,11 +9,10 @@ const UPSTREAM_HEADERS = {
   'Accept-Language': 'ja',
 };
 
-// For a given (clinic, course, start time) ask threease which therapists can
-// take the appointment. The reservation page only treats a slot as actually
-// bookable when this list is non-empty (the calendar endpoint returns slots
-// where the *room* is open but ignores per-therapist constraints).
-async function fetchTherapistsCount(clinic, courseId, startIso) {
+// For a given (clinic, course, start time) return the IDs of therapists
+// who can take a 30-min appointment starting at that time. Returns null on
+// fetch error so we can "fail open" (don't hide a slot we can't verify).
+async function fetchTherapistIds(clinic, courseId, startIso) {
   const url = `${UPSTREAM_BASE}/${clinic}/therapists?per=100&page=1&home=false`
     + `&course_id=${encodeURIComponent(courseId)}`
     + `&start_time=${encodeURIComponent(startIso)}`;
@@ -23,7 +22,9 @@ async function fetchTherapistsCount(clinic, courseId, startIso) {
     const r = await fetch(url, { headers: UPSTREAM_HEADERS, signal: ctrl.signal });
     if (!r.ok) return null;
     const data = await r.json();
-    if (data && Array.isArray(data.therapists)) return data.therapists.length;
+    if (data && Array.isArray(data.therapists)) {
+      return data.therapists.map((t) => t.id).filter((x) => x != null);
+    }
     return null;
   } catch {
     return null;
@@ -32,21 +33,59 @@ async function fetchTherapistsCount(clinic, courseId, startIso) {
   }
 }
 
-async function filterBookableByTherapist(clinic, courseId, slots, concurrency = 10) {
-  const results = new Array(slots.length);
+const SLOT_INCREMENT_MIN = 30;
+
+function addMinutesToIso(iso, minutes) {
+  if (!minutes) return iso;
+  const m = iso.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2}):(\d{2})(.*)$/);
+  if (!m) return iso;
+  const [, date, hh, mm, ss, tz] = m;
+  const total = parseInt(hh, 10) * 60 + parseInt(mm, 10) + minutes;
+  if (total < 0 || total >= 24 * 60) return iso;
+  const newH = String(Math.floor(total / 60)).padStart(2, '0');
+  const newM = String(total % 60).padStart(2, '0');
+  return `${date}T${newH}:${newM}:${ss}${tz}`;
+}
+
+// Filter slots: a slot is bookable only when there is at least one therapist
+// who is free for *all* 30-min sub-slots that the course requires (so for a
+// 60-min course at 09:00, the same therapist must be free at 09:00 AND 09:30).
+async function filterByConsecutiveTherapists(clinic, courseId, slots, durationMin, concurrency = 12) {
+  const needed = Math.max(1, Math.ceil((durationMin || SLOT_INCREMENT_MIN) / SLOT_INCREMENT_MIN));
+  // Collect every unique start time we need to query (slot start + offsets)
+  const isoSet = new Set();
+  for (const s of slots) {
+    for (let k = 0; k < needed; k++) {
+      isoSet.add(addMinutesToIso(s.iso, k * SLOT_INCREMENT_MIN));
+    }
+  }
+  const isos = Array.from(isoSet);
+  const idsByIso = new Map(); // iso -> Set<id> | null
+
   let cursor = 0;
   async function worker() {
     while (true) {
       const i = cursor++;
-      if (i >= slots.length) return;
-      results[i] = await fetchTherapistsCount(clinic, courseId, slots[i].iso);
+      if (i >= isos.length) return;
+      const iso = isos[i];
+      const ids = await fetchTherapistIds(clinic, courseId, iso);
+      idsByIso.set(iso, ids === null ? null : new Set(ids));
     }
   }
-  const n = Math.min(concurrency, slots.length);
-  await Promise.all(Array.from({ length: n }, worker));
-  // Drop slots where the therapist count is exactly zero. On null (error /
-  // unknown) keep the slot so we never falsely hide availability.
-  return slots.filter((_, i) => results[i] !== 0);
+  await Promise.all(Array.from({ length: Math.min(concurrency, isos.length) }, worker));
+
+  return slots.filter((s) => {
+    let intersection = null;
+    for (let k = 0; k < needed; k++) {
+      const iso = addMinutesToIso(s.iso, k * SLOT_INCREMENT_MIN);
+      const set = idsByIso.get(iso);
+      if (set == null) return true; // fail-open on errors
+      if (intersection === null) intersection = new Set(set);
+      else intersection = new Set([...intersection].filter((id) => set.has(id)));
+      if (intersection.size === 0) return false;
+    }
+    return intersection ? intersection.size > 0 : true;
+  });
 }
 
 export default async function handler(req, res) {
@@ -65,6 +104,8 @@ export default async function handler(req, res) {
   if (courseId && !/^\d+$/.test(courseId)) {
     return res.status(400).json({ error: 'invalid course_id' });
   }
+  const durationRaw = String(req.query.duration || '').trim();
+  const duration = durationRaw && /^\d+$/.test(durationRaw) ? parseInt(durationRaw, 10) : null;
   const forNew = String(req.query.for_new || '').toLowerCase();
   const forNewBool = forNew === 'true' ? true : forNew === 'false' ? false : null;
 
@@ -112,13 +153,13 @@ export default async function handler(req, res) {
       }
     }
 
-    // When a specific course is requested, also filter by per-therapist
-    // availability. This matches what threease's reservation page actually
-    // shows users (the calendar endpoint alone over-reports availability).
+    // When a specific course is requested, filter by per-therapist availability
+    // checking *consecutive* 30-min slots so a 60-min course only stays
+    // bookable when the same therapist is free for the whole duration.
     const beforeTherapistFilter = available.length;
     let therapistFilterApplied = false;
     if (courseId && available.length > 0) {
-      available = await filterBookableByTherapist(clinic, courseId, available);
+      available = await filterByConsecutiveTherapists(clinic, courseId, available, duration);
       therapistFilterApplied = true;
     }
 
@@ -127,6 +168,7 @@ export default async function handler(req, res) {
       start,
       end,
       courseId: courseId || null,
+      duration: duration,
       forNew: forNewBool,
       available,
       _via: usedUrl ? new URL(usedUrl).pathname + (new URL(usedUrl).search || '') : null,

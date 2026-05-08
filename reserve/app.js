@@ -451,6 +451,12 @@
     let url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}`;
     if (typeof state.courseId === 'number') {
       url += `&course_id=${state.courseId}`;
+      // Pass duration so the server can do consecutive-slot therapist checks
+      const card = getSelectedCardObject();
+      const dur = card ? Number(card.duration) : null;
+      if (dur && Number.isFinite(dur)) {
+        url += `&duration=${dur}`;
+      }
     }
     if (state.firstTime !== null) {
       url += `&for_new=${state.firstTime ? 'true' : 'false'}`;
