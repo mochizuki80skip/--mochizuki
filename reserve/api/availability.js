@@ -39,20 +39,30 @@ export default async function handler(req, res) {
   }
   tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`);
 
+  const debug = req.query.debug === '1';
+
   try {
     let r = null;
     let usedUrl = null;
+    let rawText = null;
     for (const u of tryUrls) {
       r = await fetch(u, { headers: UPSTREAM_HEADERS });
       usedUrl = u;
       if (r.ok) break;
-      // 404 from a course-scoped path → try the next candidate
       if (r.status !== 404 && r.status !== 405) break;
     }
     if (!r || !r.ok) {
-      return res.status(502).json({ error: 'upstream error', status: r ? r.status : 0 });
+      const body = r ? await r.text().catch(() => '') : '';
+      return res.status(502).json({
+        error: 'upstream error',
+        status: r ? r.status : 0,
+        url: usedUrl,
+        body: body.slice(0, 1000),
+      });
     }
-    const data = await r.json();
+    rawText = await r.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch { data = null; }
     const slots = (data && data.calendar && data.calendar.available_slots) || [];
 
     const available = [];
@@ -62,18 +72,23 @@ export default async function handler(req, res) {
       }
     }
 
-    // Cache: shorter TTL when course-specific (varies by course)
-    res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=120');
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    return res.status(200).json({
+    const payload = {
       clinic,
       start,
       end,
       courseId: courseId || null,
       forNew: forNewBool,
       available,
-      _via: usedUrl ? new URL(usedUrl).pathname : null,
-    });
+      _via: usedUrl ? new URL(usedUrl).pathname + (new URL(usedUrl).search || '') : null,
+    };
+    if (debug) {
+      payload._raw = rawText;
+      payload._upstreamUrls = tryUrls;
+    }
+
+    res.setHeader('Cache-Control', debug ? 'no-store' : 's-maxage=120, stale-while-revalidate=120');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    return res.status(200).json(payload);
   } catch (err) {
     return res.status(502).json({
       error: 'fetch failed',

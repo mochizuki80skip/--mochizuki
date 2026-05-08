@@ -24,7 +24,9 @@ export default async function handler(req, res) {
     if (!r.ok) {
       return res.status(502).json({ error: 'upstream error', status: r.status });
     }
-    const data = await r.json();
+    const rawText = await r.text();
+    let data;
+    try { data = JSON.parse(rawText); } catch { data = null; }
     const courses = ((data && data.courses) || []).map((c) => ({
       id: c.id,
       name: c.product_name || c.name,
@@ -33,10 +35,14 @@ export default async function handler(req, res) {
       price: c.price,
     }));
 
+    const debug = req.query.debug === '1';
+    const payload = { clinic, for_new: forNew, courses };
+    if (debug) payload._raw = rawText;
+
     // Course list rarely changes -> cache for 24 hours at the edge.
-    res.setHeader('Cache-Control', 's-maxage=86400, stale-while-revalidate=604800');
+    res.setHeader('Cache-Control', debug ? 'no-store' : 's-maxage=86400, stale-while-revalidate=604800');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    return res.status(200).json({ clinic, for_new: forNew, courses });
+    return res.status(200).json(payload);
   } catch (err) {
     return res.status(502).json({
       error: 'fetch failed',
