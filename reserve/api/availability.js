@@ -9,9 +9,57 @@ const UPSTREAM_HEADERS = {
   'Accept-Language': 'ja',
 };
 
-// For a given (clinic, course, start time) return the IDs of therapists
-// who can take a 30-min appointment starting at that time. Returns null on
-// fetch error so we can "fail open" (don't hide a slot we can't verify).
+// At a given clinic + start time, threease returns the course IDs that are
+// actually bookable then (taking real bookings into account). This is the
+// filter the reservation UI uses; the calendar endpoint alone only checks
+// room-level availability and over-reports.
+async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool) {
+  const params = new URLSearchParams({
+    per: '100',
+    page: '1',
+    home: 'false',
+    start_time: startIso,
+  });
+  if (forNewBool !== null) params.set('for_new_customers', String(forNewBool));
+  const url = `${UPSTREAM_BASE}/${clinic}/courses?${params.toString()}`;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 4000);
+  try {
+    const r = await fetch(url, { headers: UPSTREAM_HEADERS, signal: ctrl.signal });
+    if (!r.ok) return null;
+    const data = await r.json();
+    if (data && Array.isArray(data.courses)) {
+      return data.courses.map((c) => c.id).filter((x) => x != null);
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function filterByBookableCourse(clinic, courseIdNum, slots, forNewBool, concurrency = 12) {
+  const results = new Array(slots.length);
+  let cursor = 0;
+  async function worker() {
+    while (true) {
+      const i = cursor++;
+      if (i >= slots.length) return;
+      results[i] = await fetchBookableCourseIdsAt(clinic, slots[i].iso, forNewBool);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(concurrency, slots.length) }, worker));
+  const debug = {};
+  for (let i = 0; i < slots.length; i++) debug[slots[i].iso] = results[i];
+  const kept = slots.filter((_, i) => {
+    const ids = results[i];
+    if (ids == null) return true; // fail open on error
+    return ids.includes(courseIdNum);
+  });
+  return { kept, debug };
+}
+
 async function fetchTherapistIds(clinic, courseId, startIso) {
   const url = `${UPSTREAM_BASE}/${clinic}/therapists?per=100&page=1&home=false`
     + `&course_id=${encodeURIComponent(courseId)}`
@@ -166,16 +214,19 @@ export default async function handler(req, res) {
     // When a specific course is requested, filter by per-therapist availability
     // checking *consecutive* 30-min slots so a 60-min course only stays
     // bookable when the same therapist is free for the whole duration.
-    const beforeTherapistFilter = available.length;
-    let therapistFilterApplied = false;
-    let therapistDebug = null;
-    let therapistDrops = null;
+    const beforeFilter = available.length;
+    let courseFilterApplied = false;
+    let courseFilterDebug = null;
     if (courseId && available.length > 0) {
-      const r = await filterByConsecutiveTherapists(clinic, courseId, available, duration);
+      const r = await filterByBookableCourse(
+        clinic,
+        parseInt(courseId, 10),
+        available,
+        forNewBool,
+      );
       available = r.kept;
-      therapistFilterApplied = true;
-      therapistDebug = r.debug;
-      therapistDrops = r.dropReasons;
+      courseFilterApplied = true;
+      courseFilterDebug = r.debug;
     }
 
     const payload = {
@@ -187,14 +238,13 @@ export default async function handler(req, res) {
       forNew: forNewBool,
       available,
       _via: usedUrl ? new URL(usedUrl).pathname + (new URL(usedUrl).search || '') : null,
-      _therapistFilterApplied: therapistFilterApplied,
-      _beforeTherapistFilter: beforeTherapistFilter,
+      _courseFilterApplied: courseFilterApplied,
+      _beforeFilter: beforeFilter,
     };
     if (debug) {
       payload._raw = rawText;
       payload._upstreamUrls = tryUrls;
-      payload._therapistsByIso = therapistDebug;
-      payload._therapistDrops = therapistDrops;
+      payload._courseFilterDebug = courseFilterDebug;
     }
 
     res.setHeader('Cache-Control', debug ? 'no-store' : 's-maxage=120, stale-while-revalidate=120');
