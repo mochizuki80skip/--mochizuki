@@ -27,15 +27,16 @@ threease API
 
 CORS 制約のため、ブラウザから threease API を直接呼ぶことはできない。サーバー関数で中継し、Vercel Edge で 3 分キャッシュする。
 
-## 公開前に必ず差し替える値
+## 院別の公式LINE
 
-`app.js` 先頭の `LINE_URL` を、リカバリー鍼灸院の公式 LINE URL に変更する。
+`app.js` 先頭の `CLINICS` 定数に院ごとに登録済み。差し替えるときはここを編集する。
 
 ```js
-const LINE_URL = 'https://lin.ee/REPLACE_ME';  // ← ここ
+const CLINICS = {
+  '192': { name: '...', short: '長泉三島院', lineUrl: 'https://lin.ee/s6l4Yso' },
+  '193': { name: '...', short: '裾野長泉院', lineUrl: 'https://lin.ee/7RkbmAz' },
+};
 ```
-
-`https://lin.ee/xxxxxx` 形式が最もシンプルで端末互換性が高い。`https://line.me/R/ti/p/@xxxxxx` 形式でも可。
 
 ## デプロイ手順（Vercel）
 

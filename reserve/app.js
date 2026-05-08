@@ -2,13 +2,17 @@
   'use strict';
 
   const CLINICS = {
-    '192': { name: 'リカバリー鍼灸院 長泉三島院', short: '長泉三島院' },
-    '193': { name: 'リカバリー鍼灸院 裾野長泉院', short: '裾野長泉院' },
+    '192': {
+      name: 'リカバリー鍼灸院 長泉三島院',
+      short: '長泉三島院',
+      lineUrl: 'https://lin.ee/s6l4Yso',
+    },
+    '193': {
+      name: 'リカバリー鍼灸院 裾野長泉院',
+      short: '裾野長泉院',
+      lineUrl: 'https://lin.ee/7RkbmAz',
+    },
   };
-
-  // 公式LINEのURL（lin.ee の短縮URL や https://line.me/R/ti/p/@xxxx 形式）
-  // 公開前にここを差し替えてください
-  const LINE_URL = 'https://lin.ee/REPLACE_ME';
 
   const WEEKDAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -280,8 +284,9 @@
     btn.textContent = copied ? 'コピーしました。LINEを開きます…' : 'コピーできません。手動でコピーしてください';
     btn.disabled = true;
 
+    const lineUrl = CLINICS[state.clinic].lineUrl;
     setTimeout(() => {
-      if (copied) window.location.href = LINE_URL;
+      if (copied) window.location.href = lineUrl;
       btn.textContent = orig;
       btn.disabled = false;
     }, 600);
