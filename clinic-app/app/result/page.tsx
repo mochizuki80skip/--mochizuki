@@ -216,10 +216,10 @@ export default function ResultPage() {
         </section>
       ) : (
         <section className="space-y-4">
-          <AdviceBlock title="睡眠" emoji="🌙" items={content.advice.sleep} />
-          <AdviceBlock title="食事" emoji="🥣" items={content.advice.food} />
-          <AdviceBlock title="運動" emoji="🚶" items={content.advice.exercise} />
-          <AdviceBlock title="ストレス" emoji="🌿" items={content.advice.stress} />
+          <AdviceBlock title="睡眠" items={content.advice.sleep} />
+          <AdviceBlock title="食事" items={content.advice.food} />
+          <AdviceBlock title="運動" items={content.advice.exercise} />
+          <AdviceBlock title="ストレス" items={content.advice.stress} />
           <p className="text-[11px] text-ink-400 leading-relaxed mt-3">
             ※
             体調に著しい異常がある場合は医療機関を受診してください。本アプリは医療行為の代替ではありません。
@@ -310,19 +310,14 @@ function Block({
 
 function AdviceBlock({
   title,
-  emoji,
   items,
 }: {
   title: string;
-  emoji: string;
   items: string[];
 }) {
   return (
     <div className="rounded-xl border border-ink-100 bg-white p-4 shadow-soft">
       <div className="flex items-center gap-2 mb-2.5">
-        <span className="text-lg leading-none" aria-hidden>
-          {emoji}
-        </span>
         <span className="font-bold text-ink-900">{title}</span>
       </div>
       <ul className="space-y-1.5">

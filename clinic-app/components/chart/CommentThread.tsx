@@ -77,7 +77,7 @@ export default function CommentThread({
   return (
     <div className="rounded-2xl border border-ink-100 bg-white p-4 shadow-soft">
       <h2 className="text-xs tracking-widest text-ink-400 mb-3 font-bold">
-        💬 スタッフコメント ({comments.length})
+        スタッフコメント ({comments.length})
       </h2>
 
       {comments.length === 0 ? (

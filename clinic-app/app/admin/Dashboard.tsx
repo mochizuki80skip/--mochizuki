@@ -28,7 +28,7 @@ export default function Dashboard({ stats }: { stats: DashboardStats }) {
       {stats.todaysBirthdays.length > 0 && (
         <div className="rounded-xl border border-accent bg-accent-50 px-4 py-3">
           <div className="text-[10px] tracking-widest text-accent-600 font-bold mb-1">
-            🎂 今日が誕生日
+            今日が誕生日
           </div>
           <ul className="space-y-0.5">
             {stats.todaysBirthdays.map((p) => (

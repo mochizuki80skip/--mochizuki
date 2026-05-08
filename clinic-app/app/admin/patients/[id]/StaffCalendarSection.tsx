@@ -150,7 +150,7 @@ export default function StaffCalendarSection({
 
           <div className="p-4 space-y-3">
             {/* Diagnosis */}
-            <Row icon="🟡" label="体質診断" empty={!day.diagnosis}>
+            <Row dotColor="bg-accent" label="体質診断" empty={!day.diagnosis}>
               {day.diagnosis && (
                 <Link
                   href={`/admin/patients/${patientId}/diagnoses/${day.diagnosis.id}`}
@@ -160,14 +160,14 @@ export default function StaffCalendarSection({
                     {contentForType(day.diagnosis.type_key).name}
                   </span>
                   <span className="text-xs text-accent-600 font-bold">
-                    詳細を見る ›
+                    詳細 ›
                   </span>
                 </Link>
               )}
             </Row>
 
             {/* Daily log */}
-            <Row icon="🟢" label="体調の記録" empty={!day.log}>
+            <Row dotColor="bg-emerald-500" label="体調の記録" empty={!day.log}>
               {day.log && (
                 <Link
                   href={`/admin/patients/${patientId}/logs/${sel}`}
@@ -175,19 +175,19 @@ export default function StaffCalendarSection({
                 >
                   <LogPreview log={day.log} />
                   <span className="text-xs text-emerald-700 font-bold whitespace-nowrap">
-                    詳細を見る ›
+                    詳細 ›
                   </span>
                 </Link>
               )}
             </Row>
 
             {/* Visit — staff can add/delete inline */}
-            <Row icon="🔵" label="来院" empty={!day.visit}>
+            <Row dotColor="bg-sky-500" label="来院" empty={!day.visit}>
               {day.visit ? (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between rounded-lg bg-sky-50 border border-sky-200 px-3 py-2">
                     <span className="text-sm font-bold text-sky-900">
-                      ✓ 来院記録あり
+                      来院記録あり
                       {day.visit.recorded_by === "patient" && (
                         <span className="text-[10px] text-sky-500 ml-1">
                           (患者本人記録)
@@ -207,7 +207,7 @@ export default function StaffCalendarSection({
                     href={`/admin/patients/${patientId}/charts/new?visit_id=${day.visit.id}`}
                     className="block w-full text-center rounded-full bg-ink-900 text-white font-bold text-sm py-2.5 hover:bg-ink-700 transition"
                   >
-                    🩺 鍼灸カルテを開く
+                    鍼灸カルテを開く
                   </Link>
                 </div>
               ) : (
@@ -235,12 +235,12 @@ export default function StaffCalendarSection({
 }
 
 function Row({
-  icon,
+  dotColor,
   label,
   empty,
   children,
 }: {
-  icon: string;
+  dotColor: string;
   label: string;
   empty: boolean;
   children: React.ReactNode;
@@ -248,7 +248,10 @@ function Row({
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-1.5 text-[10px] tracking-widest text-ink-400 font-bold">
-        <span aria-hidden>{icon}</span>
+        <span
+          aria-hidden
+          className={`inline-block w-2 h-2 rounded-full ${dotColor}`}
+        />
         <span>{label}</span>
         {empty && <span className="text-ink-300 normal-case ml-1">なし</span>}
       </div>

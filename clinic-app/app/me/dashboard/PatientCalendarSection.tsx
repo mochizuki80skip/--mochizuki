@@ -126,7 +126,7 @@ export default function PatientCalendarSection({
           <div className="p-4 space-y-3">
             {/* Diagnosis (view only for patients) */}
             <Row
-              icon="🟡"
+              dotColor="bg-accent"
               label="体質診断"
               empty={!day.diagnosis}
               emptyMessage="この日は診断なし（院でのみ実施可能）"
@@ -140,7 +140,7 @@ export default function PatientCalendarSection({
                     {contentForType(day.diagnosis.type_key).name}
                   </span>
                   <span className="text-xs text-accent-600 font-bold">
-                    詳細を見る ›
+                    詳細 ›
                   </span>
                 </Link>
               )}
@@ -148,7 +148,7 @@ export default function PatientCalendarSection({
 
             {/* Daily log */}
             <Row
-              icon="🟢"
+              dotColor="bg-emerald-500"
               label="体調の記録"
               empty={!day.log}
             >
@@ -173,11 +173,11 @@ export default function PatientCalendarSection({
             </Row>
 
             {/* Visit */}
-            <Row icon="🔵" label="来院" empty={!day.visit}>
+            <Row dotColor="bg-sky-500" label="来院" empty={!day.visit}>
               {day.visit ? (
                 <div className="flex items-center justify-between rounded-lg bg-sky-50 border border-sky-200 px-3 py-2">
                   <span className="text-sm font-bold text-sky-900">
-                    ✓ 来院記録あり
+                    来院記録あり
                   </span>
                   <button
                     type="button"
@@ -207,13 +207,13 @@ export default function PatientCalendarSection({
 }
 
 function Row({
-  icon,
+  dotColor,
   label,
   empty,
   emptyMessage,
   children,
 }: {
-  icon: string;
+  dotColor: string;
   label: string;
   empty: boolean;
   emptyMessage?: string;
@@ -222,7 +222,10 @@ function Row({
   return (
     <div>
       <div className="flex items-center gap-1.5 mb-1.5 text-[10px] tracking-widest text-ink-400 font-bold">
-        <span aria-hidden>{icon}</span>
+        <span
+          aria-hidden
+          className={`inline-block w-2 h-2 rounded-full ${dotColor}`}
+        />
         <span>{label}</span>
       </div>
       {empty && emptyMessage ? (

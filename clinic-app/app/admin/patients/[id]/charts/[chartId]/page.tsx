@@ -79,7 +79,7 @@ export default async function ChartDetailPage({
         <section className="rounded-2xl border border-ink-100 bg-white p-3 shadow-soft mb-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="text-xs tracking-widest text-ink-400 font-bold">
-              📋 前回のカルテ ({formatDateLong(previous.created_at)})
+              前回のカルテ ({formatDateLong(previous.created_at)})
             </h2>
             <Link
               href={`/admin/patients/${patient.id}/charts/${previous.id}`}

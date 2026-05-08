@@ -26,7 +26,7 @@ export default function CopySummaryButton({ text }: { text: string }) {
       onClick={copy}
       className="rounded-full bg-ink-900 text-white font-bold text-xs px-4 py-2 hover:bg-ink-800 transition"
     >
-      {copied ? "✓ コピーしました" : "📋 コピー"}
+      {copied ? "コピーしました" : "テキストをコピー"}
     </button>
   );
 }

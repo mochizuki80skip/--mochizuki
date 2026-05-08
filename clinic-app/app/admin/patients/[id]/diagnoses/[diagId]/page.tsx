@@ -178,10 +178,10 @@ export default async function DiagnosisAdminDetailPage({
         </h2>
         {(
           [
-            ["🌙 睡眠", c.advice.sleep],
-            ["🥣 食事", c.advice.food],
-            ["🚶 運動", c.advice.exercise],
-            ["🌿 ストレス", c.advice.stress],
+            ["睡眠", c.advice.sleep],
+            ["食事", c.advice.food],
+            ["運動", c.advice.exercise],
+            ["ストレス", c.advice.stress],
           ] as const
         ).map(([label, items]) => (
           <details

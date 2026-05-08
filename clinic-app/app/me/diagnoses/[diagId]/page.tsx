@@ -155,10 +155,10 @@ export default async function MyDiagnosisDetail({
         <h2 className="text-xs tracking-widest text-ink-400">改善アドバイス</h2>
         {(
           [
-            ["🌙 睡眠", c.advice.sleep],
-            ["🥣 食事", c.advice.food],
-            ["🚶 運動", c.advice.exercise],
-            ["🌿 ストレス", c.advice.stress],
+            ["睡眠", c.advice.sleep],
+            ["食事", c.advice.food],
+            ["運動", c.advice.exercise],
+            ["ストレス", c.advice.stress],
           ] as const
         ).map(([label, items]) => (
           <details

@@ -88,7 +88,7 @@ export default function SymptomHeatmap({
       </ScrollEndOnMount>
       <div className="flex items-center gap-3 mt-3 text-[10px] text-ink-400">
         <span className="flex items-center gap-1">
-          😄 良好 → 😣 悪い
+          気分 : 良好 → 悪い
         </span>
         <span className="flex items-center gap-1">
           <span className="text-rose-500 font-bold">×</span> 不調の項目数
@@ -103,9 +103,17 @@ export default function SymptomHeatmap({
           <span className="flex items-center gap-2.5">
             <span
               aria-hidden
-              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-accent text-ink-900 shadow-glow text-sm"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-accent text-ink-900 shadow-glow"
             >
-              📊
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M4 20V10M10 20V4M16 20v-7M22 20H2"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
             </span>
             <span className="flex flex-col items-start">
               <span className="text-[10px] tracking-widest text-accent-600 font-bold leading-none">

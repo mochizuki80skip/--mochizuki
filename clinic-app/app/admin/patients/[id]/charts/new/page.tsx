@@ -74,7 +74,7 @@ export default async function NewChartPage({
       {previous && (
         <section className="rounded-2xl border border-ink-100 bg-white p-3 shadow-soft mb-4">
           <h2 className="text-xs tracking-widest text-ink-400 font-bold mb-2">
-            📋 前回のカルテ ({formatDateLong(previous.created_at)})
+            前回のカルテ ({formatDateLong(previous.created_at)})
           </h2>
           <ChartViewer
             markers={previous.markers}

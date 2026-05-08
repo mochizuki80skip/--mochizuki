@@ -48,7 +48,7 @@ export default async function ChartListPage({
 
       <header className="mb-4">
         <h1 className="text-[22px] font-black text-ink-900 leading-tight">
-          🩺 鍼灸カルテ一覧
+          鍼灸カルテ一覧
         </h1>
         <p className="text-xs text-ink-500 mt-1">
           来院ごとの施術カルテ。日付をタップで詳細表示・編集できます。

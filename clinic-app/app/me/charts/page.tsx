@@ -30,7 +30,7 @@ export default async function MyChartListPage() {
 
       <header className="mb-4">
         <h1 className="text-[22px] font-black text-ink-900 leading-tight">
-          🩺 施術カルテ
+          施術カルテ
         </h1>
         <p className="text-xs text-ink-500 mt-1">
           院で受けた施術の記録です

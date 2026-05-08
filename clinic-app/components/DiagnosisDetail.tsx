@@ -69,10 +69,10 @@ export default function DiagnosisDetail({ row }: { row: DiagnosisRow }) {
         <h2 className="text-xs tracking-widest text-ink-400">
           改善アドバイス
         </h2>
-        <AdviceBlock title="睡眠" emoji="🌙" items={content.advice.sleep} />
-        <AdviceBlock title="食事" emoji="🥣" items={content.advice.food} />
-        <AdviceBlock title="運動" emoji="🚶" items={content.advice.exercise} />
-        <AdviceBlock title="ストレス" emoji="🌿" items={content.advice.stress} />
+        <AdviceBlock title="睡眠" items={content.advice.sleep} />
+        <AdviceBlock title="食事" items={content.advice.food} />
+        <AdviceBlock title="運動" items={content.advice.exercise} />
+        <AdviceBlock title="ストレス" items={content.advice.stress} />
       </section>
     </div>
   );
@@ -123,19 +123,14 @@ function Block({
 
 function AdviceBlock({
   title,
-  emoji,
   items,
 }: {
   title: string;
-  emoji: string;
   items: string[];
 }) {
   return (
     <div className="rounded-xl border border-ink-100 bg-white p-4 shadow-soft">
       <div className="flex items-center gap-2 mb-2.5">
-        <span className="text-lg leading-none" aria-hidden>
-          {emoji}
-        </span>
         <span className="font-bold text-ink-900">{title}</span>
       </div>
       <ul className="space-y-1.5">

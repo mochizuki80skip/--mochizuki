@@ -165,10 +165,10 @@ export default function PrintableDiagnosis({ row, patient, compare }: Props) {
           <div className="space-y-2">
             {(
               [
-                ["🌙 睡眠", c.advice.sleep],
-                ["🥣 食事", c.advice.food],
-                ["🚶 運動", c.advice.exercise],
-                ["🌿 ストレス", c.advice.stress],
+                ["睡眠", c.advice.sleep],
+                ["食事", c.advice.food],
+                ["運動", c.advice.exercise],
+                ["ストレス", c.advice.stress],
               ] as const
             ).map(([label, items]) => (
               <div key={label}>
