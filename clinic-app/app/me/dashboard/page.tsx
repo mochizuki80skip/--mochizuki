@@ -10,7 +10,7 @@ import TrendChart from "@/components/TrendChart";
 import SymptomHeatmap from "@/components/SymptomHeatmap";
 import SymptomRanking from "@/components/SymptomRanking";
 import PainBodyDiagram from "@/components/PainBodyDiagram";
-import TabNav from "@/components/TabNav";
+import { TabsRoot, TabsNav, TabsPanel } from "@/components/Tabs";
 import { activeTab } from "@/lib/active-tab";
 import PatientHeader from "../PatientHeader";
 import { getClinic } from "@/lib/clinics";
@@ -90,47 +90,48 @@ export default async function PatientDashboard({
         </h1>
       </section>
 
-      <TabNav
-        current={tab}
-        items={[
-          { key: "home", label: "ホーム" },
-          { key: "calendar", label: "カレンダー" },
-          { key: "charts", label: "カルテ", badge: charts.length || undefined },
-          { key: "analysis", label: "分析" },
-        ]}
-      />
-
-      {dataError && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
-          データの取得に失敗しました: {dataError}
-        </div>
-      )}
-
-      {tab === "home" && (
-        <HomeTab clinic={clinic} diagnoses={diagnoses} charts={charts} />
-      )}
-
-      {tab === "calendar" && (
-        <section>
-          <PatientCalendarSection
-            diagnoses={diagnoses}
-            logs={logs}
-            visits={visits}
-          />
-        </section>
-      )}
-
-      {tab === "charts" && (
-        <ChartsTab patientName={patient.name} charts={charts} />
-      )}
-
-      {tab === "analysis" && (
-        <AnalysisTab
-          logs={logs}
-          diagnoses={diagnoses}
-          recentPains={recentPains}
+      <TabsRoot defaultActive={tab || "home"}>
+        <TabsNav
+          items={[
+            { key: "home", label: "ホーム" },
+            { key: "calendar", label: "カレンダー" },
+            { key: "charts", label: "カルテ", badge: charts.length || undefined },
+            { key: "analysis", label: "分析" },
+          ]}
         />
-      )}
+
+        {dataError && (
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+            データの取得に失敗しました: {dataError}
+          </div>
+        )}
+
+        <TabsPanel name="home">
+          <HomeTab clinic={clinic} diagnoses={diagnoses} charts={charts} />
+        </TabsPanel>
+
+        <TabsPanel name="calendar">
+          <section>
+            <PatientCalendarSection
+              diagnoses={diagnoses}
+              logs={logs}
+              visits={visits}
+            />
+          </section>
+        </TabsPanel>
+
+        <TabsPanel name="charts">
+          <ChartsTab patientName={patient.name} charts={charts} />
+        </TabsPanel>
+
+        <TabsPanel name="analysis">
+          <AnalysisTab
+            logs={logs}
+            diagnoses={diagnoses}
+            recentPains={recentPains}
+          />
+        </TabsPanel>
+      </TabsRoot>
     </main>
   );
 }

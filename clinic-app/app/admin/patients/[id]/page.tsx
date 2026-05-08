@@ -13,7 +13,7 @@ import { getBaseUrl } from "@/lib/baseUrl";
 import TrendChart from "@/components/TrendChart";
 import PatientQRCode from "@/components/PatientQRCode";
 import SymptomHeatmap from "@/components/SymptomHeatmap";
-import TabNav from "@/components/TabNav";
+import { TabsRoot, TabsNav, TabsPanel } from "@/components/Tabs";
 import { activeTab } from "@/lib/active-tab";
 import AdminHeader from "../../AdminHeader";
 import { getClinic } from "@/lib/clinics";
@@ -89,57 +89,58 @@ export default async function PatientDetailPage({
 
       <PatientInfoCard patient={patient} />
 
-      <TabNav
-        current={tab}
-        items={[
-          { key: "summary",  label: "概要" },
-          { key: "calendar", label: "カレンダー" },
-          { key: "charts",   label: "カルテ", badge: charts.length || undefined },
-          { key: "analysis", label: "分析" },
-        ]}
-      />
-
-      {dataError && (
-        <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
-          データの取得に失敗しました: {dataError}
-        </div>
-      )}
-
-      {tab === "summary" && (
-        <SummaryTab
-          patient={patient}
-          patientLoginUrl={patientLoginUrl}
-          diagnoses={diagnoses}
-          charts={charts}
-          visitsCount={visits.length}
+      <TabsRoot defaultActive={tab || "summary"}>
+        <TabsNav
+          items={[
+            { key: "summary",  label: "概要" },
+            { key: "calendar", label: "カレンダー" },
+            { key: "charts",   label: "カルテ", badge: charts.length || undefined },
+            { key: "analysis", label: "分析" },
+          ]}
         />
-      )}
 
-      {tab === "calendar" && (
-        <section>
-          <p className="text-xs text-ink-500 mb-2">
-            日付をタップすると、その日のデータと来院の追加・取り消しができます
-          </p>
-          <StaffCalendarSection
-            patientId={patient.id}
+        {dataError && (
+          <div className="mb-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-700">
+            データの取得に失敗しました: {dataError}
+          </div>
+        )}
+
+        <TabsPanel name="summary">
+          <SummaryTab
+            patient={patient}
+            patientLoginUrl={patientLoginUrl}
+            diagnoses={diagnoses}
+            charts={charts}
+            visitsCount={visits.length}
+          />
+        </TabsPanel>
+
+        <TabsPanel name="calendar">
+          <section>
+            <p className="text-xs text-ink-500 mb-2">
+              日付をタップすると、その日のデータと来院の追加・取り消しができます
+            </p>
+            <StaffCalendarSection
+              patientId={patient.id}
+              diagnoses={diagnoses}
+              logs={logs}
+              visits={visits}
+            />
+          </section>
+        </TabsPanel>
+
+        <TabsPanel name="charts">
+          <ChartsTab patient={patient} charts={charts} visitsCount={visits.length} />
+        </TabsPanel>
+
+        <TabsPanel name="analysis">
+          <AnalysisTab
+            patient={patient}
             diagnoses={diagnoses}
             logs={logs}
-            visits={visits}
           />
-        </section>
-      )}
-
-      {tab === "charts" && (
-        <ChartsTab patient={patient} charts={charts} visitsCount={visits.length} />
-      )}
-
-      {tab === "analysis" && (
-        <AnalysisTab
-          patient={patient}
-          diagnoses={diagnoses}
-          logs={logs}
-        />
-      )}
+        </TabsPanel>
+      </TabsRoot>
     </main>
   );
 }
