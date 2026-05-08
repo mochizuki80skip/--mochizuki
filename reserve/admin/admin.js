@@ -91,6 +91,13 @@
   function getKind() {
     return document.querySelector('input[name="kind"]:checked')?.value || 'override';
   }
+  function detectKind(p) {
+    if (typeof p.targetCourseId !== 'number') return 'addon';
+    const hasOverrideValues = (typeof p.price === 'number')
+      || (typeof p.name === 'string' && p.name.trim() !== '')
+      || (typeof p.description === 'string' && p.description.trim() !== '');
+    return hasOverrideValues ? 'override' : 'shortcut';
+  }
   function setKind(kind) {
     const r = document.querySelector(`input[name="kind"][value="${kind}"]`);
     if (r) r.checked = true;
@@ -99,11 +106,26 @@
   function applyKindUI() {
     const kind = getKind();
     const isOverride = kind === 'override';
-    $('f-target-wrap').hidden = !isOverride;
+    const isShortcut = kind === 'shortcut';
+    const isAddon = kind === 'addon';
+
+    // Target course is shown for override and shortcut
+    $('f-target-wrap').hidden = isAddon;
     $('f-targetCourseId').required = false;
-    $('f-duration-wrap').hidden = isOverride;
-    // Name field is required only for addon-type promos
-    $('f-name').required = !isOverride;
+
+    // Pricing/name/description fields hidden in shortcut mode
+    $('f-name-wrap').hidden = isShortcut;
+    $('f-description-wrap').hidden = isShortcut;
+    $('f-pricing-row').hidden = isShortcut;
+    $('f-duration-wrap').hidden = isOverride; // duration only for addon
+    $('f-price-wrap').hidden = isShortcut;
+    $('f-shortcut-help').hidden = !isShortcut;
+
+    // autoOpen: hidden in shortcut mode (forced true on submit)
+    $('f-autoopen-wrap').hidden = isShortcut;
+
+    // Name required only for addon
+    $('f-name').required = isAddon;
     $('f-name-label').innerHTML = isOverride
       ? '表示名 <small>(任意・空欄なら元のコース名を使用)</small>'
       : 'メニュー名';
@@ -210,7 +232,10 @@
       const forFt = p.forFirstTime === 'true' ? '初回のみ'
         : p.forFirstTime === 'false' ? '2回目以降のみ'
         : '初回 / 2回目以降';
-      const kindTag = p.targetCourseId ? '価格上書き' : '新メニュー追加';
+      const detectedKind = detectKind(p);
+      const kindTag = detectedKind === 'override' ? '価格上書き'
+        : detectedKind === 'shortcut' ? '空き状況へ直行'
+        : '新メニュー追加';
       const autoTag = p.autoOpen ? '<span class="tag tag-auto">自動進行</span>' : '';
       const fullUrl = location.origin + '/?promo=' + encodeURIComponent(p.code);
       html += `<div class="promo-item" data-code="${escapeHtml(p.code)}">
@@ -305,7 +330,7 @@
       $('f-forClinic').value = p.forClinic || 'both';
       $('f-forFirstTime').value = p.forFirstTime || 'both';
       $('f-autoOpen').checked = !!p.autoOpen;
-      setKind(p.targetCourseId ? 'override' : 'addon');
+      setKind(detectKind(p));
       refreshTargetCourseOptions(p.targetCourseId || null);
       $('f-code').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -324,21 +349,27 @@
     const kind = getKind();
     const targetRaw = $('f-targetCourseId').value;
     const nameTrim = $('f-name').value.trim();
+    const wantsTarget = kind === 'override' || kind === 'shortcut';
+    const targetCourseId = wantsTarget && targetRaw !== '' ? Number(targetRaw) : null;
     const body = {
       code: $('f-code').value.trim(),
-      name: nameTrim,
-      description: $('f-description').value.trim(),
+      name: kind === 'shortcut' ? '' : nameTrim,
+      description: kind === 'shortcut' ? '' : $('f-description').value.trim(),
       duration: kind === 'addon' && $('f-duration').value !== '' ? Number($('f-duration').value) : null,
-      price: $('f-price').value === '' ? null : Number($('f-price').value),
+      price: kind === 'shortcut' || $('f-price').value === '' ? null : Number($('f-price').value),
       forClinic: $('f-forClinic').value,
       forFirstTime: $('f-forFirstTime').value,
-      targetCourseId: kind === 'override' && targetRaw !== '' ? Number(targetRaw) : null,
-      autoOpen: $('f-autoOpen').checked,
+      targetCourseId,
+      autoOpen: kind === 'shortcut' ? true : $('f-autoOpen').checked,
     };
     $('form-error').hidden = true;
     $('form-info').hidden = true;
-    // Friendly client check: override mode without target AND without name has nothing to display
-    if (kind === 'override' && body.targetCourseId == null && !nameTrim) {
+    if (kind === 'shortcut' && targetCourseId == null) {
+      $('form-error').textContent = '「空き状況を表示」モードでは、対象既存メニューを必ず選択してください。';
+      $('form-error').hidden = false;
+      return;
+    }
+    if (kind === 'override' && targetCourseId == null && !nameTrim) {
       $('form-error').textContent = '対象既存メニューを選ぶか、種別を「新メニュー追加」に切り替えてメニュー名を入力してください。';
       $('form-error').hidden = false;
       return;
@@ -354,6 +385,7 @@
       $('form-info').textContent = '保存しました';
       $('form-info').hidden = false;
       $('promo-form').reset();
+      $('f-autoOpen').checked = false;
       setKind('override');
       refreshTargetCourseOptions();
       renderPromos(data.items || []);

@@ -250,12 +250,13 @@
     if (!p) return c;
     const overrideName = typeof p.name === 'string' ? p.name.trim() : '';
     const overrideDesc = typeof p.description === 'string' ? p.description.trim() : '';
+    const hasOverrideValues = !!overrideName || !!overrideDesc || typeof p.price === 'number';
     return {
       ...c,
       name: overrideName || c.name,
       description: overrideDesc || c.description,
       price: typeof p.price === 'number' ? p.price : c.price,
-      _isPromoOverride: true,
+      _isPromoOverride: hasOverrideValues,
       _origPrice: c.price,
       _origName: c.name,
     };

@@ -56,6 +56,10 @@
               <span>既存メニューの<strong>価格を変更</strong>（おすすめ）</span>
             </label>
             <label class="admin-radio">
+              <input type="radio" name="kind" value="shortcut" id="f-kind-shortcut">
+              <span>既存メニューの<strong>空き状況を表示</strong>（カレンダーへ直行）</span>
+            </label>
+            <label class="admin-radio">
               <input type="radio" name="kind" value="addon" id="f-kind-addon">
               <span>新しいメニューを<strong>追加</strong>（独自の限定メニュー）</span>
             </label>
@@ -88,28 +92,34 @@
             <p class="admin-help" id="f-target-help"></p>
           </label>
 
-          <label>
+          <label id="f-name-wrap">
             <span id="f-name-label">表示名 <small>(任意・空欄なら元のコース名を使用)</small></span>
             <input type="text" name="name" id="f-name" placeholder="例: 【春チラシ限定】鍼灸お試し">
           </label>
 
-          <label>
+          <label id="f-description-wrap">
             <span id="f-description-label">説明 <small>(任意)</small></span>
             <textarea name="description" id="f-description" rows="3" placeholder="チラシをご持参の方限定..."></textarea>
           </label>
 
-          <div class="admin-form-row">
+          <div class="admin-form-row" id="f-pricing-row">
             <label id="f-duration-wrap">
               <span>時間 (分)</span>
               <input type="number" name="duration" id="f-duration" min="0" step="1" placeholder="30">
             </label>
-            <label>
+            <label id="f-price-wrap">
               <span>価格 (円) <small>(キャンペーン価格)</small></span>
               <input type="number" name="price" id="f-price" min="0" step="100" placeholder="3000">
             </label>
           </div>
 
-          <fieldset class="admin-fieldset">
+          <p class="admin-help" id="f-shortcut-help" hidden>
+            「空き状況を表示」モードでは、対象の既存メニューにそのまま誘導します。<br>
+            価格や説明は変更しません（元のコースをそのまま表示）。<br>
+            URLを開くとカレンダーまで自動進行します。
+          </p>
+
+          <fieldset class="admin-fieldset" id="f-autoopen-wrap">
             <legend>URLを開いた時の挙動</legend>
             <label class="admin-checkbox">
               <input type="checkbox" name="autoOpen" id="f-autoOpen">
