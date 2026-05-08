@@ -95,15 +95,22 @@
   }
 
   async function tryAutoOpen() {
-    const auto = state.promoMenus.find((p) => p.autoOpen && p.targetCourseId
-      && (p.forClinic === '192' || p.forClinic === '193')
-      && (p.forFirstTime === 'true' || p.forFirstTime === 'false'));
-    if (!auto) return;
     if (state._autoOpenApplied) return;
+    // Find an autoOpen promo with at least one specific field
+    const auto = state.promoMenus.find((p) => p.autoOpen && (
+      p.forClinic === '192' || p.forClinic === '193'
+      || p.forFirstTime === 'true' || p.forFirstTime === 'false'
+      || (typeof p.targetCourseId === 'number')
+    ));
+    if (!auto) return;
     state._autoOpenApplied = true;
 
-    // Switch clinic if needed (this also resets state — do it BEFORE setting other state)
-    if (state.clinic !== auto.forClinic) {
+    const hasClinic = auto.forClinic === '192' || auto.forClinic === '193';
+    const hasFt = auto.forFirstTime === 'true' || auto.forFirstTime === 'false';
+    const hasCourse = typeof auto.targetCourseId === 'number';
+
+    // Pre-fill clinic
+    if (hasClinic && state.clinic !== auto.forClinic) {
       state.clinic = auto.forClinic;
       document.querySelectorAll('.tab').forEach((t) => {
         const on = t.dataset.clinic === auto.forClinic;
@@ -116,30 +123,40 @@
       fetchAvailability();
     }
 
-    state.firstTime = auto.forFirstTime === 'true';
-    document.querySelectorAll('.choice[data-firsttime]').forEach((b) => {
-      b.classList.toggle('is-selected', b.dataset.firsttime === String(state.firstTime));
-    });
+    // Pre-fill firstTime
+    if (hasFt) {
+      state.firstTime = auto.forFirstTime === 'true';
+      document.querySelectorAll('.choice[data-firsttime]').forEach((b) => {
+        b.classList.toggle('is-selected', b.dataset.firsttime === String(state.firstTime));
+      });
+    }
 
-    // Wait for courses to load, then select target course
-    try {
-      const courses = await getCoursesPromise(state.clinic, state.firstTime);
-      state._coursesList = courses;
-      if (courses.some((c) => c.id === auto.targetCourseId)) {
-        state.courseId = auto.targetCourseId;
-      }
-    } catch { /* keep going even on fetch failure */ }
+    // Pre-fill course (requires firstTime to know which course list to load)
+    if (hasCourse && state.firstTime !== null) {
+      try {
+        const courses = await getCoursesPromise(state.clinic, state.firstTime);
+        state._coursesList = courses;
+        if (courses.some((c) => c.id === auto.targetCourseId)) {
+          state.courseId = auto.targetCourseId;
+        }
+      } catch { /* keep going even on fetch failure */ }
+    } else if (state.firstTime !== null) {
+      try {
+        state._coursesList = await getCoursesPromise(state.clinic, state.firstTime);
+      } catch {}
+    }
 
     renderCourses();
     renderGrid();
     recomputeStepStates();
-    // Mark STEP1 & STEP2 as done so they collapse with summary visible
-    setStepState(1, 'active', true);
-    setStepState(2, 'active', true);
-    // Scroll to STEP3
+
+    // Decide which step to focus
+    let focusStep = 1;
+    if (state.firstTime !== null) focusStep = 2;
+    if (state.courseId != null) focusStep = 3;
     setTimeout(() => {
-      const s3 = document.getElementById('step-3');
-      if (s3 && s3.scrollIntoView) s3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const target = document.getElementById('step-' + focusStep);
+      if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
   }
 

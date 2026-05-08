@@ -120,6 +120,10 @@
   });
   $('f-forClinic').addEventListener('change', () => refreshTargetCourseOptions());
   $('f-forFirstTime').addEventListener('change', () => refreshTargetCourseOptions());
+  $('f-code-rand').addEventListener('click', () => {
+    $('f-code').value = generateRandomCode(6);
+    $('f-code').focus();
+  });
 
   // --- Login ---
 
@@ -208,6 +212,7 @@
         : '初回 / 2回目以降';
       const kindTag = p.targetCourseId ? '価格上書き' : '新メニュー追加';
       const autoTag = p.autoOpen ? '<span class="tag tag-auto">自動進行</span>' : '';
+      const fullUrl = location.origin + '/?promo=' + encodeURIComponent(p.code);
       html += `<div class="promo-item" data-code="${escapeHtml(p.code)}">
         <div class="promo-item-main">
           <div class="promo-item-code">?promo=<strong>${escapeHtml(p.code)}</strong></div>
@@ -218,6 +223,13 @@
             <span class="tag">${escapeHtml(forClinic)}</span>
             <span class="tag">${escapeHtml(forFt)}</span>
             ${autoTag}
+          </div>
+          <div class="promo-item-url">
+            <input type="text" readonly value="${escapeHtml(fullUrl)}" data-url-for="${escapeHtml(p.code)}">
+            <div class="promo-item-url-actions">
+              <button type="button" class="admin-btn-mini" data-act="copy" data-code="${escapeHtml(p.code)}">コピー</button>
+              <button type="button" class="admin-btn-mini" data-act="open" data-code="${escapeHtml(p.code)}">開く</button>
+            </div>
           </div>
         </div>
         <div class="promo-item-actions">
@@ -230,34 +242,58 @@
     list.querySelectorAll('button[data-act]').forEach((b) => {
       b.addEventListener('click', () => onItemAction(b.dataset.act, b.dataset.code, items));
     });
-    renderUrls(items);
-  }
-
-  function renderUrls(items) {
-    const wrap = $('url-list');
-    if (!items.length) { wrap.innerHTML = ''; return; }
-    const origin = window.location.origin;
-    wrap.innerHTML = items.map((p) => {
-      const url = `${origin}/?promo=${encodeURIComponent(p.code)}`;
-      return `<div class="url-item">
-        <div class="url-name">${escapeHtml(p.name)}</div>
-        <input type="text" readonly value="${escapeHtml(url)}" onfocus="this.select()">
-        <button type="button" class="admin-btn-mini" data-copy="${escapeHtml(url)}">コピー</button>
-      </div>`;
-    }).join('');
-    wrap.querySelectorAll('button[data-copy]').forEach((b) => {
-      b.addEventListener('click', async () => {
-        try {
-          await navigator.clipboard.writeText(b.dataset.copy);
-          const o = b.textContent;
-          b.textContent = 'コピー済';
-          setTimeout(() => { b.textContent = o; }, 1200);
-        } catch {}
-      });
+    list.querySelectorAll('input[data-url-for]').forEach((i) => {
+      i.addEventListener('focus', () => i.select());
     });
   }
 
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      document.body.removeChild(ta);
+      return ok;
+    } catch { return false; }
+  }
+
+  function generateRandomCode(len = 6) {
+    // Lowercase letters + digits, excluding visually confusing chars (0/o/1/l/i)
+    const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+    let out = '';
+    const buf = new Uint32Array(len);
+    crypto.getRandomValues(buf);
+    for (let i = 0; i < len; i++) out += chars[buf[i] % chars.length];
+    return out;
+  }
+
   function onItemAction(act, code, items) {
+    const fullUrl = location.origin + '/?promo=' + encodeURIComponent(code);
+    if (act === 'open') {
+      window.open(fullUrl, '_blank', 'noopener');
+      return;
+    }
+    if (act === 'copy') {
+      const btn = document.querySelector(`.promo-item[data-code="${CSS.escape(code)}"] button[data-act="copy"]`);
+      copyToClipboard(fullUrl).then((ok) => {
+        if (btn) {
+          const o = btn.textContent;
+          btn.textContent = ok ? 'コピー済' : '失敗';
+          setTimeout(() => { btn.textContent = o; }, 1200);
+        }
+      });
+      return;
+    }
     if (act === 'edit') {
       const p = items.find((x) => x.code === code);
       if (!p) return;

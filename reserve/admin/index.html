@@ -43,7 +43,10 @@
         <form class="admin-form" id="promo-form">
           <label>
             <span>URLコード <small>(英数字・ハイフン・アンダーバー、3〜40文字)</small></span>
-            <input type="text" name="code" id="f-code" required pattern="[a-zA-Z0-9_-]{3,40}" placeholder="例: chirashi-spring2026">
+            <div class="admin-input-row">
+              <input type="text" name="code" id="f-code" required pattern="[a-zA-Z0-9_-]{3,40}" placeholder="例: chirashi-spring2026">
+              <button type="button" id="f-code-rand" class="admin-btn-mini">ランダム生成</button>
+            </div>
           </label>
 
           <fieldset class="admin-fieldset">
@@ -110,11 +113,13 @@
             <legend>URLを開いた時の挙動</legend>
             <label class="admin-checkbox">
               <input type="checkbox" name="autoOpen" id="f-autoOpen">
-              <span>URLをタップしたら、<strong>いきなり空き枠を表示</strong>する</span>
+              <span>URLをタップしたら、<strong>指定済みの項目を自動入力</strong>する</span>
             </label>
             <p class="admin-help">
-              ON にすると、ユーザーは「来院パターン」「コース選択」をタップせずカレンダーまで進めます。<br>
-              利用には「対象院」「対象来院」「対象既存メニュー」がすべて指定されている必要があります。
+              ON にすると、上で指定した「対象院」「対象来院」「対象既存メニュー」のうち
+              <strong>具体的に絞られているものだけ</strong>が自動で選択された状態でページが開きます。<br>
+              （例：院＝三島、来院＝初回 を指定しておけば、ユーザーはコースを選ぶだけで空き枠まで進めます。）<br>
+              すべて指定すれば、ユーザーは何もタップせずカレンダーまで進めます。
             </p>
           </fieldset>
 
@@ -130,12 +135,6 @@
         <div id="promo-list" class="promo-list">
           <p class="admin-help">読み込み中…</p>
         </div>
-      </section>
-
-      <section class="admin-card">
-        <h2>動作確認用URL</h2>
-        <p class="admin-help">下のURLをコピー → ブラウザで開いて表示確認できます。Vercel本番URLは自動入力されています。</p>
-        <div id="url-list" class="url-list"></div>
       </section>
 
       <button class="admin-logout" id="logout-btn">ログアウト</button>

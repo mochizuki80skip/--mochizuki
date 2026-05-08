@@ -81,9 +81,11 @@ export function validatePromo(p) {
   const validFt = !p.forFirstTime || ['both', 'true', 'false'].includes(p.forFirstTime);
   if (!validFt) return 'forFirstTime must be both/true/false';
   if (p.autoOpen) {
-    if (!isOverride) return 'autoOpen には対象コースの指定が必須です';
-    if (!p.forClinic || p.forClinic === 'both') return 'autoOpen には対象院（三島／裾野）の指定が必須です';
-    if (!p.forFirstTime || p.forFirstTime === 'both') return 'autoOpen には対象来院（初回／2回目以降）の指定が必須です';
+    const hasClinic = p.forClinic === '192' || p.forClinic === '193';
+    const hasFt = p.forFirstTime === 'true' || p.forFirstTime === 'false';
+    if (!hasClinic && !hasFt && !isOverride) {
+      return 'autoOpen には「対象院」「対象来院」「対象既存メニュー」のうち最低1つを具体的に指定してください';
+    }
   }
   return null;
 }
