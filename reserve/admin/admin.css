@@ -52,6 +52,7 @@
 }
 
 /* ---- Form ---- */
+.admin-form [hidden] { display: none !important; }
 .admin-form label {
   display: block;
   margin-bottom: 12px;
