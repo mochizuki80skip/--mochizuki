@@ -88,7 +88,7 @@
           <span class="legend-item"><span class="legend-mark mark-avail">〇</span>予約可</span>
           <span class="legend-item"><span class="legend-mark mark-none">―</span>満員 / 受付外</span>
         </div>
-        <p class="multi-hint">ご希望の枠を1つ選んでください。再タップで取消。</p>
+        <p class="multi-hint">第1〜第3希望まで選択できます（任意）。同じ枠を再タップで取消。</p>
 
         <div class="status" id="grid-loading" hidden>空き状況を取得中…</div>
         <div class="status status-error" id="grid-error" hidden></div>
@@ -115,13 +115,10 @@
           <dt>日時</dt><dd id="m-datetime">—</dd>
         </dl>
 
-        <p class="book-intro">下記いずれかの方法で予約を確定してください</p>
-
-        <!-- Method 1: LINE -->
+        <!-- Method: LINE -->
         <div class="book-method book-method--line">
           <div class="book-method-head">
-            <h3><span class="book-num">1</span>公式LINEで予約</h3>
-            <span class="badge-rec">おすすめ</span>
+            <h3>公式LINEで予約</h3>
           </div>
           <p class="book-method-desc">下の文面をコピーしてLINEで送信。当院から折返しで予約確定のご連絡をします。</p>
           <textarea id="m-text" rows="7" readonly></textarea>
@@ -129,30 +126,6 @@
             コピーして公式LINEを開く
           </button>
           <p class="book-tiny">送信後、<strong>長押し → 貼り付け → 送信</strong> で文面が送れます。</p>
-        </div>
-
-        <!-- Method 2: Phone -->
-        <div class="book-method book-method--phone">
-          <div class="book-method-head">
-            <h3><span class="book-num">2</span>電話で予約</h3>
-          </div>
-          <p class="book-method-desc">院に直接お電話でご予約。</p>
-          <a class="primary primary-phone" id="phone-link" href="#">
-            <span class="phone-icon" aria-hidden="true">📞</span>
-            <span class="phone-num" id="phone-num">—</span>
-          </a>
-          <p class="book-tiny" id="phone-hours"></p>
-        </div>
-
-        <!-- Method 3: Threease (ネットで本予約) -->
-        <div class="book-method book-method--threease">
-          <div class="book-method-head">
-            <h3><span class="book-num">3</span>ネットで本予約</h3>
-          </div>
-          <p class="book-method-desc">公式予約システム（スリーズプロ）。お客様ご自身で予約を確定できます。</p>
-          <a class="primary primary-secondary" id="threease-link" href="#" target="_blank" rel="noopener">
-            ネット予約を開く
-          </a>
         </div>
       </div>
     </section>
