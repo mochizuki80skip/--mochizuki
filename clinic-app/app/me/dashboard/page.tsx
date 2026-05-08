@@ -74,7 +74,7 @@ export default async function PatientDashboard({
   const fourteenDaysAgo = shiftDays(today, -13);
   const recentPains = aggregatePainsForLogs(logs, fourteenDaysAgo, today);
 
-  const tab = activeTab(searchParams, "tab", "home") ?? "home";
+  const tab = activeTab(searchParams, "tab", "home");
 
   return (
     <main className="mx-auto max-w-md px-5 pt-6 pb-12 fade-up">
@@ -90,13 +90,13 @@ export default async function PatientDashboard({
       </section>
 
       <TabNav
+        current={tab}
         items={[
           { key: "home", label: "ホーム" },
           { key: "calendar", label: "カレンダー" },
           { key: "charts", label: "カルテ", badge: charts.length || undefined },
           { key: "analysis", label: "分析" },
         ]}
-        defaultKey="home"
       />
 
       {dataError && (

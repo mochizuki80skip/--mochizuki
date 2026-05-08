@@ -71,7 +71,7 @@ export default async function PatientDetailPage({
   const baseUrl = getBaseUrl();
   const patientLoginUrl = `${baseUrl}/me?chart=${encodeURIComponent(patient.chart_number)}&name=${encodeURIComponent(patient.name)}`;
 
-  const tab = activeTab(searchParams, "tab", "summary") ?? "summary";
+  const tab = activeTab(searchParams, "tab", "summary");
 
   return (
     <main className="mx-auto max-w-2xl px-5 pt-6 pb-12 fade-up">
@@ -89,13 +89,13 @@ export default async function PatientDetailPage({
       <PatientInfoCard patient={patient} />
 
       <TabNav
+        current={tab}
         items={[
           { key: "summary",  label: "概要" },
           { key: "calendar", label: "カレンダー" },
           { key: "charts",   label: "カルテ", badge: charts.length || undefined },
           { key: "analysis", label: "分析" },
         ]}
-        defaultKey="summary"
       />
 
       {dataError && (
