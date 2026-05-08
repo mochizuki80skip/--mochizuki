@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0f7a66">
+  <meta name="description" content="リカバリー鍼灸院（長泉三島院・裾野長泉院）のリアルタイム空き状況。気になる枠をタップして公式LINEで予約できます。">
+  <meta property="og:title" content="リカバリー鍼灸院 空き状況">
+  <meta property="og:description" content="長泉三島院・裾野長泉院のリアルタイム空き状況。気になる枠をタップして公式LINEへ。">
+  <meta property="og:type" content="website">
+  <title>リカバリー鍼灸院 空き状況</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>
+      リカバリー鍼灸院
+      <span class="topbar-sub">空き状況 / リアルタイム</span>
+    </h1>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="院切替">
+    <button class="tab is-active" data-clinic="192" role="tab" aria-selected="true">長泉三島院</button>
+    <button class="tab" data-clinic="193" role="tab" aria-selected="false">裾野長泉院</button>
+  </nav>
+
+  <div class="firsttime-bar">
+    <span class="firsttime-label">ご来院は</span>
+    <div class="firsttime-toggle" role="radiogroup" aria-label="初回または再来">
+      <button class="toggle is-active" data-firsttime="false" role="radio" aria-checked="true">2回目以降</button>
+      <button class="toggle" data-firsttime="true" role="radio" aria-checked="false">初回</button>
+    </div>
+  </div>
+
+  <div class="weeknav">
+    <button class="weeknav-btn" id="prev-week" aria-label="前の週">‹</button>
+    <span class="weeknav-label" id="week-label">—</span>
+    <button class="weeknav-btn" id="next-week" aria-label="次の週">›</button>
+  </div>
+
+  <div class="legend" aria-hidden="true">
+    <span class="legend-item"><span class="legend-mark mark-avail">○</span>予約可</span>
+    <span class="legend-item"><span class="legend-mark mark-none">―</span>満員 / 受付外</span>
+    <span class="legend-item legend-howto">枠をタップ → LINEへ</span>
+  </div>
+
+  <main id="grid-container">
+    <div class="status" id="loading" hidden>読み込み中…</div>
+    <div class="status status-error" id="error" hidden></div>
+    <div class="status" id="empty" hidden>この週は空いている枠がありません</div>
+    <div id="grid" class="grid-wrap"></div>
+  </main>
+
+  <p class="updated" id="updated"></p>
+
+  <p class="disclaimer">
+    ※ 表示は当院の予約システムから数分単位で取得しています。実際の予約状況は LINE 受付時に最終確認させていただきます。
+  </p>
+
+  <footer class="footer">
+    <small>リカバリー鍼灸院</small>
+  </footer>
+
+  <!-- Booking modal -->
+  <div class="modal" id="modal" hidden>
+    <div class="modal-bg" data-close="1"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" id="modal-close" aria-label="閉じる">×</button>
+      <h2 id="modal-title">この枠で予約する</h2>
+      <dl class="summary">
+        <dt>院</dt><dd id="m-clinic"></dd>
+        <dt>日時</dt><dd id="m-datetime"></dd>
+        <dt>来院</dt><dd id="m-firsttime"></dd>
+      </dl>
+      <label class="message-label" for="m-text">LINEで送る文章</label>
+      <textarea id="m-text" rows="7" readonly></textarea>
+      <button class="primary" id="copy-and-go">
+        コピーして公式LINEを開く
+      </button>
+      <p class="modal-note">
+        LINE のトーク画面に入ったら、<strong>長押し → 貼り付け → 送信</strong> してください。当院から折り返しご連絡します。
+      </p>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
