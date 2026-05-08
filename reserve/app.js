@@ -125,7 +125,12 @@
     }
 
     renderCourses();
-    renderGrid();
+    // Re-fetch availability with course filter when a course was auto-selected
+    if (typeof state.courseId === 'number') {
+      fetchAvailability();
+    } else {
+      renderGrid();
+    }
     recomputeStepStates();
 
     // Decide which step to focus
@@ -441,27 +446,38 @@
   async function fetchAvailability() {
     const start = jstYmdCompact(state.weekStart);
     const end = jstYmdCompact(addDays(state.weekStart, 13));
-    const url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}`;
+    // Pass course_id when a threease (numeric) course is selected so threease
+    // returns availability filtered by that course's duration.
+    let url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}`;
+    if (typeof state.courseId === 'number') {
+      url += `&course_id=${state.courseId}`;
+    }
+    const fetchKey = url;
+    state._availabilityFetchKey = fetchKey;
 
     showGridLoading(true);
     showGridError(null);
 
     try {
       const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      // Discard if a newer fetch has been kicked off in the meantime
+      if (state._availabilityFetchKey !== fetchKey) return;
       if (!r.ok) {
         const body = await r.text().catch(() => '');
         throw new Error(`サーバーエラー (${r.status}) ${body.slice(0, 120)}`);
       }
       const data = await r.json();
+      if (state._availabilityFetchKey !== fetchKey) return;
       state.availability = data;
       renderGrid();
     } catch (e) {
+      if (state._availabilityFetchKey !== fetchKey) return;
       const msg = (e && e.message) || '取得に失敗しました';
       showGridError(msg);
       state.availability = null;
       renderGrid();
     } finally {
-      showGridLoading(false);
+      if (state._availabilityFetchKey === fetchKey) showGridLoading(false);
     }
   }
 
@@ -785,14 +801,21 @@ ${dtLines}${promoLine}
     if (courseBtn) {
       const raw = courseBtn.dataset.courseId;
       const id = /^\d+$/.test(raw) ? parseInt(raw, 10) : raw;
-      if (state.courseId !== id) {
+      const courseChanged = state.courseId !== id;
+      if (courseChanged) {
         state.courseId = id;
         state.selectedIsos = [];
       }
       document.querySelectorAll('.course-card').forEach((b) => {
         b.classList.toggle('is-selected', b === courseBtn);
       });
-      renderGrid();
+      // Re-fetch availability for the selected (threease) course so duration
+      // filtering happens upstream
+      if (courseChanged && typeof id === 'number') {
+        fetchAvailability();
+      } else {
+        renderGrid();
+      }
       recomputeStepStates();
       activateStep(3);
       return;

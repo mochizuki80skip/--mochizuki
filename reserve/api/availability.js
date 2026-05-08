@@ -13,6 +13,7 @@ export default async function handler(req, res) {
   const clinic = String(req.query.clinic || '');
   const start = String(req.query.start || '');
   const end = String(req.query.end || '');
+  const courseId = String(req.query.course_id || '').trim();
 
   if (!ALLOWED_CLINICS.has(clinic)) {
     return res.status(400).json({ error: 'invalid clinic' });
@@ -20,8 +21,14 @@ export default async function handler(req, res) {
   if (!/^\d{8}$/.test(start) || !/^\d{8}$/.test(end)) {
     return res.status(400).json({ error: 'invalid date format, expect YYYYMMDD' });
   }
+  // course_id, when supplied, must be a positive integer
+  if (courseId && !/^\d+$/.test(courseId)) {
+    return res.status(400).json({ error: 'invalid course_id' });
+  }
 
-  const calendarUrl = `${UPSTREAM_BASE}/${clinic}/calendar?start_date=${start}&end_date=${end}`;
+  const params = new URLSearchParams({ start_date: start, end_date: end });
+  if (courseId) params.set('course_id', courseId);
+  const calendarUrl = `${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`;
 
   try {
     const r = await fetch(calendarUrl, { headers: UPSTREAM_HEADERS });
@@ -40,7 +47,7 @@ export default async function handler(req, res) {
 
     res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=120');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    return res.status(200).json({ clinic, start, end, available });
+    return res.status(200).json({ clinic, start, end, courseId: courseId || null, available });
   } catch (err) {
     return res.status(502).json({
       error: 'fetch failed',
