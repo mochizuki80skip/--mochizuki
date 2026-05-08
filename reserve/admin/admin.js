@@ -107,6 +107,12 @@
     $('f-name-label').innerHTML = isOverride
       ? '表示名 <small>(任意・空欄なら元のコース名を使用)</small>'
       : 'メニュー名';
+    const descLabel = document.getElementById('f-description-label');
+    if (descLabel) {
+      descLabel.innerHTML = isOverride
+        ? '説明 <small>(任意・空欄なら元のコースの説明を使用)</small>'
+        : '説明 <small>(任意)</small>';
+    }
   }
 
   document.querySelectorAll('input[name="kind"]').forEach((r) => {

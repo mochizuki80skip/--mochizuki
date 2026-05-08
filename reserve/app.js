@@ -231,10 +231,12 @@
   function applyOverrideToCourse(c) {
     const p = getOverridePromoFor(c.id);
     if (!p) return c;
+    const overrideName = typeof p.name === 'string' ? p.name.trim() : '';
+    const overrideDesc = typeof p.description === 'string' ? p.description.trim() : '';
     return {
       ...c,
-      name: p.name && p.name.trim() ? p.name : c.name,
-      description: p.description || c.description,
+      name: overrideName || c.name,
+      description: overrideDesc || c.description,
       price: typeof p.price === 'number' ? p.price : c.price,
       _isPromoOverride: true,
       _origPrice: c.price,

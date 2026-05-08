@@ -64,18 +64,24 @@ export function validatePromo(p) {
   if (!p || typeof p !== 'object') return 'invalid body';
   if (!p.code || typeof p.code !== 'string') return 'code is required';
   if (!/^[a-zA-Z0-9_-]{3,40}$/.test(p.code)) return 'code must be 3-40 chars (letters, numbers, _, -)';
-  if (!p.name || typeof p.name !== 'string') return 'name is required';
+  if (p.targetCourseId !== null && p.targetCourseId !== undefined && p.targetCourseId !== '' && typeof p.targetCourseId !== 'number') {
+    return 'targetCourseId must be a number or null';
+  }
+  const isOverride = typeof p.targetCourseId === 'number';
+  // name is required only for addon-style promos (no target course to fall back to)
+  if (!isOverride) {
+    if (!p.name || typeof p.name !== 'string' || !p.name.trim()) return 'name is required';
+  } else if (p.name != null && typeof p.name !== 'string') {
+    return 'name must be a string';
+  }
   if (typeof p.duration !== 'number' && p.duration !== null && p.duration !== undefined) return 'duration must be a number';
   if (typeof p.price !== 'number' && p.price !== null && p.price !== undefined) return 'price must be a number';
   const validClinic = !p.forClinic || ['both', '192', '193'].includes(p.forClinic);
   if (!validClinic) return 'forClinic must be both/192/193';
   const validFt = !p.forFirstTime || ['both', 'true', 'false'].includes(p.forFirstTime);
   if (!validFt) return 'forFirstTime must be both/true/false';
-  if (p.targetCourseId !== null && p.targetCourseId !== undefined && p.targetCourseId !== '' && typeof p.targetCourseId !== 'number') {
-    return 'targetCourseId must be a number or null';
-  }
   if (p.autoOpen) {
-    if (!p.targetCourseId) return 'autoOpen には対象コースの指定が必須です';
+    if (!isOverride) return 'autoOpen には対象コースの指定が必須です';
     if (!p.forClinic || p.forClinic === 'both') return 'autoOpen には対象院（三島／裾野）の指定が必須です';
     if (!p.forFirstTime || p.forFirstTime === 'both') return 'autoOpen には対象来院（初回／2回目以降）の指定が必須です';
   }
@@ -84,10 +90,12 @@ export function validatePromo(p) {
 
 export function normalizePromo(p) {
   const targetCourseId = typeof p.targetCourseId === 'number' ? p.targetCourseId : null;
+  const rawName = typeof p.name === 'string' ? p.name.trim() : '';
+  const rawDesc = typeof p.description === 'string' ? p.description.trim() : '';
   return {
     code: String(p.code).trim(),
-    name: String(p.name).trim(),
-    description: p.description ? String(p.description) : '',
+    name: rawName,
+    description: rawDesc,
     duration: typeof p.duration === 'number' ? p.duration : null,
     price: typeof p.price === 'number' ? p.price : null,
     forClinic: p.forClinic || 'both',
