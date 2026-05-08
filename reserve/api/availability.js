@@ -25,15 +25,32 @@ export default async function handler(req, res) {
   if (courseId && !/^\d+$/.test(courseId)) {
     return res.status(400).json({ error: 'invalid course_id' });
   }
+  const forNew = String(req.query.for_new || '').toLowerCase();
+  const forNewBool = forNew === 'true' ? true : forNew === 'false' ? false : null;
 
   const params = new URLSearchParams({ start_date: start, end_date: end });
   if (courseId) params.set('course_id', courseId);
-  const calendarUrl = `${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`;
+  if (forNewBool !== null) params.set('for_new_customers', String(forNewBool));
+  // Try the course-scoped endpoint first when a course is specified.
+  // Falls back to the provider-level calendar if the upstream returns 404.
+  const tryUrls = [];
+  if (courseId) {
+    tryUrls.push(`${UPSTREAM_BASE}/${clinic}/courses/${courseId}/calendar?${params.toString()}`);
+  }
+  tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`);
 
   try {
-    const r = await fetch(calendarUrl, { headers: UPSTREAM_HEADERS });
-    if (!r.ok) {
-      return res.status(502).json({ error: 'upstream error', status: r.status });
+    let r = null;
+    let usedUrl = null;
+    for (const u of tryUrls) {
+      r = await fetch(u, { headers: UPSTREAM_HEADERS });
+      usedUrl = u;
+      if (r.ok) break;
+      // 404 from a course-scoped path → try the next candidate
+      if (r.status !== 404 && r.status !== 405) break;
+    }
+    if (!r || !r.ok) {
+      return res.status(502).json({ error: 'upstream error', status: r ? r.status : 0 });
     }
     const data = await r.json();
     const slots = (data && data.calendar && data.calendar.available_slots) || [];
@@ -45,9 +62,18 @@ export default async function handler(req, res) {
       }
     }
 
-    res.setHeader('Cache-Control', 's-maxage=180, stale-while-revalidate=120');
+    // Cache: shorter TTL when course-specific (varies by course)
+    res.setHeader('Cache-Control', 's-maxage=120, stale-while-revalidate=120');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    return res.status(200).json({ clinic, start, end, courseId: courseId || null, available });
+    return res.status(200).json({
+      clinic,
+      start,
+      end,
+      courseId: courseId || null,
+      forNew: forNewBool,
+      available,
+      _via: usedUrl ? new URL(usedUrl).pathname : null,
+    });
   } catch (err) {
     return res.status(502).json({
       error: 'fetch failed',

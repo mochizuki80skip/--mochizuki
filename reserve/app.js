@@ -452,6 +452,9 @@
     if (typeof state.courseId === 'number') {
       url += `&course_id=${state.courseId}`;
     }
+    if (state.firstTime !== null) {
+      url += `&for_new=${state.firstTime ? 'true' : 'false'}`;
+    }
     const fetchKey = url;
     state._availabilityFetchKey = fetchKey;
 
@@ -481,8 +484,30 @@
     }
   }
 
-  // Slot grid increment in minutes (threease calendar returns 30-min slots)
-  const SLOT_INCREMENT_MIN = 30;
+  // Slot grid increment in minutes. Auto-detected from the API response
+  // (threease typically uses 30-min slots, but be robust just in case).
+  let slotIncrementMin = 30;
+
+  function detectSlotIncrement(all) {
+    const byDate = new Map();
+    for (const s of all) {
+      const t = fmtTimeFromIso(s.iso);
+      if (!byDate.has(s.date)) byDate.set(s.date, []);
+      byDate.get(s.date).push(t);
+    }
+    let minGap = Infinity;
+    for (const list of byDate.values()) {
+      const mins = list.map((t) => {
+        const [h, m] = t.split(':').map(Number);
+        return h * 60 + m;
+      }).sort((a, b) => a - b);
+      for (let i = 1; i < mins.length; i++) {
+        const gap = mins[i] - mins[i - 1];
+        if (gap > 0 && gap < minGap) minGap = gap;
+      }
+    }
+    return Number.isFinite(minGap) ? minGap : 30;
+  }
 
   function addMinutesHHMM(hhmm, minutesToAdd) {
     const [h, m] = hhmm.split(':').map((s) => parseInt(s, 10));
@@ -497,31 +522,38 @@
     if (!state.availability || !state.courseId) return [];
     const all = state.availability.available;
     const card = getSelectedCardObject();
-    const dur = card && typeof card.duration === 'number' ? card.duration : null;
-    // If we don't know the duration, or the course fits in one slot, return all
-    if (!dur || dur <= SLOT_INCREMENT_MIN) return all;
+    const rawDur = card ? card.duration : null;
+    const dur = rawDur == null ? null : Number(rawDur);
 
-    // For courses longer than one slot, require enough consecutive 30-min
-    // openings starting at the slot. Threease's calendar returns 30-min
-    // start times; if a course is 60 min, we need both 09:00 AND 09:30
-    // to actually book a 09:00 start.
-    const needed = Math.ceil(dur / SLOT_INCREMENT_MIN);
+    if (!dur || !Number.isFinite(dur) || all.length === 0) {
+      if (window.__DEBUG_AVAIL__) console.warn('[avail] dur unknown, returning all', { card, all: all.length });
+      return all;
+    }
+
+    slotIncrementMin = detectSlotIncrement(all);
+    if (window.__DEBUG_AVAIL__) console.warn('[avail] dur=' + dur + ' increment=' + slotIncrementMin + ' total=' + all.length);
+
+    if (dur <= slotIncrementMin) return all;
+
+    const needed = Math.ceil(dur / slotIncrementMin);
     const byDate = new Map();
     for (const s of all) {
       const t = fmtTimeFromIso(s.iso);
       if (!byDate.has(s.date)) byDate.set(s.date, new Set());
       byDate.get(s.date).add(t);
     }
-    return all.filter((s) => {
+    const filtered = all.filter((s) => {
       const t = fmtTimeFromIso(s.iso);
       const slotsForDay = byDate.get(s.date);
       if (!slotsForDay) return false;
       for (let k = 1; k < needed; k++) {
-        const next = addMinutesHHMM(t, k * SLOT_INCREMENT_MIN);
+        const next = addMinutesHHMM(t, k * slotIncrementMin);
         if (!next || !slotsForDay.has(next)) return false;
       }
       return true;
     });
+    if (window.__DEBUG_AVAIL__) console.warn('[avail] needed=' + needed + ' kept=' + filtered.length + '/' + all.length);
+    return filtered;
   }
 
   function renderGrid() {
