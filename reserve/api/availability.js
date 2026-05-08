@@ -48,11 +48,10 @@ function addMinutesToIso(iso, minutes) {
 }
 
 // Filter slots: a slot is bookable only when there is at least one therapist
-// who is free for *all* 30-min sub-slots that the course requires (so for a
-// 60-min course at 09:00, the same therapist must be free at 09:00 AND 09:30).
+// who is free for *all* 30-min sub-slots that the course requires.
+// Returns { kept, debug } where debug maps each iso -> therapist id list.
 async function filterByConsecutiveTherapists(clinic, courseId, slots, durationMin, concurrency = 12) {
   const needed = Math.max(1, Math.ceil((durationMin || SLOT_INCREMENT_MIN) / SLOT_INCREMENT_MIN));
-  // Collect every unique start time we need to query (slot start + offsets)
   const isoSet = new Set();
   for (const s of slots) {
     for (let k = 0; k < needed; k++) {
@@ -60,7 +59,7 @@ async function filterByConsecutiveTherapists(clinic, courseId, slots, durationMi
     }
   }
   const isos = Array.from(isoSet);
-  const idsByIso = new Map(); // iso -> Set<id> | null
+  const idsByIso = new Map();
 
   let cursor = 0;
   async function worker() {
@@ -74,18 +73,29 @@ async function filterByConsecutiveTherapists(clinic, courseId, slots, durationMi
   }
   await Promise.all(Array.from({ length: Math.min(concurrency, isos.length) }, worker));
 
-  return slots.filter((s) => {
+  const dropReasons = [];
+  const kept = slots.filter((s) => {
     let intersection = null;
     for (let k = 0; k < needed; k++) {
       const iso = addMinutesToIso(s.iso, k * SLOT_INCREMENT_MIN);
       const set = idsByIso.get(iso);
-      if (set == null) return true; // fail-open on errors
+      if (set == null) return true;
       if (intersection === null) intersection = new Set(set);
       else intersection = new Set([...intersection].filter((id) => set.has(id)));
-      if (intersection.size === 0) return false;
+      if (intersection.size === 0) {
+        dropReasons.push({ slot: s.iso, intersection: [], at: iso });
+        return false;
+      }
     }
     return intersection ? intersection.size > 0 : true;
   });
+
+  // Build per-iso debug map (id list, or null on error)
+  const debug = {};
+  for (const [iso, set] of idsByIso) {
+    debug[iso] = set === null ? null : Array.from(set);
+  }
+  return { kept, debug, dropReasons };
 }
 
 export default async function handler(req, res) {
@@ -158,9 +168,14 @@ export default async function handler(req, res) {
     // bookable when the same therapist is free for the whole duration.
     const beforeTherapistFilter = available.length;
     let therapistFilterApplied = false;
+    let therapistDebug = null;
+    let therapistDrops = null;
     if (courseId && available.length > 0) {
-      available = await filterByConsecutiveTherapists(clinic, courseId, available, duration);
+      const r = await filterByConsecutiveTherapists(clinic, courseId, available, duration);
+      available = r.kept;
       therapistFilterApplied = true;
+      therapistDebug = r.debug;
+      therapistDrops = r.dropReasons;
     }
 
     const payload = {
@@ -178,6 +193,8 @@ export default async function handler(req, res) {
     if (debug) {
       payload._raw = rawText;
       payload._upstreamUrls = tryUrls;
+      payload._therapistsByIso = therapistDebug;
+      payload._therapistDrops = therapistDrops;
     }
 
     res.setHeader('Cache-Control', debug ? 'no-store' : 's-maxage=120, stale-while-revalidate=120');
