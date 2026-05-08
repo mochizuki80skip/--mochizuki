@@ -85,8 +85,6 @@
       if (!r.ok) return;
       const data = await r.json();
       state.promoMenus = Array.isArray(data.menus) ? data.menus : [];
-      const banner = document.getElementById('promo-banner');
-      if (state.promoMenus.length > 0 && banner) banner.hidden = false;
       // If user has already reached step 2, refresh the course list display
       if (state.firstTime !== null) renderCourses();
       // autoOpen: jump straight to STEP3 if any promo says so
