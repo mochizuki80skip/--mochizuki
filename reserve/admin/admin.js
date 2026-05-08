@@ -45,21 +45,37 @@
 
   $('login-btn').addEventListener('click', async () => {
     const pass = $('login-pass').value;
-    if (!pass) return;
-    sessionStorage.setItem(STORAGE_KEY, pass);
     $('login-error').hidden = true;
+    if (!pass) {
+      $('login-error').textContent = 'パスワードを入力してください';
+      $('login-error').hidden = false;
+      return;
+    }
+    sessionStorage.setItem(STORAGE_KEY, pass);
+    const btn = $('login-btn');
+    const orig = btn.textContent;
+    btn.textContent = '確認中…';
+    btn.disabled = true;
     try {
       const r = await apiFetch('/api/admin/promos');
       if (r.ok) {
         showAuthView();
       } else {
         const data = await r.json().catch(() => ({}));
-        $('login-error').textContent = data.error || 'ログインに失敗しました';
+        const msg = data.error || `ログインに失敗しました (HTTP ${r.status})`;
+        const detail = data.message ? `\n${data.message}` : '';
+        $('login-error').textContent = msg + detail;
         $('login-error').hidden = false;
         sessionStorage.removeItem(STORAGE_KEY);
       }
     } catch (e) {
-      // already handled
+      if (e && e.message !== 'unauthorized') {
+        $('login-error').textContent = '通信に失敗しました: ' + ((e && e.message) || e);
+        $('login-error').hidden = false;
+      }
+    } finally {
+      btn.textContent = orig;
+      btn.disabled = false;
     }
   });
 
