@@ -445,6 +445,28 @@ html, body {
   letter-spacing: 0.1em;
 }
 
+/* ---- Promo override (price-only) on existing course card ---- */
+.choice.is-promo-override {
+  border-color: var(--gold-deep);
+  background: linear-gradient(180deg, #fff 0%, #fdf6e2 100%);
+  position: relative;
+}
+.choice.is-promo-override.is-selected {
+  background: var(--gold-bg);
+  border-color: var(--gold-deep);
+  box-shadow: 0 0 0 3px rgba(156, 135, 83, 0.20);
+}
+.price-orig {
+  text-decoration: line-through;
+  color: var(--ink-soft);
+  margin-right: 4px;
+  font-weight: 400;
+}
+.price-promo {
+  color: #c84444;
+  font-weight: 700;
+}
+
 /* ---- Step 4: 本予約 ---- */
 .book-intro {
   font-size: 13px;

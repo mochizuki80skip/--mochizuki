@@ -92,6 +92,43 @@
   gap: 10px;
 }
 
+.admin-fieldset {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px 12px;
+  margin: 0 0 12px;
+}
+.admin-fieldset legend {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  padding: 0 6px;
+}
+.admin-radio,
+.admin-checkbox {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin-bottom: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.admin-radio input,
+.admin-checkbox input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.admin-radio span,
+.admin-checkbox span { line-height: 1.5; }
+.admin-fieldset .admin-help { margin-top: 6px; margin-bottom: 0; }
+
+.tag-auto {
+  background: #fff3d8;
+  color: #8b6e00;
+  border-color: #e6cf8a;
+  font-weight: 700;
+}
+
 /* ---- Promo list ---- */
 .promo-list {
   display: flex;

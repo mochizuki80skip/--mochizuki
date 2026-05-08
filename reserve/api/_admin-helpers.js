@@ -71,10 +71,19 @@ export function validatePromo(p) {
   if (!validClinic) return 'forClinic must be both/192/193';
   const validFt = !p.forFirstTime || ['both', 'true', 'false'].includes(p.forFirstTime);
   if (!validFt) return 'forFirstTime must be both/true/false';
+  if (p.targetCourseId !== null && p.targetCourseId !== undefined && p.targetCourseId !== '' && typeof p.targetCourseId !== 'number') {
+    return 'targetCourseId must be a number or null';
+  }
+  if (p.autoOpen) {
+    if (!p.targetCourseId) return 'autoOpen には対象コースの指定が必須です';
+    if (!p.forClinic || p.forClinic === 'both') return 'autoOpen には対象院（三島／裾野）の指定が必須です';
+    if (!p.forFirstTime || p.forFirstTime === 'both') return 'autoOpen には対象来院（初回／2回目以降）の指定が必須です';
+  }
   return null;
 }
 
 export function normalizePromo(p) {
+  const targetCourseId = typeof p.targetCourseId === 'number' ? p.targetCourseId : null;
   return {
     code: String(p.code).trim(),
     name: String(p.name).trim(),
@@ -83,6 +92,8 @@ export function normalizePromo(p) {
     price: typeof p.price === 'number' ? p.price : null,
     forClinic: p.forClinic || 'both',
     forFirstTime: p.forFirstTime || 'both',
+    targetCourseId,
+    autoOpen: !!p.autoOpen,
     updatedAt: new Date().toISOString(),
   };
 }

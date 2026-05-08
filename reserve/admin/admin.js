@@ -8,6 +8,8 @@
   function showAuthView() {
     $('login-card').hidden = true;
     $('auth-view').hidden = false;
+    applyKindUI();
+    refreshTargetCourseOptions();
     loadPromos();
   }
 
@@ -40,6 +42,78 @@
     }
     return r;
   }
+
+  // --- Course list (for target dropdown) ---
+
+  const courseCache = {}; // key = clinic + ':' + forNew(true/false) -> courses[]
+
+  async function getCourses(clinic, forNew) {
+    const key = `${clinic}:${forNew}`;
+    if (courseCache[key]) return courseCache[key];
+    try {
+      const r = await fetch(`/api/courses?clinic=${clinic}&for_new=${forNew}`, {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!r.ok) return [];
+      const d = await r.json();
+      courseCache[key] = d.courses || [];
+      return courseCache[key];
+    } catch { return []; }
+  }
+
+  async function refreshTargetCourseOptions(preserveValue) {
+    const sel = $('f-targetCourseId');
+    const help = $('f-target-help');
+    const clinic = $('f-forClinic').value;
+    const ft = $('f-forFirstTime').value;
+    if (clinic === 'both' || ft === 'both') {
+      sel.innerHTML = '<option value="">— 院と来院を「両方以外」に絞ってください —</option>';
+      sel.disabled = true;
+      help.textContent = '価格上書き／自動進行の場合は、対象院と対象来院を1つずつ選んでください。';
+      return;
+    }
+    sel.disabled = false;
+    help.textContent = '読み込み中…';
+    const courses = await getCourses(clinic, ft === 'true');
+    let html = '<option value="">— 選択してください —</option>';
+    for (const c of courses) {
+      const meta = [];
+      if (c.duration) meta.push(`${c.duration}分`);
+      if (typeof c.price === 'number') meta.push('¥' + Number(c.price).toLocaleString('ja-JP'));
+      const label = `${c.name}${meta.length ? ' (' + meta.join('・') + ')' : ''}`;
+      html += `<option value="${c.id}">${escapeHtml(label)}</option>`;
+    }
+    sel.innerHTML = html;
+    if (preserveValue != null) sel.value = String(preserveValue);
+    help.textContent = courses.length ? `${courses.length}件のコースがあります。` : 'コースが取得できませんでした。';
+  }
+
+  function getKind() {
+    return document.querySelector('input[name="kind"]:checked')?.value || 'override';
+  }
+  function setKind(kind) {
+    const r = document.querySelector(`input[name="kind"][value="${kind}"]`);
+    if (r) r.checked = true;
+    applyKindUI();
+  }
+  function applyKindUI() {
+    const kind = getKind();
+    const isOverride = kind === 'override';
+    $('f-target-wrap').hidden = !isOverride;
+    $('f-targetCourseId').required = isOverride;
+    $('f-duration-wrap').hidden = isOverride;
+    // Name field is required only for addon-type promos
+    $('f-name').required = !isOverride;
+    $('f-name-label').innerHTML = isOverride
+      ? '表示名 <small>(任意・空欄なら元のコース名を使用)</small>'
+      : 'メニュー名';
+  }
+
+  document.querySelectorAll('input[name="kind"]').forEach((r) => {
+    r.addEventListener('change', applyKindUI);
+  });
+  $('f-forClinic').addEventListener('change', () => refreshTargetCourseOptions());
+  $('f-forFirstTime').addEventListener('change', () => refreshTargetCourseOptions());
 
   // --- Login ---
 
@@ -126,14 +200,18 @@
       const forFt = p.forFirstTime === 'true' ? '初回のみ'
         : p.forFirstTime === 'false' ? '2回目以降のみ'
         : '初回 / 2回目以降';
+      const kindTag = p.targetCourseId ? '価格上書き' : '新メニュー追加';
+      const autoTag = p.autoOpen ? '<span class="tag tag-auto">自動進行</span>' : '';
       html += `<div class="promo-item" data-code="${escapeHtml(p.code)}">
         <div class="promo-item-main">
           <div class="promo-item-code">?promo=<strong>${escapeHtml(p.code)}</strong></div>
-          <div class="promo-item-name">${escapeHtml(p.name)}</div>
+          <div class="promo-item-name">${escapeHtml(p.name || '(表示名なし=元のコース名)')}</div>
           ${meta.length ? `<div class="promo-item-meta">${meta.join(' / ')}</div>` : ''}
           <div class="promo-item-tags">
+            <span class="tag">${escapeHtml(kindTag)}</span>
             <span class="tag">${escapeHtml(forClinic)}</span>
             <span class="tag">${escapeHtml(forFt)}</span>
+            ${autoTag}
           </div>
         </div>
         <div class="promo-item-actions">
@@ -184,6 +262,9 @@
       $('f-price').value = p.price ?? '';
       $('f-forClinic').value = p.forClinic || 'both';
       $('f-forFirstTime').value = p.forFirstTime || 'both';
+      $('f-autoOpen').checked = !!p.autoOpen;
+      setKind(p.targetCourseId ? 'override' : 'addon');
+      refreshTargetCourseOptions(p.targetCourseId || null);
       $('f-code').scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
@@ -198,14 +279,18 @@
 
   $('promo-form').addEventListener('submit', async (e) => {
     e.preventDefault();
+    const kind = getKind();
+    const targetRaw = $('f-targetCourseId').value;
     const body = {
       code: $('f-code').value.trim(),
       name: $('f-name').value.trim(),
       description: $('f-description').value.trim(),
-      duration: $('f-duration').value === '' ? null : Number($('f-duration').value),
+      duration: kind === 'addon' && $('f-duration').value !== '' ? Number($('f-duration').value) : null,
       price: $('f-price').value === '' ? null : Number($('f-price').value),
       forClinic: $('f-forClinic').value,
       forFirstTime: $('f-forFirstTime').value,
+      targetCourseId: kind === 'override' && targetRaw !== '' ? Number(targetRaw) : null,
+      autoOpen: $('f-autoOpen').checked,
     };
     $('form-error').hidden = true;
     $('form-info').hidden = true;
@@ -220,6 +305,8 @@
       $('form-info').textContent = '保存しました';
       $('form-info').hidden = false;
       $('promo-form').reset();
+      setKind('override');
+      refreshTargetCourseOptions();
       renderPromos(data.items || []);
       setTimeout(() => { $('form-info').hidden = true; }, 2000);
     } catch (e) {

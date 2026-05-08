@@ -22,6 +22,8 @@ export default async function handler(req, res) {
       price: p.price,
       forClinic: p.forClinic || 'both',
       forFirstTime: p.forFirstTime || 'both',
+      targetCourseId: typeof p.targetCourseId === 'number' ? p.targetCourseId : null,
+      autoOpen: !!p.autoOpen,
     }));
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return res.status(200).json({ menus });

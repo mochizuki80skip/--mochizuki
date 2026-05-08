@@ -89,9 +89,60 @@
       if (state.promoMenus.length > 0 && banner) banner.hidden = false;
       // If user has already reached step 2, refresh the course list display
       if (state.firstTime !== null) renderCourses();
+      // autoOpen: jump straight to STEP3 if any promo says so
+      tryAutoOpen();
     } catch {
       // ignore
     }
+  }
+
+  async function tryAutoOpen() {
+    const auto = state.promoMenus.find((p) => p.autoOpen && p.targetCourseId
+      && (p.forClinic === '192' || p.forClinic === '193')
+      && (p.forFirstTime === 'true' || p.forFirstTime === 'false'));
+    if (!auto) return;
+    if (state._autoOpenApplied) return;
+    state._autoOpenApplied = true;
+
+    // Switch clinic if needed (this also resets state — do it BEFORE setting other state)
+    if (state.clinic !== auto.forClinic) {
+      state.clinic = auto.forClinic;
+      document.querySelectorAll('.tab').forEach((t) => {
+        const on = t.dataset.clinic === auto.forClinic;
+        t.classList.toggle('is-active', on);
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      state.availability = null;
+      state._coursesList = null;
+      prefetchCourses(state.clinic);
+      fetchAvailability();
+    }
+
+    state.firstTime = auto.forFirstTime === 'true';
+    document.querySelectorAll('.choice[data-firsttime]').forEach((b) => {
+      b.classList.toggle('is-selected', b.dataset.firsttime === String(state.firstTime));
+    });
+
+    // Wait for courses to load, then select target course
+    try {
+      const courses = await getCoursesPromise(state.clinic, state.firstTime);
+      state._coursesList = courses;
+      if (courses.some((c) => c.id === auto.targetCourseId)) {
+        state.courseId = auto.targetCourseId;
+      }
+    } catch { /* keep going even on fetch failure */ }
+
+    renderCourses();
+    renderGrid();
+    recomputeStepStates();
+    // Mark STEP1 & STEP2 as done so they collapse with summary visible
+    setStepState(1, 'active', true);
+    setStepState(2, 'active', true);
+    // Scroll to STEP3
+    setTimeout(() => {
+      const s3 = document.getElementById('step-3');
+      if (s3 && s3.scrollIntoView) s3.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
   }
 
   // -------------------------------------------------------------------
@@ -174,8 +225,28 @@
     });
   }
 
+  function getOverridePromoFor(courseId) {
+    const promos = getActivePromos();
+    return promos.find((p) => p.targetCourseId && p.targetCourseId === courseId) || null;
+  }
+
+  function applyOverrideToCourse(c) {
+    const p = getOverridePromoFor(c.id);
+    if (!p) return c;
+    return {
+      ...c,
+      name: p.name && p.name.trim() ? p.name : c.name,
+      description: p.description || c.description,
+      price: typeof p.price === 'number' ? p.price : c.price,
+      _isPromoOverride: true,
+      _origPrice: c.price,
+      _origName: c.name,
+    };
+  }
+
   function getAllCardsForStep2(threaseCourses) {
-    const promos = getActivePromos().map((p) => ({
+    const promos = getActivePromos();
+    const addonPromos = promos.filter((p) => !p.targetCourseId).map((p) => ({
       id: p.id,
       name: p.name,
       description: p.description,
@@ -183,26 +254,27 @@
       price: p.price,
       isPromo: true,
     }));
-    return [...promos, ...threaseCourses];
+    const overlaid = (threaseCourses || []).map(applyOverrideToCourse);
+    return [...addonPromos, ...overlaid];
   }
 
   function getSelectedCardObject() {
-    if (!state.courseId) return null;
+    if (state.courseId == null) return null;
     const promos = getActivePromos();
-    const promo = promos.find((p) => p.id === state.courseId);
-    if (promo) {
+    const addon = promos.find((p) => !p.targetCourseId && p.id === state.courseId);
+    if (addon) {
       return {
-        id: promo.id,
-        name: promo.name,
-        description: promo.description,
-        duration: promo.duration,
-        price: promo.price,
+        id: addon.id,
+        name: addon.name,
+        description: addon.description,
+        duration: addon.duration,
+        price: addon.price,
         isPromo: true,
       };
     }
     if (state._coursesList) {
       const c = state._coursesList.find((c) => c.id === state.courseId);
-      if (c) return c;
+      if (c) return applyOverrideToCourse(c);
     }
     return null;
   }
@@ -324,20 +396,30 @@
       const btn = document.createElement('button');
       btn.className = 'choice course-card';
       if (c.isPromo) btn.classList.add('is-promo');
+      if (c._isPromoOverride) btn.classList.add('is-promo-override');
       if (String(state.courseId) === String(c.id)) btn.classList.add('is-selected');
       btn.dataset.courseId = String(c.id);
       const meta = [];
       if (c.duration) meta.push(`${c.duration}分`);
-      if (typeof c.price === 'number') meta.push(fmtPrice(c.price));
+      // Override price shown with strikethrough of original
+      let priceHtml = '';
+      if (c._isPromoOverride && typeof c._origPrice === 'number' && typeof c.price === 'number' && c._origPrice !== c.price) {
+        priceHtml = `<span class="price-orig">${fmtPrice(c._origPrice)}</span> <span class="price-promo">${fmtPrice(c.price)}</span>`;
+      } else if (typeof c.price === 'number') {
+        priceHtml = fmtPrice(c.price);
+      }
       let descShort = '';
       if (c.description) {
         const txt = c.description.replace(/\\n|\n/g, ' ').slice(0, 90);
         descShort = txt + (c.description.length > 90 ? '…' : '');
       }
+      const badge = c.isPromo
+        ? '<span class="promo-badge">限定</span>'
+        : (c._isPromoOverride ? '<span class="promo-badge">限定価格</span>' : '');
       btn.innerHTML =
-        (c.isPromo ? '<span class="promo-badge">限定</span>' : '') +
+        badge +
         `<span class="choice-title">${escapeHtml(c.name || '')}</span>` +
-        (meta.length ? `<span class="choice-meta">${meta.join(' / ')}</span>` : '') +
+        (meta.length || priceHtml ? `<span class="choice-meta">${[...meta, priceHtml].filter(Boolean).join(' / ')}</span>` : '') +
         (descShort ? `<span class="choice-desc">${escapeHtml(descShort)}</span>` : '');
       list.appendChild(btn);
     }
@@ -513,7 +595,9 @@
       const courseLine = buildCourseLine(card);
       const promoLine = card.isPromo
         ? `\n※ ${card.name.replace(/^【.*?】/, '')}（チラシご持参）`
-        : '';
+        : (card._isPromoOverride
+          ? `\n※ キャンペーン価格 ${fmtPrice(card.price)}（チラシご持参）`
+          : '');
       const dtLines = state.selectedIsos
         .map((iso, i) => `  第${i + 1}希望: ${fmtDateTimeJp(iso)}`)
         .join('\n');

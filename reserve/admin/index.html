@@ -46,26 +46,17 @@
             <input type="text" name="code" id="f-code" required pattern="[a-zA-Z0-9_-]{3,40}" placeholder="例: chirashi-spring2026">
           </label>
 
-          <label>
-            <span>メニュー名</span>
-            <input type="text" name="name" id="f-name" required placeholder="例: 【チラシ限定】お試しコース">
-          </label>
-
-          <label>
-            <span>説明 <small>(任意)</small></span>
-            <textarea name="description" id="f-description" rows="3" placeholder="チラシをご持参の方限定の特別メニュー..."></textarea>
-          </label>
-
-          <div class="admin-form-row">
-            <label>
-              <span>時間 (分)</span>
-              <input type="number" name="duration" id="f-duration" min="0" step="1" placeholder="30">
+          <fieldset class="admin-fieldset">
+            <legend>キャンペーン種別</legend>
+            <label class="admin-radio">
+              <input type="radio" name="kind" value="override" id="f-kind-override" checked>
+              <span>既存メニューの<strong>価格を変更</strong>（おすすめ）</span>
             </label>
-            <label>
-              <span>価格 (円)</span>
-              <input type="number" name="price" id="f-price" min="0" step="100" placeholder="3000">
+            <label class="admin-radio">
+              <input type="radio" name="kind" value="addon" id="f-kind-addon">
+              <span>新しいメニューを<strong>追加</strong>（独自の限定メニュー）</span>
             </label>
-          </div>
+          </fieldset>
 
           <div class="admin-form-row">
             <label>
@@ -85,6 +76,47 @@
               </select>
             </label>
           </div>
+
+          <label id="f-target-wrap">
+            <span>対象既存メニュー <small>(院・来院を選ぶと候補が出ます)</small></span>
+            <select name="targetCourseId" id="f-targetCourseId">
+              <option value="">— 選択してください —</option>
+            </select>
+            <p class="admin-help" id="f-target-help"></p>
+          </label>
+
+          <label>
+            <span id="f-name-label">表示名 <small>(任意・空欄なら元のコース名を使用)</small></span>
+            <input type="text" name="name" id="f-name" placeholder="例: 【春チラシ限定】鍼灸お試し">
+          </label>
+
+          <label>
+            <span>説明 <small>(任意)</small></span>
+            <textarea name="description" id="f-description" rows="3" placeholder="チラシをご持参の方限定..."></textarea>
+          </label>
+
+          <div class="admin-form-row">
+            <label id="f-duration-wrap">
+              <span>時間 (分)</span>
+              <input type="number" name="duration" id="f-duration" min="0" step="1" placeholder="30">
+            </label>
+            <label>
+              <span>価格 (円) <small>(キャンペーン価格)</small></span>
+              <input type="number" name="price" id="f-price" min="0" step="100" placeholder="3000">
+            </label>
+          </div>
+
+          <fieldset class="admin-fieldset">
+            <legend>URLを開いた時の挙動</legend>
+            <label class="admin-checkbox">
+              <input type="checkbox" name="autoOpen" id="f-autoOpen">
+              <span>URLをタップしたら、<strong>いきなり空き枠を表示</strong>する</span>
+            </label>
+            <p class="admin-help">
+              ON にすると、ユーザーは「来院パターン」「コース選択」をタップせずカレンダーまで進めます。<br>
+              利用には「対象院」「対象来院」「対象既存メニュー」がすべて指定されている必要があります。
+            </p>
+          </fieldset>
 
           <button class="primary" type="submit">追加 / 更新</button>
           <p class="admin-info" id="form-info" hidden></p>
