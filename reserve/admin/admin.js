@@ -116,8 +116,9 @@
     // Pricing/name/description fields hidden in shortcut mode
     $('f-name-wrap').hidden = isShortcut;
     $('f-description-wrap').hidden = isShortcut;
-    $('f-pricing-row').hidden = isShortcut;
-    $('f-duration-wrap').hidden = isOverride; // duration only for addon
+    // Duration: only addon mode shows it (existing menu doesn't change time)
+    $('f-duration-wrap').hidden = !isAddon;
+    // Price: hidden in shortcut mode only
     $('f-price-wrap').hidden = isShortcut;
     $('f-shortcut-help').hidden = !isShortcut;
 

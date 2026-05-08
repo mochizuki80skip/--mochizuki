@@ -170,8 +170,15 @@
   function jstYmdCompact(d) { return jstYmd(d).replace(/-/g, ''); }
   function jstMidnightOf(d) { return new Date(jstYmd(d) + 'T00:00:00+09:00'); }
   function addDays(d, n) { return new Date(d.getTime() + n * 86400000); }
+  // Compute the JST weekday index (0=Sun..6=Sat) from a date.
+  // We can't use d.getUTCDay() on a JST-midnight Date, because JST midnight is
+  // 15:00 UTC the prior day, which yields the wrong weekday.
+  function weekdayIdxFromYmd(ymd) {
+    const [y, m, da] = ymd.split('-').map((s) => parseInt(s, 10));
+    return new Date(Date.UTC(y, m - 1, da)).getUTCDay();
+  }
   function jstWeekdayIdx(d) {
-    return new Date(jstYmd(d) + 'T00:00:00+09:00').getUTCDay();
+    return weekdayIdxFromYmd(jstYmd(d));
   }
   function fmtMonthDay(d) {
     const ymd = jstYmd(d).split('-');
@@ -185,8 +192,7 @@
     const dm = iso.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
     if (!dm) return iso;
     const [, y, mo, da, hh, mm] = dm;
-    const d = new Date(`${y}-${mo}-${da}T00:00:00+09:00`);
-    const w = WEEKDAYS_JP[d.getUTCDay()];
+    const w = WEEKDAYS_JP[weekdayIdxFromYmd(`${y}-${mo}-${da}`)];
     return `${y}年${parseInt(mo, 10)}月${parseInt(da, 10)}日(${w}) ${hh}:${mm}`;
   }
   function fmtPrice(n) {
