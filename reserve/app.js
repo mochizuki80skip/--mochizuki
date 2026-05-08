@@ -12,7 +12,7 @@
       lineUrl: 'https://lin.ee/s6l4Yso',
       // TODO: 実際の電話番号に差替え（数字のみ：tel: 用）
       phone: '055-000-0000',
-      hours: '受付時間: 9:00 - 19:00',
+      hours: '受付時間: 平日 10:00-19:00 / 土日 9:00-18:00',
       threeaseUrl: 'https://reservation.threease.com/192',
     },
     '193': {
@@ -21,7 +21,7 @@
       lineUrl: 'https://lin.ee/7RkbmAz',
       // TODO: 実際の電話番号に差替え
       phone: '055-000-0000',
-      hours: '受付時間: 9:00 - 19:00',
+      hours: '受付時間: 平日 10:00-19:00 / 土日 9:00-18:00',
       threeaseUrl: 'https://reservation.threease.com/193',
     },
   };
