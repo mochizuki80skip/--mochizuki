@@ -1,6 +1,5 @@
 // Admin CRUD for promos. Auth via X-Admin-Password header.
 
-import { kv } from '@vercel/kv';
 import {
   checkAuth,
   listPromos,
@@ -8,6 +7,7 @@ import {
   readJsonBody,
   validatePromo,
   normalizePromo,
+  isStorageUnconfiguredError,
 } from '../_admin-helpers.js';
 
 export default async function handler(req, res) {
@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const items = await listPromos(kv);
+      const items = await listPromos();
       return res.status(200).json({ items });
     }
 
@@ -27,26 +27,32 @@ export default async function handler(req, res) {
       const err = validatePromo(body);
       if (err) return res.status(400).json({ error: err });
       const normalized = normalizePromo(body);
-      const items = await listPromos(kv);
-      // Replace by code (codes are unique). If exists, overwrite. If new, append.
+      const items = await listPromos();
       const idx = items.findIndex((p) => p.code === normalized.code);
       if (idx >= 0) items[idx] = normalized; else items.push(normalized);
-      await savePromos(kv, items);
+      await savePromos(items);
       return res.status(200).json({ items });
     }
 
     if (req.method === 'DELETE') {
       const code = String(req.query.code || '').trim();
       if (!code) return res.status(400).json({ error: 'code is required' });
-      const items = await listPromos(kv);
+      const items = await listPromos();
       const next = items.filter((p) => p.code !== code);
-      await savePromos(kv, next);
+      await savePromos(next);
       return res.status(200).json({ items: next });
     }
 
     res.setHeader('Allow', 'GET, POST, DELETE');
     return res.status(405).json({ error: 'method not allowed' });
   } catch (err) {
+    if (isStorageUnconfiguredError(err)) {
+      return res.status(503).json({
+        error: 'storage_unconfigured',
+        message:
+          'Upstash Redis が未接続です。Vercel ダッシュボード → Storage → Marketplace → Upstash → Redis を作成してこのプロジェクトに接続してください。',
+      });
+    }
     return res.status(500).json({
       error: 'storage error',
       message: (err && err.message) || String(err),

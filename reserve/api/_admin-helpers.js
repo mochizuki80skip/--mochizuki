@@ -1,5 +1,22 @@
 // Shared helpers for admin endpoints.
 
+import { Redis } from '@upstash/redis';
+
+let _redis = null;
+function getRedis() {
+  if (_redis) return _redis;
+  // Accept env vars set by either Vercel KV (legacy) or direct Upstash Redis integration.
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    const e = new Error('Storage not configured. Connect Upstash Redis to this Vercel project.');
+    e.code = 'storage_unconfigured';
+    throw e;
+  }
+  _redis = new Redis({ url, token });
+  return _redis;
+}
+
 export function checkAuth(req) {
   const expected = process.env.ADMIN_PASSWORD;
   if (!expected) {
@@ -28,13 +45,19 @@ export function readJsonBody(req) {
 
 const PROMO_KEY = 'reserve:promos';
 
-export async function listPromos(kv) {
-  const items = await kv.get(PROMO_KEY);
+export async function listPromos() {
+  const redis = getRedis();
+  const items = await redis.get(PROMO_KEY);
   return Array.isArray(items) ? items : [];
 }
 
-export async function savePromos(kv, items) {
-  await kv.set(PROMO_KEY, items);
+export async function savePromos(items) {
+  const redis = getRedis();
+  await redis.set(PROMO_KEY, items);
+}
+
+export function isStorageUnconfiguredError(err) {
+  return err && err.code === 'storage_unconfigured';
 }
 
 export function validatePromo(p) {

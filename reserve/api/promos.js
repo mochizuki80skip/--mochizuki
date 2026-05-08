@@ -1,8 +1,7 @@
 // Public read-only endpoint: returns the promo menus for a given code.
 // If the code does not match any active promo, returns empty.
 
-import { kv } from '@vercel/kv';
-import { listPromos } from './_admin-helpers.js';
+import { listPromos, isStorageUnconfiguredError } from './_admin-helpers.js';
 
 export default async function handler(req, res) {
   const code = String(req.query.code || '').trim();
@@ -13,11 +12,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const all = await listPromos(kv);
+    const all = await listPromos();
     const matched = all.filter((p) => p.code === code);
-    // Strip the code from public response (defense in depth - though it's known by the requester)
     const menus = matched.map((p) => ({
-      id: 'promo-' + p.code + '-' + (p.name || '').slice(0, 8),
+      id: 'promo-' + p.code,
       name: p.name,
       description: p.description || '',
       duration: p.duration,
@@ -28,6 +26,10 @@ export default async function handler(req, res) {
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return res.status(200).json({ menus });
   } catch (err) {
-    return res.status(200).json({ menus: [], error: 'storage unavailable' });
+    if (isStorageUnconfiguredError(err)) {
+      // Storage not yet set up — silently return empty so the public site keeps working.
+      return res.status(200).json({ menus: [] });
+    }
+    return res.status(200).json({ menus: [], error: 'storage error' });
   }
 }

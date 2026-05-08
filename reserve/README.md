@@ -59,9 +59,11 @@ const CLINICS = {
 
 ### セットアップ（初回のみ）
 
-1. **Vercel KV を有効化**
-   - Vercel ダッシュボード → プロジェクト → Storage タブ → Create Database → KV
-   - 自動で環境変数（`KV_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` ...）が設定される
+1. **Upstash Redis を接続**（KV 相当のストレージ）
+   - Vercel ダッシュボード → このプロジェクト → **Storage** タブ
+   - **Marketplace Database Providers** の中の **Upstash** をクリック
+   - **Redis** を選択 → 「Create」
+   - 自動で環境変数（`KV_REST_API_URL` / `KV_REST_API_TOKEN`、または `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN`）が設定される
 2. **管理パスワードを設定**
    - Vercel ダッシュボード → プロジェクト → Settings → Environment Variables
    - `ADMIN_PASSWORD` という名前で好きなパスワードを追加（Production / Preview / Development 全てチェック）
