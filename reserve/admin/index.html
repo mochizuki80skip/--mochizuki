@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1a1a1a">
+  <meta name="robots" content="noindex,nofollow">
+  <title>管理画面 | リカバリー鍼灸院</title>
+  <link rel="stylesheet" href="../style.css">
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="topbar-text">
+        <h1>管理画面 / 限定メニュー</h1>
+        <p class="topbar-sub">Recovery Acupuncturist / Admin</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-wrap">
+
+    <!-- Login -->
+    <section class="admin-card" id="login-card">
+      <h2>🔒 ログイン</h2>
+      <p class="admin-help">管理パスワードを入力してください。</p>
+      <input type="password" id="login-pass" autocomplete="current-password" placeholder="パスワード">
+      <button class="primary" id="login-btn">ログイン</button>
+      <p class="admin-error" id="login-error" hidden></p>
+    </section>
+
+    <!-- Authenticated views -->
+    <div id="auth-view" hidden>
+
+      <section class="admin-card">
+        <h2>新規キャンペーン追加</h2>
+        <p class="admin-help">URLコードに含めるキーワードと、表示するメニュー内容を入力してください。<br>
+          <code class="admin-code">https://〇〇.vercel.app/?promo=<strong>URLコード</strong></code>
+          で限定メニューが表示されます。
+        </p>
+
+        <form class="admin-form" id="promo-form">
+          <label>
+            <span>URLコード <small>(英数字・ハイフン・アンダーバー、3〜40文字)</small></span>
+            <input type="text" name="code" id="f-code" required pattern="[a-zA-Z0-9_-]{3,40}" placeholder="例: chirashi-spring2026">
+          </label>
+
+          <label>
+            <span>メニュー名</span>
+            <input type="text" name="name" id="f-name" required placeholder="例: 【チラシ限定】お試しコース">
+          </label>
+
+          <label>
+            <span>説明 <small>(任意)</small></span>
+            <textarea name="description" id="f-description" rows="3" placeholder="チラシをご持参の方限定の特別メニュー..."></textarea>
+          </label>
+
+          <div class="admin-form-row">
+            <label>
+              <span>時間 (分)</span>
+              <input type="number" name="duration" id="f-duration" min="0" step="1" placeholder="30">
+            </label>
+            <label>
+              <span>価格 (円)</span>
+              <input type="number" name="price" id="f-price" min="0" step="100" placeholder="3000">
+            </label>
+          </div>
+
+          <div class="admin-form-row">
+            <label>
+              <span>対象院</span>
+              <select name="forClinic" id="f-forClinic">
+                <option value="both">両院</option>
+                <option value="192">長泉三島院のみ</option>
+                <option value="193">裾野長泉院のみ</option>
+              </select>
+            </label>
+            <label>
+              <span>対象来院</span>
+              <select name="forFirstTime" id="f-forFirstTime">
+                <option value="both">両方</option>
+                <option value="true">初回のみ</option>
+                <option value="false">2回目以降のみ</option>
+              </select>
+            </label>
+          </div>
+
+          <button class="primary" type="submit">追加 / 更新</button>
+          <p class="admin-info" id="form-info" hidden></p>
+          <p class="admin-error" id="form-error" hidden></p>
+        </form>
+      </section>
+
+      <section class="admin-card">
+        <h2>現在のキャンペーン</h2>
+        <p class="admin-help">同じURLコードを再追加すると上書きされます。</p>
+        <div id="promo-list" class="promo-list">
+          <p class="admin-help">読み込み中…</p>
+        </div>
+      </section>
+
+      <section class="admin-card">
+        <h2>動作確認用URL</h2>
+        <p class="admin-help">下のURLをコピー → ブラウザで開いて表示確認できます。Vercel本番URLは自動入力されています。</p>
+        <div id="url-list" class="url-list"></div>
+      </section>
+
+      <button class="admin-logout" id="logout-btn">ログアウト</button>
+    </div>
+
+  </main>
+
+  <script src="admin.js"></script>
+</body>
+</html>

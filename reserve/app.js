@@ -42,24 +42,9 @@
     return HOURS_BY_WEEKDAY[dow];
   }
 
-  // ?promo=CODE で表示される限定メニュー定義。
-  // forFirstTime: 'true' = 初回のみ / 'false' = 2回目以降のみ / 'both' = 両方
-  // forClinic:    '192' / '193' / 'both'
-  // threeaseCourseId: 数値 = その course の空き時間でフィルタ / null = 全空き時間表示
-  const PROMO_MENUS = {
-    'sample2026': [
-      {
-        id: 'promo-sample-1',
-        name: '【チラシ限定】お試しコース',
-        description: 'チラシをご持参の方限定の特別メニュー。',
-        duration: 30,
-        price: 3000,
-        threeaseCourseId: null,
-        forFirstTime: 'both',
-        forClinic: 'both',
-      },
-    ],
-  };
+  // 限定メニューは管理画面 (/admin) で登録する。
+  // ?promo=CODE が URL に付いている場合のみ /api/promos?code=CODE を叩いて取得する。
+  // 取得結果は state.promoMenus に詰める。
 
   const WEEKDAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
 
@@ -76,6 +61,7 @@
     availability: null,     // { available: [...] }
     fetchToken: 0,
     promoCode: getPromoFromUrl(),
+    promoMenus: [],         // fetched from /api/promos
   };
 
   // In-memory cache: courses[clinic][forNew] = Promise<courses[]>
@@ -84,8 +70,26 @@
   function getPromoFromUrl() {
     try {
       const p = new URLSearchParams(window.location.search).get('promo');
-      return p && PROMO_MENUS[p] ? p : null;
+      return p ? p.trim() : null;
     } catch { return null; }
+  }
+
+  async function fetchPromoMenus() {
+    if (!state.promoCode) return;
+    try {
+      const r = await fetch(`/api/promos?code=${encodeURIComponent(state.promoCode)}`, {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (!r.ok) return;
+      const data = await r.json();
+      state.promoMenus = Array.isArray(data.menus) ? data.menus : [];
+      const banner = document.getElementById('promo-banner');
+      if (state.promoMenus.length > 0 && banner) banner.hidden = false;
+      // If user has already reached step 2, refresh the course list display
+      if (state.firstTime !== null) renderCourses();
+    } catch {
+      // ignore
+    }
   }
 
   // -------------------------------------------------------------------
@@ -157,12 +161,11 @@
   // -------------------------------------------------------------------
 
   function getActivePromos() {
-    if (!state.promoCode) return [];
-    const promos = PROMO_MENUS[state.promoCode] || [];
-    return promos.filter((p) => {
+    if (!state.promoCode || !state.promoMenus.length) return [];
+    return state.promoMenus.filter((p) => {
       if (p.forClinic && p.forClinic !== 'both' && p.forClinic !== state.clinic) return false;
       if (state.firstTime === null) return true;
-      if (p.forFirstTime === 'both') return true;
+      if (!p.forFirstTime || p.forFirstTime === 'both') return true;
       if (p.forFirstTime === 'true' && state.firstTime === true) return true;
       if (p.forFirstTime === 'false' && state.firstTime === false) return true;
       return false;
@@ -177,7 +180,6 @@
       duration: p.duration,
       price: p.price,
       isPromo: true,
-      threeaseCourseId: p.threeaseCourseId,
     }));
     return [...promos, ...threaseCourses];
   }
@@ -194,7 +196,6 @@
         duration: promo.duration,
         price: promo.price,
         isPromo: true,
-        threeaseCourseId: promo.threeaseCourseId,
       };
     }
     if (state._coursesList) {
@@ -697,15 +698,12 @@ ${courseLine}
   // Init
   // -------------------------------------------------------------------
 
-  // Show promo banner if active
-  if (state.promoCode) {
-    const banner = document.getElementById('promo-banner');
-    if (banner) banner.hidden = false;
-  }
-
   // Fire prefetches immediately so STEP2 & STEP3 are instant
   prefetchCourses(state.clinic);
   fetchAvailability();
+
+  // If a promo code is in URL, fetch the menus (banner shows when fetch returns >0 menus)
+  if (state.promoCode) fetchPromoMenus();
 
   recomputeStepStates();
 })();

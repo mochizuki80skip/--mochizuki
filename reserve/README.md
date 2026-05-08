@@ -37,16 +37,45 @@ threease API
 
 CORS の制約上ブラウザから threease を直接呼べないため、サーバー関数で中継し、3 分間 Edge キャッシュする。クライアントは「時間 → 取れるコースID 一覧」のマップを使い、選んだコースで時間枠を絞り込む。
 
-## 院別の公式LINE
+## 院別の公式LINE / 電話 / threease URL
 
 `app.js` 先頭の `CLINICS` 定数に登録済み。
 
 ```js
 const CLINICS = {
-  '192': { name: '...', short: '長泉三島院', lineUrl: 'https://lin.ee/s6l4Yso' },
-  '193': { name: '...', short: '裾野長泉院', lineUrl: 'https://lin.ee/7RkbmAz' },
+  '192': {
+    name: '...', short: '長泉三島院',
+    lineUrl: 'https://lin.ee/s6l4Yso',
+    phone: '055-000-0000',
+    threeaseUrl: 'https://reservation.threease.com/192',
+  },
+  '193': { ... },
 };
 ```
+
+## チラシ限定メニュー（管理画面）
+
+`/admin` で限定メニューを登録できる。一般のお客様には URL に `?promo=コード` が付かない限り表示されない。
+
+### セットアップ（初回のみ）
+
+1. **Vercel KV を有効化**
+   - Vercel ダッシュボード → プロジェクト → Storage タブ → Create Database → KV
+   - 自動で環境変数（`KV_URL`, `KV_REST_API_URL`, `KV_REST_API_TOKEN` ...）が設定される
+2. **管理パスワードを設定**
+   - Vercel ダッシュボード → プロジェクト → Settings → Environment Variables
+   - `ADMIN_PASSWORD` という名前で好きなパスワードを追加（Production / Preview / Development 全てチェック）
+   - 「Save」で再デプロイされる
+3. `/admin` にアクセスして上記パスワードでログイン
+
+### 運用
+
+- `/admin` にアクセス → ログイン
+- 「新規キャンペーン追加」フォームで URL コード・メニュー名・価格などを入力
+- 保存すると一覧に追加され、対応する公開URL（`?promo=...`）が表示される
+- そのURLをコピーして QR コード生成サイトに渡す → チラシに印刷
+- 同じ URL コードを再入力すると上書き編集
+- 削除ボタンで削除
 
 ## 配色（ロゴ準拠）
 
