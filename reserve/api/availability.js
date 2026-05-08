@@ -210,6 +210,10 @@ export default async function handler(req, res) {
         available.push({ date: day.date, iso: t });
       }
     }
+    // Snapshot of room-level availability (before per-course filtering) so the
+    // client can keep the time axis stable even when some hours are completely
+    // unbookable for the chosen course.
+    const roomAvailable = available.slice();
 
     // When a specific course is requested, filter by per-therapist availability
     // checking *consecutive* 30-min slots so a 60-min course only stays
@@ -240,6 +244,9 @@ export default async function handler(req, res) {
       _via: usedUrl ? new URL(usedUrl).pathname + (new URL(usedUrl).search || '') : null,
       _courseFilterApplied: courseFilterApplied,
       _beforeFilter: beforeFilter,
+      // Used by the client to build a stable time axis even when some rows
+      // become entirely unbookable for the selected course.
+      axisAvailable: roomAvailable,
     };
     if (debug) {
       payload._raw = rawText;

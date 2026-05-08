@@ -601,10 +601,22 @@
     }
 
     // Common time axis across both weeks for visual alignment
+    // Build the time axis from the raw room-level availability (before any
+    // per-course filtering) so the row layout stays stable when some rows
+    // are entirely unbookable for the selected course.
+    const axisSource = (state.availability && Array.isArray(state.availability.axisAvailable))
+      ? state.availability.axisAvailable
+      : slots;
+    const axisByDate = new Map();
+    for (const s of axisSource) {
+      const t = fmtTimeFromIso(s.iso);
+      if (!axisByDate.has(s.date)) axisByDate.set(s.date, new Set());
+      axisByDate.get(s.date).add(t);
+    }
     const timeSet = new Set();
     for (const d of allDays) {
-      const m = byDate.get(d.ymd);
-      if (m) for (const t of m.keys()) timeSet.add(t);
+      const m = axisByDate.get(d.ymd);
+      if (m) for (const t of m) timeSet.add(t);
     }
     const times = [...timeSet].sort();
 
