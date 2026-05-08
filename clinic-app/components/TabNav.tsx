@@ -76,17 +76,5 @@ export default function TabNav({ items, current, paramName = "tab" }: Props) {
   );
 }
 
-/**
- * Server Components から現在のタブ key を読み出すヘルパ。
- */
-export function activeTab(
-  searchParams: Record<string, string | string[] | undefined> | undefined,
-  paramName = "tab",
-  fallback = "",
-): string {
-  if (!searchParams) return fallback;
-  const v = searchParams[paramName];
-  if (typeof v === "string") return v;
-  if (Array.isArray(v)) return v[0] ?? fallback;
-  return fallback;
-}
+// activeTab() は Server Component からも呼ぶため、"use client" な本ファイル
+// からは export しない。代わりに lib/active-tab.ts に分離してある。
