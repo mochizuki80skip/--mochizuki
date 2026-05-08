@@ -52,14 +52,14 @@
   // State
   // -------------------------------------------------------------------
 
-  const MAX_SELECTIONS = 3;
+  const MAX_SELECTIONS = 1;
 
   const state = {
     clinic: '192',
     firstTime: null,        // null | true | false
     courseId: null,         // number (threease) | string (promo) | null
     weekStart: jstMidnightOf(new Date()),
-    selectedIsos: [],       // 第1〜第3希望の ISO 文字列（最大MAX_SELECTIONS）
+    selectedIsos: [],       // 選択中の ISO 文字列（最大MAX_SELECTIONS）
     availability: null,     // { available: [...] }
     fetchToken: 0,
     promoCode: getPromoFromUrl(),
@@ -341,9 +341,7 @@
     const s3 = document.getElementById('sum-3');
     const e3 = document.querySelector('[data-edit="3"]');
     if (state.selectedIsos.length > 0) {
-      const first = fmtDateTimeJp(state.selectedIsos[0]);
-      const more = state.selectedIsos.length > 1 ? ` ほか${state.selectedIsos.length - 1}件` : '';
-      s3.textContent = first + more;
+      s3.textContent = fmtDateTimeJp(state.selectedIsos[0]);
       e3.hidden = false;
     } else { s3.textContent = ''; e3.hidden = true; }
   }
@@ -567,13 +565,10 @@
           if (d.wIdx === 6) cls.push('is-sat');
           if (iso) {
             cls.push('avail');
-            const priorityIdx = state.selectedIsos.indexOf(iso);
-            if (priorityIdx >= 0) {
-              cls.push('is-selected');
-              cls.push('is-priority-' + (priorityIdx + 1));
-            }
-            const badge = priorityIdx >= 0
-              ? `<span class="priority-badge">第${priorityIdx + 1}希望</span>`
+            const isSel = state.selectedIsos.indexOf(iso) >= 0;
+            if (isSel) cls.push('is-selected');
+            const badge = isSel
+              ? '<span class="priority-badge">選択中</span>'
               : '<span class="avail-mark">〇</span>';
             html += `<button class="${cls.join(' ')}" data-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 予約可">${badge}</button>`;
           } else {
@@ -614,7 +609,7 @@
     document.getElementById('m-course').textContent = card ? card.name : '—';
     const dtSummary = state.selectedIsos.length === 0
       ? '—'
-      : state.selectedIsos.map((iso, i) => `第${i + 1}希望: ${fmtDateTimeJp(iso)}`).join('\n');
+      : fmtDateTimeJp(state.selectedIsos[0]);
     const dtCell = document.getElementById('m-datetime');
     dtCell.textContent = dtSummary;
     dtCell.style.whiteSpace = 'pre-line';
@@ -628,16 +623,13 @@
         : (card._isPromoOverride
           ? `\n※ キャンペーン価格 ${fmtPrice(card.price)}（チラシご持参）`
           : '');
-      const dtLines = state.selectedIsos
-        .map((iso, i) => `  第${i + 1}希望: ${fmtDateTimeJp(iso)}`)
-        .join('\n');
+      const dtLine = fmtDateTimeJp(state.selectedIsos[0]);
       ta.value =
 `【予約希望】
 院: ${clinic.name}
 来院: ${state.firstTime ? '初回' : '2回目以降'}
 ${courseLine}
-日時:
-${dtLines}${promoLine}
+日時: ${dtLine}${promoLine}
 お名前:
 ご連絡先: `;
     } else {
@@ -782,17 +774,15 @@ ${dtLines}${promoLine}
       return;
     }
 
-    // Step 3: time slot (multi-select up to 3, in priority order)
+    // Step 3: time slot (single select; tap again to deselect)
     const slot = e.target.closest('.slot.avail');
     if (slot && slot.dataset.iso) {
       const iso = slot.dataset.iso;
       const idx = state.selectedIsos.indexOf(iso);
       if (idx >= 0) {
-        // Already selected → deselect
         state.selectedIsos.splice(idx, 1);
       } else {
         if (state.selectedIsos.length >= MAX_SELECTIONS) {
-          // Replace last one (lowest priority)
           state.selectedIsos.pop();
         }
         state.selectedIsos.push(iso);

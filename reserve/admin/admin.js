@@ -364,11 +364,6 @@
     };
     $('form-error').hidden = true;
     $('form-info').hidden = true;
-    if (kind === 'shortcut' && targetCourseId == null) {
-      $('form-error').textContent = '「空き状況を表示」モードでは、対象既存メニューを必ず選択してください。';
-      $('form-error').hidden = false;
-      return;
-    }
     if (kind === 'override' && targetCourseId == null && !nameTrim) {
       $('form-error').textContent = '対象既存メニューを選ぶか、種別を「新メニュー追加」に切り替えてメニュー名を入力してください。';
       $('form-error').hidden = false;
