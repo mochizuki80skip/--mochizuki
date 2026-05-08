@@ -3,20 +3,23 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0f7a66">
-  <meta name="description" content="リカバリー鍼灸院（長泉三島院・裾野長泉院）のリアルタイム空き状況。気になる枠をタップして公式LINEで予約できます。">
+  <meta name="theme-color" content="#1a1a1a">
+  <meta name="description" content="リカバリー鍼灸院（長泉三島院・裾野長泉院）の空き状況。コースを選んで気になる時間をタップ、公式LINEで予約できます。">
   <meta property="og:title" content="リカバリー鍼灸院 空き状況">
-  <meta property="og:description" content="長泉三島院・裾野長泉院のリアルタイム空き状況。気になる枠をタップして公式LINEへ。">
+  <meta property="og:description" content="長泉三島院・裾野長泉院の空き状況。コースを選んで気になる時間をタップ、公式LINEへ。">
   <meta property="og:type" content="website">
   <title>リカバリー鍼灸院 空き状況</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <header class="topbar">
-    <h1>
-      リカバリー鍼灸院
-      <span class="topbar-sub">空き状況 / リアルタイム</span>
-    </h1>
+    <div class="topbar-inner">
+      <img class="logo" src="logo.png" alt="" onerror="this.style.display='none'">
+      <div class="topbar-text">
+        <h1>リカバリー鍼灸院</h1>
+        <p class="topbar-sub">Recovery Acupuncturist / 空き状況</p>
+      </div>
+    </div>
   </header>
 
   <nav class="tabs" role="tablist" aria-label="院切替">
@@ -24,64 +27,115 @@
     <button class="tab" data-clinic="193" role="tab" aria-selected="false">裾野長泉院</button>
   </nav>
 
-  <div class="firsttime-bar">
-    <span class="firsttime-label">ご来院は</span>
-    <div class="firsttime-toggle" role="radiogroup" aria-label="初回または再来">
-      <button class="toggle is-active" data-firsttime="false" role="radio" aria-checked="true">2回目以降</button>
-      <button class="toggle" data-firsttime="true" role="radio" aria-checked="false">初回</button>
-    </div>
-  </div>
+  <main class="wizard">
 
-  <div class="weeknav">
-    <button class="weeknav-btn" id="prev-week" aria-label="前の週">‹</button>
-    <span class="weeknav-label" id="week-label">—</span>
-    <button class="weeknav-btn" id="next-week" aria-label="次の週">›</button>
-  </div>
+    <!-- STEP 1 ---------------------------------------------- -->
+    <section class="step" data-step="1" data-state="active" id="step-1">
+      <header class="step-head">
+        <span class="step-num">1</span>
+        <h2>ご来院パターン</h2>
+        <span class="step-sum" id="sum-1"></span>
+        <button class="step-edit" data-edit="1" hidden>変更</button>
+      </header>
+      <div class="step-body">
+        <div class="choice-grid two">
+          <button class="choice" data-firsttime="false">
+            <span class="choice-title">2回目以降</span>
+            <span class="choice-sub">来院されたことがある方</span>
+          </button>
+          <button class="choice" data-firsttime="true">
+            <span class="choice-title">初回</span>
+            <span class="choice-sub">はじめて来院される方</span>
+          </button>
+        </div>
+      </div>
+    </section>
 
-  <div class="legend" aria-hidden="true">
-    <span class="legend-item"><span class="legend-mark mark-avail">○</span>予約可</span>
-    <span class="legend-item"><span class="legend-mark mark-none">―</span>満員 / 受付外</span>
-    <span class="legend-item legend-howto">枠をタップ → LINEへ</span>
-  </div>
+    <!-- STEP 2 ---------------------------------------------- -->
+    <section class="step" data-step="2" data-state="locked" id="step-2">
+      <header class="step-head">
+        <span class="step-num">2</span>
+        <h2>コースを選択</h2>
+        <span class="step-sum" id="sum-2"></span>
+        <button class="step-edit" data-edit="2" hidden>変更</button>
+      </header>
+      <div class="step-body">
+        <div class="step-locked-msg">前のステップを完了してください</div>
+        <div class="status" id="courses-loading" hidden>コース読み込み中…</div>
+        <div class="status status-error" id="courses-error" hidden></div>
+        <div class="choice-grid one" id="course-list"></div>
+      </div>
+    </section>
 
-  <main id="grid-container">
-    <div class="status" id="loading" hidden>読み込み中…</div>
-    <div class="status status-error" id="error" hidden></div>
-    <div class="status" id="empty" hidden>この週は空いている枠がありません</div>
-    <div id="grid" class="grid-wrap"></div>
+    <!-- STEP 3 ---------------------------------------------- -->
+    <section class="step" data-step="3" data-state="locked" id="step-3">
+      <header class="step-head">
+        <span class="step-num">3</span>
+        <h2>日時を選ぶ</h2>
+        <span class="step-sum" id="sum-3"></span>
+        <button class="step-edit" data-edit="3" hidden>変更</button>
+      </header>
+      <div class="step-body">
+        <div class="step-locked-msg">前のステップを完了してください</div>
+
+        <div class="weeknav">
+          <button class="weeknav-btn" id="prev-week" aria-label="前の週">‹</button>
+          <span class="weeknav-label" id="week-label">—</span>
+          <button class="weeknav-btn" id="next-week" aria-label="次の週">›</button>
+        </div>
+
+        <div class="legend" aria-hidden="true">
+          <span class="legend-item"><span class="legend-mark mark-avail">●</span>予約可</span>
+          <span class="legend-item"><span class="legend-mark mark-none">―</span>満員 / 受付外</span>
+        </div>
+
+        <div class="status" id="grid-loading" hidden>空き状況を取得中…</div>
+        <div class="status status-error" id="grid-error" hidden></div>
+        <div class="status" id="grid-empty" hidden>選択中のコースは、この週は空きがありません</div>
+        <div id="grid" class="grid-wrap"></div>
+
+        <p class="updated" id="updated"></p>
+      </div>
+    </section>
+
+    <!-- STEP 4 ---------------------------------------------- -->
+    <section class="step" data-step="4" data-state="locked" id="step-4">
+      <header class="step-head">
+        <span class="step-num">4</span>
+        <h2>LINEで予約</h2>
+      </header>
+      <div class="step-body">
+        <div class="step-locked-msg">前のステップを完了してください</div>
+
+        <dl class="summary">
+          <dt>院</dt><dd id="m-clinic">—</dd>
+          <dt>来院</dt><dd id="m-firsttime">—</dd>
+          <dt>コース</dt><dd id="m-course">—</dd>
+          <dt>日時</dt><dd id="m-datetime">—</dd>
+        </dl>
+
+        <label class="message-label" for="m-text">LINEで送る文章</label>
+        <textarea id="m-text" rows="8" readonly></textarea>
+
+        <button class="primary" id="copy-and-go">
+          コピーして公式LINEを開く
+        </button>
+        <p class="modal-note">
+          LINE のトーク画面に入ったら、<strong>長押し → 貼り付け → 送信</strong> してください。
+          <br>当院から折り返しご連絡し、予約を確定します。
+        </p>
+      </div>
+    </section>
+
+    <p class="disclaimer">
+      ※ 表示は当院の予約システムから数分単位で取得しています。実際の予約状況は LINE 受付時に最終確認させていただきます。
+    </p>
+
   </main>
-
-  <p class="updated" id="updated"></p>
-
-  <p class="disclaimer">
-    ※ 表示は当院の予約システムから数分単位で取得しています。実際の予約状況は LINE 受付時に最終確認させていただきます。
-  </p>
 
   <footer class="footer">
     <small>リカバリー鍼灸院</small>
   </footer>
-
-  <!-- Booking modal -->
-  <div class="modal" id="modal" hidden>
-    <div class="modal-bg" data-close="1"></div>
-    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
-      <button class="modal-close" id="modal-close" aria-label="閉じる">×</button>
-      <h2 id="modal-title">この枠で予約する</h2>
-      <dl class="summary">
-        <dt>院</dt><dd id="m-clinic"></dd>
-        <dt>日時</dt><dd id="m-datetime"></dd>
-        <dt>来院</dt><dd id="m-firsttime"></dd>
-      </dl>
-      <label class="message-label" for="m-text">LINEで送る文章</label>
-      <textarea id="m-text" rows="7" readonly></textarea>
-      <button class="primary" id="copy-and-go">
-        コピーして公式LINEを開く
-      </button>
-      <p class="modal-note">
-        LINE のトーク画面に入ったら、<strong>長押し → 貼り付け → 送信</strong> してください。当院から折り返しご連絡します。
-      </p>
-    </div>
-  </div>
 
   <script src="app.js"></script>
 </body>
