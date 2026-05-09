@@ -462,8 +462,14 @@
   function showGridLoading(on) {
     const el = document.getElementById('grid-loading');
     el.hidden = !on;
-    if (on) startProgress();
-    else stopProgress(true);
+    if (on) {
+      // Real progress is driven by per-day fetch completion via setProgress().
+      // We just initialise to 0 here.
+      stopProgress();
+      setProgress(0);
+    } else {
+      stopProgress(true);
+    }
   }
   function showGridError(msg) {
     const el = document.getElementById('grid-error');
@@ -565,50 +571,67 @@
   // -------------------------------------------------------------------
 
   async function fetchAvailability() {
-    const start = jstYmdCompact(state.weekStart);
-    const end = jstYmdCompact(addDays(state.weekStart, 6));
-    // Pass course_id when a threease (numeric) course is selected so threease
-    // returns availability filtered by that course's duration.
-    let url = `/api/availability?clinic=${state.clinic}&start=${start}&end=${end}`;
+    const baseParams = [];
     if (typeof state.courseId === 'number') {
-      url += `&course_id=${state.courseId}`;
-      // Pass duration so the server can do consecutive-slot therapist checks
+      baseParams.push(`course_id=${state.courseId}`);
       const card = getSelectedCardObject();
       const dur = card ? Number(card.duration) : null;
-      if (dur && Number.isFinite(dur)) {
-        url += `&duration=${dur}`;
-      }
+      if (dur && Number.isFinite(dur)) baseParams.push(`duration=${dur}`);
     }
     if (state.firstTime !== null) {
-      url += `&for_new=${state.firstTime ? 'true' : 'false'}`;
+      baseParams.push(`for_new=${state.firstTime ? 'true' : 'false'}`);
     }
-    const fetchKey = url;
+    const baseSuffix = baseParams.length ? '&' + baseParams.join('&') : '';
+
+    // Cache-bust key for this whole 7-day window (so a stale day-result from
+    // a previous course/clinic doesn't bleed into the new render).
+    const fetchKey = `${state.clinic}|${state.weekStart.getTime()}|${baseSuffix}`;
     state._availabilityFetchKey = fetchKey;
+
+    // Reset state.availability to an empty per-day structure that renderGrid
+    // can render against immediately. Days fill in as their fetches resolve.
+    state.availability = { available: [], axisAvailable: [], _dayResults: {}, _doneDays: 0, _totalDays: 7 };
 
     showGridLoading(true);
     showGridError(null);
+    setProgress(0);
+    renderGrid();
 
-    try {
-      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-      // Discard if a newer fetch has been kicked off in the meantime
-      if (state._availabilityFetchKey !== fetchKey) return;
-      if (!r.ok) {
-        const body = await r.text().catch(() => '');
-        throw new Error(`サーバーエラー (${r.status}) ${body.slice(0, 120)}`);
-      }
-      const data = await r.json();
-      if (state._availabilityFetchKey !== fetchKey) return;
-      state.availability = data;
-      renderGrid();
-    } catch (e) {
-      if (state._availabilityFetchKey !== fetchKey) return;
-      const msg = (e && e.message) || '取得に失敗しました';
-      showGridError(msg);
+    let anyError = false;
+    const dayPromises = [];
+    for (let i = 0; i < 7; i++) {
+      const ymd = jstYmdCompact(addDays(state.weekStart, i));
+      const url = `/api/availability?clinic=${state.clinic}&start=${ymd}&end=${ymd}${baseSuffix}`;
+      dayPromises.push((async () => {
+        try {
+          const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+          if (state._availabilityFetchKey !== fetchKey) return;
+          if (!r.ok) { anyError = true; return; }
+          const data = await r.json();
+          if (state._availabilityFetchKey !== fetchKey) return;
+          state.availability._dayResults[ymd] = data;
+          state.availability.available.push(...(data.available || []));
+          state.availability.axisAvailable.push(...(data.axisAvailable || []));
+          state.availability._doneDays++;
+          // Real progress: completed days / total days
+          setProgress((state.availability._doneDays / state.availability._totalDays) * 100);
+          renderGrid();
+        } catch (e) {
+          anyError = true;
+          if (state._availabilityFetchKey !== fetchKey) return;
+        }
+      })());
+    }
+
+    await Promise.all(dayPromises);
+    if (state._availabilityFetchKey !== fetchKey) return;
+    if (anyError && state.availability._doneDays === 0) {
+      // Total failure: surface the error
+      showGridError('取得に失敗しました');
       state.availability = null;
       renderGrid();
-    } finally {
-      if (state._availabilityFetchKey === fetchKey) showGridLoading(false);
     }
+    showGridLoading(false);
   }
 
   // Slot grid increment in minutes. Auto-detected from the API response
@@ -735,16 +758,20 @@
       axisByDate.get(s.date).add(t);
     }
     const timeSet = new Set();
+    // Baseline: always show 09:00 / 09:30 because Sat/Sun open at 9:00.
+    // Weekdays will simply show "—" at those rows (per request).
+    timeSet.add('09:00');
+    timeSet.add('09:30');
     for (const d of allDays) {
       const m = axisByDate.get(d.ymd);
       if (m) for (const t of m) timeSet.add(t);
     }
     const times = [...timeSet].sort();
 
-    if (times.length === 0) {
+    // "完全に空きなし" 表示は実スロット（filtered）が 0 件のときのみ。
+    // ベースライン行は常にあるので times は空にならない。
+    if (slots.length === 0 && state.availability && state.availability._doneDays === state.availability._totalDays) {
       empty.hidden = false;
-      updateUpdatedAt();
-      return;
     }
 
     const todayYmd = jstYmd(new Date());
