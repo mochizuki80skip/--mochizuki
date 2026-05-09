@@ -286,6 +286,32 @@ html, body {
   color: var(--ink-soft);
   font-size: 13px;
 }
+.grid-loading-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+#grid-loading-pct {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--gold-deep);
+  min-width: 3em;
+  text-align: right;
+}
+.grid-progress {
+  margin: 12px auto 0;
+  max-width: 320px;
+  height: 6px;
+  background: var(--gold-soft);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.grid-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--gold) 0%, var(--gold-deep) 100%);
+  border-radius: 999px;
+  transition: width 0.18s linear;
+}
 .status-error {
   background: var(--error-bg);
   color: var(--error-ink);

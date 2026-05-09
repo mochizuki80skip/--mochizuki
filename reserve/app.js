@@ -363,7 +363,46 @@
     const el = document.getElementById('courses-error');
     if (msg) { el.textContent = msg; el.hidden = false; } else { el.hidden = true; }
   }
-  function showGridLoading(on) { document.getElementById('grid-loading').hidden = !on; }
+  // ----- Grid loading + progress bar -----
+  // Real progress is hard to surface since the heavy work happens server-side;
+  // animate a smooth "fake" bar that targets ~95% over ~4s and then jumps to
+  // 100% when the response actually arrives. Better than a static "loading".
+  let _progressTimer = null;
+  let _progressStart = 0;
+  function setProgress(pct) {
+    pct = Math.max(0, Math.min(100, pct));
+    const bar = document.getElementById('grid-progress-bar');
+    const txt = document.getElementById('grid-loading-pct');
+    if (bar) bar.style.width = pct.toFixed(0) + '%';
+    if (txt) txt.textContent = pct.toFixed(0) + '%';
+  }
+  function startProgress() {
+    stopProgress();
+    _progressStart = Date.now();
+    setProgress(0);
+    // Ease-out: fast at first, slow as we approach the cap (95%)
+    const TARGET_DURATION_MS = 4000;
+    _progressTimer = setInterval(() => {
+      const elapsed = Date.now() - _progressStart;
+      const t = Math.min(elapsed / TARGET_DURATION_MS, 1);
+      // 1 - (1-t)^1.6 — fast start, gentle approach to 1
+      const eased = 1 - Math.pow(1 - t, 1.6);
+      setProgress(eased * 95);
+    }, 120);
+  }
+  function stopProgress(complete) {
+    if (_progressTimer) {
+      clearInterval(_progressTimer);
+      _progressTimer = null;
+    }
+    if (complete) setProgress(100);
+  }
+  function showGridLoading(on) {
+    const el = document.getElementById('grid-loading');
+    el.hidden = !on;
+    if (on) startProgress();
+    else stopProgress(true);
+  }
   function showGridError(msg) {
     const el = document.getElementById('grid-error');
     if (msg) { el.textContent = msg; el.hidden = false; } else { el.hidden = true; }
