@@ -397,6 +397,8 @@ html, body {
   display: block;
   margin: 4px 0 14px;
 }
+.firsttime-name[hidden] { display: none !important; }
+.step3-pin[hidden] { display: none !important; }
 .firsttime-name-label {
   display: block;
   font-size: 12px;

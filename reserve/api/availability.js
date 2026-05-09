@@ -170,13 +170,22 @@ export default async function handler(req, res) {
   const params = new URLSearchParams({ start_date: start, end_date: end });
   if (courseId) params.set('course_id', courseId);
   if (forNewBool !== null) params.set('for_new_customers', String(forNewBool));
-  // Try the course-scoped endpoint first when a course is specified.
-  // Falls back to the provider-level calendar if the upstream returns 404.
+  // Build the candidate upstream URLs in priority order.
+  // 1. course-scoped path (most accurate when valid)
+  // 2. provider-level path with course_id query
+  // 3. provider-level path WITHOUT course_id — last-resort fallback for the
+  //    case where course_id belongs to a different clinic and threease keeps
+  //    returning 500 for both course-scoped variants.
   const tryUrls = [];
   if (courseId) {
     tryUrls.push(`${UPSTREAM_BASE}/${clinic}/courses/${courseId}/calendar?${params.toString()}`);
+    tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`);
+    const noCourseParams = new URLSearchParams({ start_date: start, end_date: end });
+    if (forNewBool !== null) noCourseParams.set('for_new_customers', String(forNewBool));
+    tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${noCourseParams.toString()}`);
+  } else {
+    tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`);
   }
-  tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`);
 
   const debug = req.query.debug === '1';
 
@@ -234,10 +243,13 @@ export default async function handler(req, res) {
     // When a specific course is requested, filter by per-therapist availability
     // checking *consecutive* 30-min slots so a 60-min course only stays
     // bookable when the same therapist is free for the whole duration.
+    // Skip when we had to fall back to the no-course URL (the course wasn't
+    // valid at this clinic in the first place — show room-level availability).
     const beforeFilter = available.length;
     let courseFilterApplied = false;
     let courseFilterDebug = null;
-    if (courseId && available.length > 0) {
+    const usedFallbackWithoutCourse = courseId && usedUrl && !usedUrl.includes('course_id=');
+    if (courseId && !usedFallbackWithoutCourse && available.length > 0) {
       const r = await filterByBookableCourse(
         clinic,
         parseInt(courseId, 10),
