@@ -281,35 +281,19 @@
       isPromo: true,
     }));
     let courses = threaseCourses || [];
+    // 3ヶ月モードで表示する2コース（courses.js が自動でリネーム済）。
+    // 2回目以降ではこの2つを除外する。
+    const THREE_MONTH_NAMES = new Set([
+      '【久しぶり】コンビネーション施術',
+      '再来オールインワン施術',
+    ]);
     if (state.visitMode === 'three_months') {
-      // 3ヶ月モードで出すのは threease の 2 つのコースのみ：
-      //   ・「【久しぶり】コンビネーション施術」(for_new=false の 27963 がリネームされて来る)
-      //   ・「再来オールインワン施術」(for_new=true の「初診：オールインワン施術」を改名)
-      const out = [];
-      for (const c of courses) {
-        if (c.name === '【久しぶり】コンビネーション施術') {
-          out.push(c);
-        } else if (c.name === '初診：オールインワン施術') {
-          out.push(Object.assign({}, c, { name: '再来オールインワン施術' }));
-        }
-      }
-      courses = out;
+      courses = courses.filter((c) => THREE_MONTH_NAMES.has(c.name));
     } else if (state.visitMode === 'returning') {
-      // 2回目以降は「【久しぶり】コンビネーション施術」を除外（その他は全部表示）
-      courses = courses.filter((c) => c.name !== '【久しぶり】コンビネーション施術');
+      courses = courses.filter((c) => !THREE_MONTH_NAMES.has(c.name));
     }
     const overlaid = courses.map(applyOverrideToCourse);
     return [...addonPromos, ...overlaid];
-  }
-
-  // 表示名のモード別置換（3ヶ月モードでは「初診：オールインワン施術」を
-  // 「再来オールインワン施術」として表示）
-  function applyVisitModeRename(c) {
-    if (!c) return c;
-    if (state.visitMode === 'three_months' && c.name === '初診：オールインワン施術') {
-      return Object.assign({}, c, { name: '再来オールインワン施術' });
-    }
-    return c;
   }
 
   function getSelectedCardObject() {
@@ -328,7 +312,7 @@
     }
     if (state._coursesList) {
       const c = state._coursesList.find((c) => c.id === state.courseId);
-      if (c) return applyVisitModeRename(applyOverrideToCourse(c));
+      if (c) return applyOverrideToCourse(c);
     }
     return null;
   }
@@ -541,29 +525,15 @@
     showCoursesError(null);
     const myToken = ++state.fetchToken;
     try {
-      let combined;
-      if (state.visitMode === 'three_months') {
-        // 3ヶ月モードでは両方の for_new リストから拾い上げる：
-        //   ・for_new=false の「【久しぶり】コンビネーション施術」(60分)
-        //   ・for_new=true の「初診：オールインワン施術」(90分) → 再来オールインワン施術 として表示
-        const [trueList, falseList] = await Promise.all([
-          getCoursesPromise(state.clinic, true).catch(() => []),
-          getCoursesPromise(state.clinic, false).catch(() => []),
-        ]);
-        combined = [
-          ...trueList.map((c) => Object.assign({}, c, { _forNew: true })),
-          ...falseList.map((c) => Object.assign({}, c, { _forNew: false })),
-        ];
-      } else {
-        const courses = await getCoursesPromise(state.clinic, state.firstTime);
-        combined = courses.map((c) => Object.assign({}, c, { _forNew: state.firstTime }));
-      }
+      // 3ヶ月モードでも threease 側に for_new=false の専用コース（コンビ60分・
+      // オールイン90分）が存在するため、特別なケースは不要。
+      const courses = await getCoursesPromise(state.clinic, state.firstTime);
       if (myToken !== state.fetchToken) return;
-      state._coursesList = combined;
+      state._coursesList = courses.map((c) => Object.assign({}, c, { _forNew: state.firstTime }));
       renderCourses();
       const stillValid =
         getActivePromos().some((p) => p.id === state.courseId) ||
-        combined.some((c) => c.id === state.courseId);
+        state._coursesList.some((c) => c.id === state.courseId);
       if (state.courseId && !stillValid) {
         state.courseId = null;
         state.selectedIsos = [];

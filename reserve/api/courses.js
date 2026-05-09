@@ -29,16 +29,25 @@ export default async function handler(req, res) {
     try { data = JSON.parse(rawText); } catch { data = null; }
     const courses = ((data && data.courses) || []).map((c) => {
       let name = c.product_name || c.name;
-      // 「3ヶ月ご来院の無いの方はこちら」→「【久しぶり】コンビネーション施術」
-      // (オールインワン施術はモードによって表示名を変えるため courses.js では
-      //  リネームせず、クライアント側で振り分け時に処理する)
-      if (/3\s*[ヶヵか]\s*月/.test(name || '')) {
-        name = '【久しぶり】コンビネーション施術';
+      const desc = c.description || '';
+      // threease 上の "3ヶ月以上来院なし" 用コース判定：
+      //   ・名前に「3ヶ月／3ヵ月／3か月」を含む（旧）
+      //   ・あるいは説明文が「最終来院日から〜3ヶ月以上ご来院がない方〜」
+      const isThreeMonth =
+        /3\s*[ヶヵか]\s*月/.test(name)
+        || /最終来院.*3\s*[ヶヵか]\s*月|3\s*[ヶヵか]\s*月\s*以上.*(?:来院|来店)/.test(desc);
+      if (isThreeMonth) {
+        // 所要時間で表示名を出し分け（60分=久しぶりコンビ／90分=再来オールイン）
+        if (Number(c.duration) === 90) {
+          name = '再来オールインワン施術';
+        } else {
+          name = '【久しぶり】コンビネーション施術';
+        }
       }
       return {
         id: c.id,
         name,
-        description: c.description || '',
+        description: desc,
         duration: c.duration,
         price: c.price,
       };
