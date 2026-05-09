@@ -29,10 +29,13 @@ export default async function handler(req, res) {
     try { data = JSON.parse(rawText); } catch { data = null; }
     const courses = ((data && data.courses) || []).map((c) => {
       let name = c.product_name || c.name;
-      // Display rename: threease の「3ヶ月ご来院の無い方はこちら」を
-      // 院側ご希望の表示名「【久しぶり】コンビネーション施術」に置換。
+      // Display rename: 院側ご希望の表示名へ
+      //   「3ヶ月ご来院の無いの方はこちら」  →  「【久しぶり】コンビネーション施術」
+      //   「オールインワン施術」(再来用)   →  「再来オールインワン施術」
       if (/3\s*[ヶヵか]\s*月/.test(name || '')) {
         name = '【久しぶり】コンビネーション施術';
+      } else if (name === 'オールインワン施術') {
+        name = '再来オールインワン施術';
       }
       return {
         id: c.id,
