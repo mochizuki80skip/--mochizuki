@@ -281,15 +281,19 @@
       isPromo: true,
     }));
     let courses = threaseCourses || [];
-    // "3ヶ月以上来院なし" モードに振り分けるコース名（明示リスト）
-    const THREE_MONTH_COURSES = new Set([
-      '【久しぶり】コンビネーション施術',
-      '再来オールインワン施術',
-    ]);
+    // 振り分け方針：
+    //  - 「【久しぶり】コンビネーション施術」は 3ヶ月モード専用
+    //  - 「オールインワン施術」は 2回目以降と 3ヶ月の両モードに表示。
+    //    3ヶ月モード時のみ表示名を「再来オールインワン施術」に変更
+    const THREE_MONTH_ONLY = new Set(['【久しぶり】コンビネーション施術']);
     if (state.visitMode === 'three_months') {
-      courses = courses.filter((c) => THREE_MONTH_COURSES.has(c.name));
+      courses = courses
+        .filter((c) => THREE_MONTH_ONLY.has(c.name) || c.name === 'オールインワン施術')
+        .map((c) => (c.name === 'オールインワン施術'
+          ? Object.assign({}, c, { name: '再来オールインワン施術' })
+          : c));
     } else if (state.visitMode === 'returning') {
-      courses = courses.filter((c) => !THREE_MONTH_COURSES.has(c.name));
+      courses = courses.filter((c) => !THREE_MONTH_ONLY.has(c.name));
     }
     const overlaid = courses.map(applyOverrideToCourse);
     return [...addonPromos, ...overlaid];
