@@ -28,6 +28,13 @@
 
   const WEEKDAYS_JP = ['日', '月', '火', '水', '木', '金', '土'];
 
+  function visitModeLabel() {
+    if (state.visitMode === 'first') return '初回';
+    if (state.visitMode === 'three_months') return '3ヶ月以上来院なし';
+    if (state.visitMode === 'returning') return '2回目以降';
+    return state.firstTime === null ? '' : (state.firstTime ? '初回' : '2回目以降');
+  }
+
   // -------------------------------------------------------------------
   // State
   // -------------------------------------------------------------------
@@ -36,7 +43,8 @@
 
   const state = {
     clinic: '192',
-    firstTime: null,        // null | true | false
+    firstTime: null,        // null | true | false  ← derived from visitMode for backend params
+    visitMode: null,        // null | 'first' | 'returning' | 'three_months'
     courseId: null,         // number (threease) | string (promo) | null
     weekStart: jstMidnightOf(new Date()),
     selectedIsos: [],       // 第1〜第3希望の ISO 文字列（最大MAX_SELECTIONS）
@@ -103,11 +111,13 @@
       fetchAvailability();
     }
 
-    // Pre-fill firstTime
+    // Pre-fill firstTime / visitMode (autoOpen only knows first vs returning)
     if (hasFt) {
       state.firstTime = auto.forFirstTime === 'true';
-      document.querySelectorAll('.choice[data-firsttime]').forEach((b) => {
-        b.classList.toggle('is-selected', b.dataset.firsttime === String(state.firstTime));
+      state.visitMode = state.firstTime ? 'first' : 'returning';
+      const selectedVisit = state.visitMode;
+      document.querySelectorAll('.choice[data-visit]').forEach((b) => {
+        b.classList.toggle('is-selected', b.dataset.visit === selectedVisit);
       });
     }
 
@@ -270,7 +280,20 @@
       price: p.price,
       isPromo: true,
     }));
-    const overlaid = (threaseCourses || []).map(applyOverrideToCourse);
+    let courses = threaseCourses || [];
+    if (state.visitMode === 'three_months') {
+      // Show only the dedicated "3ヶ月以上来院なし" course threease provides
+      // under for_new_customers=false. Match by name to be portable across
+      // clinics (different IDs).
+      const re = /3\s*[ヶヵか]\s*月/;
+      courses = courses.filter((c) => re.test(c.name || ''));
+    } else if (state.visitMode === 'returning') {
+      // Hide the "3ヶ月以上" course from the regular returning list so users
+      // pick the correct flow.
+      const re = /3\s*[ヶヵか]\s*月/;
+      courses = courses.filter((c) => !re.test(c.name || ''));
+    }
+    const overlaid = courses.map(applyOverrideToCourse);
     return [...addonPromos, ...overlaid];
   }
 
@@ -324,7 +347,7 @@
     const s1 = document.getElementById('sum-1');
     const e1 = document.querySelector('[data-edit="1"]');
     if (state.firstTime !== null) {
-      s1.textContent = state.firstTime ? '初回' : '2回目以降';
+      s1.textContent = visitModeLabel();
       e1.hidden = false;
     } else { s1.textContent = ''; e1.hidden = true; }
 
@@ -362,8 +385,7 @@
     if (card.duration) meta.push(`${card.duration}分`);
     if (typeof card.price === 'number') meta.push(fmtPrice(card.price));
     const metaStr = meta.length ? ` (${meta.join('・')})` : '';
-    const ftLabel = state.firstTime ? '初回' : '2回目以降';
-    courseEl.textContent = `${ftLabel}・${card.name}${metaStr}`;
+    courseEl.textContent = `${visitModeLabel()}・${card.name}${metaStr}`;
 
     const ul = document.getElementById('pin-picks');
     ul.innerHTML = '';
@@ -849,7 +871,7 @@
 
     document.getElementById('m-clinic').textContent = clinic.name;
     document.getElementById('m-firsttime').textContent =
-      state.firstTime === null ? '—' : (state.firstTime ? '初回' : '2回目以降');
+      state.firstTime === null ? '—' : visitModeLabel();
     document.getElementById('m-course').textContent = card ? card.name : '—';
     const dtSummary = state.selectedIsos.length === 0
       ? '—'
@@ -876,7 +898,7 @@
       ta.value =
 `【予約希望】
 院: ${clinic.name}
-来院: ${state.firstTime ? '初回' : '2回目以降'}
+来院: ${visitModeLabel()}
 ${courseLine}
 日時:
 ${dtLines}${promoLine}${nameLine}
@@ -999,23 +1021,23 @@ ${dtLines}${promoLine}${nameLine}
     }
 
     // Step 1
-    const ftBtn = e.target.closest('.choice[data-firsttime]');
+    const ftBtn = e.target.closest('.choice[data-visit]');
     if (ftBtn) {
-      const v = ftBtn.dataset.firsttime === 'true';
-      const changed = state.firstTime !== v;
-      state.firstTime = v;
+      const mode = ftBtn.dataset.visit; // 'first' | 'returning' | 'three_months'
+      const ft = mode === 'first';
+      const changed = state.visitMode !== mode;
+      state.visitMode = mode;
+      state.firstTime = ft;
       if (changed) {
         state.courseId = null;
         state.selectedIsos = [];
         state._coursesList = null;
-        // state.availability is independent of firstTime — don't reset.
       }
-      document.querySelectorAll('.choice[data-firsttime]').forEach((b) => {
+      document.querySelectorAll('.choice[data-visit]').forEach((b) => {
         b.classList.toggle('is-selected', b === ftBtn);
       });
       recomputeStepStates();
       activateStep(2);
-      // Load courses (instant if cached). Availability is already prefetched at page load.
       loadCoursesForCurrentSelection();
       return;
     }

@@ -38,14 +38,18 @@
         <button class="step-edit" data-edit="1" hidden>変更</button>
       </header>
       <div class="step-body">
-        <div class="choice-grid two">
-          <button class="choice" data-firsttime="false">
+        <div class="choice-grid three">
+          <button class="choice" data-visit="returning">
             <span class="choice-title">2回目以降</span>
             <span class="choice-sub">来院されたことがある方</span>
           </button>
-          <button class="choice" data-firsttime="true">
+          <button class="choice" data-visit="first">
             <span class="choice-title">初回</span>
             <span class="choice-sub">はじめて来院される方</span>
+          </button>
+          <button class="choice" data-visit="three_months">
+            <span class="choice-title">3ヶ月以上来院なし</span>
+            <span class="choice-sub">前回から3ヶ月以上空いた方</span>
           </button>
         </div>
       </div>

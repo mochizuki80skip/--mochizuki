@@ -188,6 +188,12 @@ html, body {
 }
 .choice-grid.two { grid-template-columns: 1fr 1fr; }
 .choice-grid.one { grid-template-columns: 1fr; }
+.choice-grid.three { grid-template-columns: 1fr 1fr; }
+.choice-grid.three > .choice:nth-child(3) { grid-column: 1 / -1; }
+@media (min-width: 540px) {
+  .choice-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .choice-grid.three > .choice:nth-child(3) { grid-column: auto; }
+}
 
 .choice {
   appearance: none;
