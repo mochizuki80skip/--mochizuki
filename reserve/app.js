@@ -880,7 +880,9 @@
     document.getElementById('m-course').textContent = card ? card.name : '—';
     const dtSummary = state.selectedIsos.length === 0
       ? '—'
-      : state.selectedIsos.map((iso, i) => `第${i + 1}希望: ${fmtDateTimeJp(iso)}`).join('\n');
+      : [0, 1, 2]
+          .map((i) => `第${i + 1}希望: ${state.selectedIsos[i] ? fmtDateTimeJp(state.selectedIsos[i]) : ''}`)
+          .join('\n');
     const dtCell = document.getElementById('m-datetime');
     dtCell.textContent = dtSummary;
     dtCell.style.whiteSpace = 'pre-line';
@@ -894,8 +896,8 @@
         : (card._isPromoOverride
           ? `\n※ キャンペーン価格 ${fmtPrice(card.price)}（チラシご持参）`
           : '');
-      const dtLines = state.selectedIsos
-        .map((iso, i) => `  第${i + 1}希望: ${fmtDateTimeJp(iso)}`)
+      const dtLines = [0, 1, 2]
+        .map((i) => `  第${i + 1}希望: ${state.selectedIsos[i] ? fmtDateTimeJp(state.selectedIsos[i]) : ''}`)
         .join('\n');
       const nameInput = document.getElementById('m-name');
       const nameVal = nameInput ? nameInput.value.trim() : '';
