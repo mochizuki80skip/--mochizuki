@@ -281,22 +281,35 @@
       isPromo: true,
     }));
     let courses = threaseCourses || [];
-    // 振り分け方針：
-    //  - 「【久しぶり】コンビネーション施術」は 3ヶ月モード専用
-    //  - 「オールインワン施術」は 2回目以降と 3ヶ月の両モードに表示。
-    //    3ヶ月モード時のみ表示名を「再来オールインワン施術」に変更
-    const THREE_MONTH_ONLY = new Set(['【久しぶり】コンビネーション施術']);
     if (state.visitMode === 'three_months') {
-      courses = courses
-        .filter((c) => THREE_MONTH_ONLY.has(c.name) || c.name === 'オールインワン施術')
-        .map((c) => (c.name === 'オールインワン施術'
-          ? Object.assign({}, c, { name: '再来オールインワン施術' })
-          : c));
+      // 3ヶ月モードで出すのは threease の 2 つのコースのみ：
+      //   ・「【久しぶり】コンビネーション施術」(for_new=false の 27963 がリネームされて来る)
+      //   ・「再来オールインワン施術」(for_new=true の「初診：オールインワン施術」を改名)
+      const out = [];
+      for (const c of courses) {
+        if (c.name === '【久しぶり】コンビネーション施術') {
+          out.push(c);
+        } else if (c.name === '初診：オールインワン施術') {
+          out.push(Object.assign({}, c, { name: '再来オールインワン施術' }));
+        }
+      }
+      courses = out;
     } else if (state.visitMode === 'returning') {
-      courses = courses.filter((c) => !THREE_MONTH_ONLY.has(c.name));
+      // 2回目以降は「【久しぶり】コンビネーション施術」を除外（その他は全部表示）
+      courses = courses.filter((c) => c.name !== '【久しぶり】コンビネーション施術');
     }
     const overlaid = courses.map(applyOverrideToCourse);
     return [...addonPromos, ...overlaid];
+  }
+
+  // 表示名のモード別置換（3ヶ月モードでは「初診：オールインワン施術」を
+  // 「再来オールインワン施術」として表示）
+  function applyVisitModeRename(c) {
+    if (!c) return c;
+    if (state.visitMode === 'three_months' && c.name === '初診：オールインワン施術') {
+      return Object.assign({}, c, { name: '再来オールインワン施術' });
+    }
+    return c;
   }
 
   function getSelectedCardObject() {
@@ -315,7 +328,7 @@
     }
     if (state._coursesList) {
       const c = state._coursesList.find((c) => c.id === state.courseId);
-      if (c) return applyOverrideToCourse(c);
+      if (c) return applyVisitModeRename(applyOverrideToCourse(c));
     }
     return null;
   }
@@ -528,14 +541,29 @@
     showCoursesError(null);
     const myToken = ++state.fetchToken;
     try {
-      const courses = await getCoursesPromise(state.clinic, state.firstTime);
+      let combined;
+      if (state.visitMode === 'three_months') {
+        // 3ヶ月モードでは両方の for_new リストから拾い上げる：
+        //   ・for_new=false の「【久しぶり】コンビネーション施術」(60分)
+        //   ・for_new=true の「初診：オールインワン施術」(90分) → 再来オールインワン施術 として表示
+        const [trueList, falseList] = await Promise.all([
+          getCoursesPromise(state.clinic, true).catch(() => []),
+          getCoursesPromise(state.clinic, false).catch(() => []),
+        ]);
+        combined = [
+          ...trueList.map((c) => Object.assign({}, c, { _forNew: true })),
+          ...falseList.map((c) => Object.assign({}, c, { _forNew: false })),
+        ];
+      } else {
+        const courses = await getCoursesPromise(state.clinic, state.firstTime);
+        combined = courses.map((c) => Object.assign({}, c, { _forNew: state.firstTime }));
+      }
       if (myToken !== state.fetchToken) return;
-      state._coursesList = courses;
+      state._coursesList = combined;
       renderCourses();
-      // If previously selected courseId is no longer in the list (and not a promo), clear
       const stillValid =
         getActivePromos().some((p) => p.id === state.courseId) ||
-        courses.some((c) => c.id === state.courseId);
+        combined.some((c) => c.id === state.courseId);
       if (state.courseId && !stillValid) {
         state.courseId = null;
         state.selectedIsos = [];
@@ -596,14 +624,19 @@
 
   async function fetchAvailability() {
     const baseParams = [];
+    const card = getSelectedCardObject();
     if (typeof state.courseId === 'number') {
       baseParams.push(`course_id=${state.courseId}`);
-      const card = getSelectedCardObject();
       const dur = card ? Number(card.duration) : null;
       if (dur && Number.isFinite(dur)) baseParams.push(`duration=${dur}`);
     }
-    if (state.firstTime !== null) {
-      baseParams.push(`for_new=${state.firstTime ? 'true' : 'false'}`);
+    // 3ヶ月モードでは選択コース毎に for_new が違うので、コードに付随する
+    // _forNew を最優先で使う。コース未選択時は state.firstTime にフォールバック。
+    let forNewToUse = null;
+    if (card && typeof card._forNew === 'boolean') forNewToUse = card._forNew;
+    else if (state.firstTime !== null) forNewToUse = state.firstTime;
+    if (forNewToUse !== null) {
+      baseParams.push(`for_new=${forNewToUse ? 'true' : 'false'}`);
     }
     const baseSuffix = baseParams.length ? '&' + baseParams.join('&') : '';
 
