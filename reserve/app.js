@@ -381,7 +381,7 @@
     _progressStart = Date.now();
     setProgress(0);
     // Ease-out: fast at first, slow as we approach the cap (95%)
-    const TARGET_DURATION_MS = 4000;
+    const TARGET_DURATION_MS = 8000;
     _progressTimer = setInterval(() => {
       const elapsed = Date.now() - _progressStart;
       const t = Math.min(elapsed / TARGET_DURATION_MS, 1);
