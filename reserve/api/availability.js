@@ -256,7 +256,18 @@ export default async function handler(req, res) {
       payload._courseFilterDebug = courseFilterDebug;
     }
 
-    res.setHeader('Cache-Control', debug ? 'no-store' : 's-maxage=120, stale-while-revalidate=120');
+    // Aggressive multi-layer cache:
+    //  - max-age=180  -> the same browser tab reuses the response for 3 min
+    //  - s-maxage=300 -> Vercel edge serves cached for 5 min to other users
+    //  - stale-while-revalidate=1800 -> for the next 30 min the edge serves
+    //    cached *immediately* and refreshes in the background
+    // Effectively threease is only re-queried after ~30+ min of staleness.
+    res.setHeader(
+      'Cache-Control',
+      debug
+        ? 'no-store'
+        : 'public, max-age=180, s-maxage=300, stale-while-revalidate=1800',
+    );
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     return res.status(200).json(payload);
   } catch (err) {
