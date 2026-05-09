@@ -281,12 +281,9 @@
       isPromo: true,
     }));
     let courses = threaseCourses || [];
-    // "3ヶ月以上来院なし" 用に出すコース：
-    // 1) 名前に「3ヶ月／3ヵ月／3か月」を含む専用コース
-    // 2) オールインワン施術（再来60分） — 院長依頼で 3ヶ月側へ移動
-    const re3 = /3\s*[ヶヵか]\s*月/;
-    const isAllInOne = (c) => /オールインワン/.test(c.name || '');
-    const isThreeMonthCourse = (c) => re3.test(c.name || '') || isAllInOne(c);
+    // "3ヶ月以上来院なし" 用は「3ヶ月／3ヵ月／3か月」を含む専用コースだけ。
+    // オールインワン施術（再来60分）は通常の「2回目以降」リストに残す。
+    const isThreeMonthCourse = (c) => /(?:【久しぶり】|3\s*[ヶヵか]\s*月)/.test(c.name || '');
     if (state.visitMode === 'three_months') {
       courses = courses.filter(isThreeMonthCourse);
     } else if (state.visitMode === 'returning') {

@@ -27,13 +27,21 @@ export default async function handler(req, res) {
     const rawText = await r.text();
     let data;
     try { data = JSON.parse(rawText); } catch { data = null; }
-    const courses = ((data && data.courses) || []).map((c) => ({
-      id: c.id,
-      name: c.product_name || c.name,
-      description: c.description || '',
-      duration: c.duration,
-      price: c.price,
-    }));
+    const courses = ((data && data.courses) || []).map((c) => {
+      let name = c.product_name || c.name;
+      // Display rename: threease の「3ヶ月ご来院の無い方はこちら」を
+      // 院側ご希望の表示名「【久しぶり】コンビネーション施術」に置換。
+      if (/3\s*[ヶヵか]\s*月/.test(name || '')) {
+        name = '【久しぶり】コンビネーション施術';
+      }
+      return {
+        id: c.id,
+        name,
+        description: c.description || '',
+        duration: c.duration,
+        price: c.price,
+      };
+    });
 
     const debug = req.query.debug === '1';
     const payload = { clinic, for_new: forNew, courses };
