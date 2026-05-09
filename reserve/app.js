@@ -383,11 +383,36 @@
     wrap.hidden = state.firstTime !== true;
   }
 
+  // Custom smooth scroll — the browser-native scrollIntoView with
+  // behavior:'smooth' tends to be too fast on phones. We control the
+  // duration manually with an ease-in-out curve.
+  function smoothScrollToY(targetY, duration) {
+    const startY = window.scrollY || window.pageYOffset || 0;
+    const dist = targetY - startY;
+    if (Math.abs(dist) < 2) return;
+    const start = performance.now();
+    const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2);
+    function step(now) {
+      const t = Math.min((now - start) / duration, 1);
+      window.scrollTo(0, startY + dist * ease(t));
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function smoothScrollToElement(el, opts) {
+    if (!el) return;
+    const offset = (opts && typeof opts.offset === 'number') ? opts.offset : 0;
+    const duration = (opts && typeof opts.duration === 'number') ? opts.duration : 900;
+    const top = el.getBoundingClientRect().top + (window.scrollY || 0) + offset;
+    smoothScrollToY(top, duration);
+  }
+
   function activateStep(n) {
     const el = document.getElementById('step-' + n);
     if (el) el.dataset.state = 'active';
-    if (el && el.scrollIntoView) {
-      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+    if (el) {
+      setTimeout(() => smoothScrollToElement(el, { offset: -8, duration: 900 }), 60);
     }
   }
 
