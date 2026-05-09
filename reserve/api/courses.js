@@ -58,7 +58,8 @@ export default async function handler(req, res) {
     if (debug) payload._raw = rawText;
 
     // Course list rarely changes -> cache for 24 hours at the edge.
-    res.setHeader('Cache-Control', debug ? 'no-store' : 's-maxage=86400, stale-while-revalidate=604800');
+    // Edge cache を控えめに（コース名のリネーム規則を変えても 1 分以内に反映）
+    res.setHeader('Cache-Control', debug ? 'no-store' : 'public, max-age=60, s-maxage=60, stale-while-revalidate=600');
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     return res.status(200).json(payload);
   } catch (err) {
