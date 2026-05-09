@@ -285,7 +285,7 @@
     // 2回目以降ではこの2つを除外する。
     const THREE_MONTH_NAMES = new Set([
       '【久しぶり】コンビネーション施術',
-      '再来オールインワン施術',
+      '【久しぶり】オールインワン施術',
     ]);
     if (state.visitMode === 'three_months') {
       courses = courses.filter((c) => THREE_MONTH_NAMES.has(c.name));

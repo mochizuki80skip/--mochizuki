@@ -37,9 +37,9 @@ export default async function handler(req, res) {
         /3\s*[ヶヵか]\s*月/.test(name)
         || /最終来院.*3\s*[ヶヵか]\s*月|3\s*[ヶヵか]\s*月\s*以上.*(?:来院|来店)/.test(desc);
       if (isThreeMonth) {
-        // 所要時間で表示名を出し分け（60分=久しぶりコンビ／90分=再来オールイン）
+        // 所要時間で表示名を出し分け（60分=【久しぶり】コンビ／90分=【久しぶり】オールイン）
         if (Number(c.duration) === 90) {
-          name = '再来オールインワン施術';
+          name = '【久しぶり】オールインワン施術';
         } else {
           name = '【久しぶり】コンビネーション施術';
         }
