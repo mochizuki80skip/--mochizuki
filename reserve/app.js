@@ -344,6 +344,43 @@
       s3.textContent = first + more;
       e3.hidden = false;
     } else { s3.textContent = ''; e3.hidden = true; }
+
+    renderStep3Pin(card);
+    renderFirstTimeNameField();
+  }
+
+  function renderStep3Pin(card) {
+    const wrap = document.getElementById('step3-pin');
+    if (!wrap) return;
+    if (!card || state.firstTime === null) {
+      wrap.hidden = true;
+      return;
+    }
+    wrap.hidden = false;
+    const courseEl = document.getElementById('pin-course');
+    const meta = [];
+    if (card.duration) meta.push(`${card.duration}分`);
+    if (typeof card.price === 'number') meta.push(fmtPrice(card.price));
+    const metaStr = meta.length ? ` (${meta.join('・')})` : '';
+    const ftLabel = state.firstTime ? '初回' : '2回目以降';
+    courseEl.textContent = `${ftLabel}・${card.name}${metaStr}`;
+
+    const ul = document.getElementById('pin-picks');
+    ul.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const iso = state.selectedIsos[i];
+      const li = document.createElement('li');
+      li.className = 'pin-slot' + (iso ? ' is-set' : '');
+      li.innerHTML = `<span class="pin-slot-no">第${i + 1}希望</span>`
+        + `<span class="pin-slot-val">${iso ? escapeHtml(fmtDateTimeJp(iso)) : '未選択'}</span>`;
+      ul.appendChild(li);
+    }
+  }
+
+  function renderFirstTimeNameField() {
+    const wrap = document.getElementById('firsttime-name-wrap');
+    if (!wrap) return;
+    wrap.hidden = state.firstTime !== true;
   }
 
   function activateStep(n) {
@@ -781,13 +818,16 @@
       const dtLines = state.selectedIsos
         .map((iso, i) => `  第${i + 1}希望: ${fmtDateTimeJp(iso)}`)
         .join('\n');
+      const nameInput = document.getElementById('m-name');
+      const nameVal = nameInput ? nameInput.value.trim() : '';
+      const nameLine = state.firstTime ? `\nお名前: ${nameVal}` : '';
       ta.value =
 `【予約希望】
 院: ${clinic.name}
 来院: ${state.firstTime ? '初回' : '2回目以降'}
 ${courseLine}
 日時:
-${dtLines}${promoLine}
+${dtLines}${promoLine}${nameLine}
 ————————————————
 コチラからの返信で予約が確定になります。
 メッセージはこのまま送信してください。`;
@@ -807,6 +847,22 @@ ${dtLines}${promoLine}
 
   async function copyAndOpenLine() {
     if (state.selectedIsos.length === 0) return;
+    // First-visit guard: name is required for new patients
+    if (state.firstTime === true) {
+      const nameInput = document.getElementById('m-name');
+      const name = nameInput ? nameInput.value.trim() : '';
+      if (!name) {
+        const wrap = document.getElementById('firsttime-name-wrap');
+        if (wrap) {
+          wrap.classList.add('is-error');
+          if (nameInput) {
+            nameInput.focus();
+            nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        return;
+      }
+    }
     const ta = document.getElementById('m-text');
     const text = ta.value;
     let copied = false;
@@ -997,6 +1053,17 @@ ${dtLines}${promoLine}
   // -------------------------------------------------------------------
   // Init
   // -------------------------------------------------------------------
+
+  // Live-update the LINE message text and clear the name-required error
+  // marker as the user types in the first-visit name field.
+  const nameInputEl = document.getElementById('m-name');
+  if (nameInputEl) {
+    nameInputEl.addEventListener('input', () => {
+      const wrap = document.getElementById('firsttime-name-wrap');
+      if (wrap) wrap.classList.remove('is-error');
+      updateBookingPanel();
+    });
+  }
 
   // Fire prefetches immediately so STEP2 & STEP3 are instant
   prefetchCourses(state.clinic);

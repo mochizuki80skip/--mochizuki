@@ -341,6 +341,97 @@ html, body {
 .grid-wrap {
   margin-top: 4px;
 }
+/* ---- STEP3 sticky pin (course + selected slots) ---- */
+.step3-pin {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: var(--gold-bg);
+  border: 1px solid var(--gold);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+  font-size: 12px;
+}
+.pin-course {
+  font-weight: 700;
+  color: var(--ink);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pin-picks {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.pin-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+.pin-slot.is-set {
+  border-color: var(--gold-deep);
+  color: var(--ink);
+}
+.pin-slot-no {
+  font-weight: 700;
+  color: var(--gold-deep);
+}
+.pin-slot.is-set .pin-slot-no { color: var(--gold-deep); }
+.pin-slot-val { font-variant-numeric: tabular-nums; }
+
+/* ---- First-visit name field ---- */
+.firsttime-name {
+  display: block;
+  margin: 4px 0 14px;
+}
+.firsttime-name-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.firsttime-name-label small {
+  font-weight: 400;
+  color: var(--ink-soft);
+  margin-left: 4px;
+}
+.firsttime-name input {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  background: #fdfbf3;
+  color: var(--ink);
+  -webkit-appearance: none;
+}
+.firsttime-name.is-error input {
+  border-color: var(--error-ink);
+  background: var(--error-bg);
+}
+.firsttime-name.is-error::after {
+  content: '初診の方はお名前のご入力をお願いします。';
+  display: block;
+  margin-top: 6px;
+  color: var(--error-ink);
+  font-size: 12px;
+}
+
 .week-block + .week-block { margin-top: 18px; }
 .week-block-title {
   display: flex;

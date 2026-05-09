@@ -78,6 +78,11 @@
       <div class="step-body">
         <div class="step-locked-msg">前のステップを完了してください</div>
 
+        <div class="step3-pin" id="step3-pin" hidden>
+          <div class="pin-course" id="pin-course">—</div>
+          <ul class="pin-picks" id="pin-picks"></ul>
+        </div>
+
         <div class="weeknav">
           <button class="weeknav-btn" id="prev-week" aria-label="前の週">‹</button>
           <span class="weeknav-label" id="week-label">—</span>
@@ -119,6 +124,11 @@
           <dt>コース</dt><dd id="m-course">—</dd>
           <dt>日時</dt><dd id="m-datetime">—</dd>
         </dl>
+
+        <label class="firsttime-name" id="firsttime-name-wrap" hidden>
+          <span class="firsttime-name-label">お名前 <small>(初診の方は必須)</small></span>
+          <input type="text" id="m-name" placeholder="例: 山田 太郎" autocomplete="name">
+        </label>
 
         <!-- Method: LINE -->
         <div class="book-method book-method--line">
