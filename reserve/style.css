@@ -319,7 +319,23 @@ html, body {
   font-size: 13px;
   padding: 14px;
   margin: 8px 0;
+  text-align: center;
 }
+.grid-retry-btn {
+  margin-top: 10px;
+  appearance: none;
+  border: 1px solid var(--error-ink);
+  background: var(--white);
+  color: var(--error-ink);
+  border-radius: 999px;
+  padding: 6px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.grid-retry-btn:hover { background: var(--error-bg); }
+.grid-retry-btn:active { transform: scale(0.96); }
 
 /* ---- Grid ---- */
 .grid-wrap {

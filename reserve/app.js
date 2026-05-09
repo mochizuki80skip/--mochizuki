@@ -405,7 +405,25 @@
   }
   function showGridError(msg) {
     const el = document.getElementById('grid-error');
-    if (msg) { el.textContent = msg; el.hidden = false; } else { el.hidden = true; }
+    if (msg) {
+      el.innerHTML = '';
+      const p = document.createElement('div');
+      p.textContent = '空き状況を取得できませんでした。少し時間をおいてから再読み込みしてください。';
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'grid-retry-btn';
+      btn.textContent = '再読み込み';
+      btn.addEventListener('click', () => {
+        showGridError(null);
+        fetchAvailability();
+      });
+      el.appendChild(p);
+      el.appendChild(btn);
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+      el.innerHTML = '';
+    }
   }
 
   // -------------------------------------------------------------------

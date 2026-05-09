@@ -185,12 +185,26 @@ export default async function handler(req, res) {
     let usedUrl = null;
     let rawText = null;
     let lastBody = '';
+    // Retry helper: threease occasionally returns 500 transiently; one quick
+    // retry with a small backoff catches most of these without delaying the
+    // happy path.
+    async function fetchWithRetry(url, attempts = 2) {
+      let last = null;
+      for (let i = 0; i < attempts; i++) {
+        last = await fetch(url, { headers: UPSTREAM_HEADERS });
+        if (last.ok) return last;
+        if (last.status >= 500 && last.status < 600 && i < attempts - 1) {
+          await new Promise((s) => setTimeout(s, 250 * (i + 1)));
+          continue;
+        }
+        return last;
+      }
+      return last;
+    }
     for (const u of tryUrls) {
-      r = await fetch(u, { headers: UPSTREAM_HEADERS });
+      r = await fetchWithRetry(u);
       usedUrl = u;
       if (r.ok) break;
-      // any non-OK response → try the next candidate URL (e.g. course-scoped
-      // path may return 500/404 if the course isn't valid at this clinic)
       lastBody = await r.text().catch(() => '');
     }
     if (!r || !r.ok) {
