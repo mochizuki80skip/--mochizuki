@@ -10,11 +10,13 @@
       name: 'リカバリー鍼灸院 長泉三島院',
       short: '長泉三島院',
       lineUrl: 'https://lin.ee/s6l4Yso',
+      lineBasicId: '@714hycwt',
     },
     '193': {
       name: 'リカバリー鍼灸院 裾野長泉院',
       short: '裾野長泉院',
       lineUrl: 'https://lin.ee/7RkbmAz',
+      lineBasicId: '@579erouy',
     },
   };
 
@@ -768,9 +770,19 @@ ${dtLines}${promoLine}
     btn.textContent = copied ? 'コピーしました。LINEを開きます…' : 'コピーできません。手動でコピーしてください';
     btn.disabled = true;
 
-    const lineUrl = CLINICS[state.clinic].lineUrl;
+    // Prefer the oaMessage scheme so the chat opens with the text already
+    // entered in the input box. This works for users who are already friends
+    // with the OA. Fall back to the friend-add link if the basic ID isn't set.
+    const clinic = CLINICS[state.clinic];
+    let openUrl;
+    if (clinic.lineBasicId) {
+      const id = encodeURIComponent(clinic.lineBasicId);
+      openUrl = `https://line.me/R/oaMessage/${id}/?${encodeURIComponent(text)}`;
+    } else {
+      openUrl = clinic.lineUrl;
+    }
     setTimeout(() => {
-      if (copied) window.location.href = lineUrl;
+      window.location.href = openUrl;
       btn.textContent = orig;
       btn.disabled = false;
     }, 600);
