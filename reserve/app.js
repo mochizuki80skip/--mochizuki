@@ -774,26 +774,20 @@
     if (state.selectedIsos.length > 0 && card) {
       const courseLine = buildCourseLine(card);
       const promoLine = card.isPromo
-        ? `\n\n※ ${card.name.replace(/^【.*?】/, '')}（チラシご持参）`
+        ? `\n※ ${card.name.replace(/^【.*?】/, '')}（チラシご持参）`
         : (card._isPromoOverride
-          ? `\n\n※ キャンペーン価格 ${fmtPrice(card.price)}（チラシご持参）`
+          ? `\n※ キャンペーン価格 ${fmtPrice(card.price)}（チラシご持参）`
           : '');
       const dtLines = state.selectedIsos
         .map((iso, i) => `  第${i + 1}希望: ${fmtDateTimeJp(iso)}`)
-        .join('\n\n');
+        .join('\n');
       ta.value =
 `【予約希望】
-
 院: ${clinic.name}
-
 来院: ${state.firstTime ? '初回' : '2回目以降'}
-
 ${courseLine}
-
 日時:
-
 ${dtLines}${promoLine}
-
 ————————————————
 コチラからの返信で予約が確定になります。
 メッセージはこのまま送信してください。`;
