@@ -235,13 +235,13 @@ export default async function handler(req, res) {
     // When a specific course is requested, filter by per-therapist availability
     // checking *consecutive* 30-min slots so a 60-min course only stays
     // bookable when the same therapist is free for the whole duration.
-    // Skip when we had to fall back to the no-course URL (the course wasn't
-    // valid at this clinic in the first place — show room-level availability).
+    // axis は常に course_id 抜きの /calendar を使う設計に変えたので、
+    // course_id が指定されていれば毎回 /courses?start_time=Y で per-course
+    // の絞り込みを実行する（旧 fallback 判定は廃止）。
     const beforeFilter = available.length;
     let courseFilterApplied = false;
     let courseFilterDebug = null;
-    const usedFallbackWithoutCourse = courseId && usedUrl && !usedUrl.includes('course_id=');
-    if (courseId && !usedFallbackWithoutCourse && available.length > 0) {
+    if (courseId && available.length > 0) {
       const r = await filterByBookableCourse(
         clinic,
         parseInt(courseId, 10),
