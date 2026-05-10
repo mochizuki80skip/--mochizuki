@@ -167,25 +167,17 @@ export default async function handler(req, res) {
   const forNew = String(req.query.for_new || '').toLowerCase();
   const forNewBool = forNew === 'true' ? true : forNew === 'false' ? false : null;
 
-  const params = new URLSearchParams({ start_date: start, end_date: end });
-  if (courseId) params.set('course_id', courseId);
-  if (forNewBool !== null) params.set('for_new_customers', String(forNewBool));
-  // Build the candidate upstream URLs in priority order.
-  // 1. course-scoped path (most accurate when valid)
-  // 2. provider-level path with course_id query
-  // 3. provider-level path WITHOUT course_id — last-resort fallback for the
-  //    case where course_id belongs to a different clinic and threease keeps
-  //    returning 500 for both course-scoped variants.
-  const tryUrls = [];
-  if (courseId) {
-    tryUrls.push(`${UPSTREAM_BASE}/${clinic}/courses/${courseId}/calendar?${params.toString()}`);
-    tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`);
-    const noCourseParams = new URLSearchParams({ start_date: start, end_date: end });
-    if (forNewBool !== null) noCourseParams.set('for_new_customers', String(forNewBool));
-    tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${noCourseParams.toString()}`);
-  } else {
-    tryUrls.push(`${UPSTREAM_BASE}/${clinic}/calendar?${params.toString()}`);
-  }
+  // Always use the room-level /calendar (no course_id) as the base. The
+  // course-scoped /calendar?course_id=X variant is more restrictive than
+  // threease's own /courses?start_time=Y filter, causing some bookable slots
+  // to disappear (e.g. コンビ30分 11:30/16:30 / オールイン60分 15:00 が
+  // 表示されない問題)。/courses?start_time=Y で per-course のフィルタを
+  // かけるので、room-level の幅広い枠から確実に絞り込める。
+  const noCourseParams = new URLSearchParams({ start_date: start, end_date: end });
+  if (forNewBool !== null) noCourseParams.set('for_new_customers', String(forNewBool));
+  const tryUrls = [
+    `${UPSTREAM_BASE}/${clinic}/calendar?${noCourseParams.toString()}`,
+  ];
 
   const debug = req.query.debug === '1';
 

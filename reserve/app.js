@@ -697,40 +697,12 @@
 
   function getSlotsForSelection() {
     if (!state.availability || !state.courseId) return [];
-    const all = state.availability.available;
-    const card = getSelectedCardObject();
-    const rawDur = card ? card.duration : null;
-    const dur = rawDur == null ? null : Number(rawDur);
-
-    if (!dur || !Number.isFinite(dur) || all.length === 0) {
-      if (window.__DEBUG_AVAIL__) console.warn('[avail] dur unknown, returning all', { card, all: all.length });
-      return all;
-    }
-
-    slotIncrementMin = detectSlotIncrement(all);
-    if (window.__DEBUG_AVAIL__) console.warn('[avail] dur=' + dur + ' increment=' + slotIncrementMin + ' total=' + all.length);
-
-    if (dur <= slotIncrementMin) return all;
-
-    const needed = Math.ceil(dur / slotIncrementMin);
-    const byDate = new Map();
-    for (const s of all) {
-      const t = fmtTimeFromIso(s.iso);
-      if (!byDate.has(s.date)) byDate.set(s.date, new Set());
-      byDate.get(s.date).add(t);
-    }
-    const filtered = all.filter((s) => {
-      const t = fmtTimeFromIso(s.iso);
-      const slotsForDay = byDate.get(s.date);
-      if (!slotsForDay) return false;
-      for (let k = 1; k < needed; k++) {
-        const next = addMinutesHHMM(t, k * slotIncrementMin);
-        if (!next || !slotsForDay.has(next)) return false;
-      }
-      return true;
-    });
-    if (window.__DEBUG_AVAIL__) console.warn('[avail] needed=' + needed + ' kept=' + filtered.length + '/' + all.length);
-    return filtered;
+    // サーバ側 (/api/availability) で threease の /courses?start_time=Y を
+    // 使った per-time per-course の正確なフィルタが既に適用されているので、
+    // クライアントで連続枠の二重チェックはしない（連続枠を仮定すると
+    // /calendar?course_id=X が省く 60分枠 (例:14:30→15:00 が無いケース)
+    // を誤って弾いてしまう）。
+    return state.availability.available;
   }
 
   function renderGrid() {
