@@ -100,15 +100,58 @@ src/
 prisma/schema.prisma
 ```
 
-## 本番デプロイ
+## 本番デプロイ（Vercel）
 
-デプロイ上限解除後に：
+このリポジトリは複数プロジェクトを含むため、Vercel 側で **Root Directory** を `line-platform` に設定する必要がある。
 
-1. Vercel に Next.js をデプロイ
-2. PostgreSQL は Neon / Supabase / Railway など
-3. ワーカーは Vercel Cron か別ホスト（Railway / Fly / VPS）で `npm run worker`
-4. `LINE_CHANNEL_*` を環境変数に設定
-5. LINE Developers の Webhook URL を本番ドメインに変更
+### 手順
+
+1. Vercel で New Project → このリポジトリを選択
+2. Configure Project：
+   - **Root Directory**: `line-platform`
+   - **Framework Preset**: Next.js（自動検出）
+   - **Build Command**: `npm run build`（package.json で `prisma generate && next build`）
+   - **Install Command**: `npm install`
+3. Environment Variables を設定：
+   ```
+   LINE_CHANNEL_ACCESS_TOKEN=（実値）
+   LINE_CHANNEL_SECRET=（実値）
+   DATABASE_URL=postgres://...（Neon / Supabase / Railway など）
+   NEXTAUTH_SECRET=（openssl rand -base64 32）
+   NEXTAUTH_URL=https://your-domain.vercel.app
+   ADMIN_EMAIL=you@example.com
+   ADMIN_PASSWORD=好きなパスワード
+   ```
+4. Deploy
+5. デプロイ完了後、ローカルから初回マイグレーション＆シード：
+   ```bash
+   DATABASE_URL='本番のURL' npx prisma migrate deploy
+   DATABASE_URL='本番のURL' ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run seed
+   ```
+6. LINE Developers Console → Messaging API → **Webhook URL** を `https://your-domain.vercel.app/api/line/webhook` に設定し、検証 → 有効化
+
+### ワーカーのデプロイ
+
+Vercel Functions は短命プロセスなので `npm run worker` の常駐は不可。以下から選択：
+
+| 方式 | おすすめ用途 |
+|---|---|
+| **Vercel Cron**（推奨） | `/api/cron/dispatch` を 1 分間隔で叩く。設定は下記。 |
+| Railway / Fly.io / VPS | 厳密な 30 秒間隔が欲しい場合 |
+| GitHub Actions schedule | 手軽だが 5 分粒度 |
+
+**Vercel Cron を使う場合**（次フェーズで `/api/cron/dispatch` を実装予定）：
+```json
+// vercel.json
+{ "crons": [{ "path": "/api/cron/dispatch", "schedule": "* * * * *" }] }
+```
+
+### DB（PostgreSQL）の用意
+
+無料枠で十分始められる：
+- **Neon**（推奨）: サーバレス PostgreSQL、無料枠 0.5GB
+- **Supabase**: 無料枠 500MB
+- **Railway**: 月 $5 から
 
 ## Phase 2 候補（未実装）
 

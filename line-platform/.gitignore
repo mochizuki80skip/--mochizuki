@@ -11,3 +11,4 @@ prisma/dev.db-journal
 .vercel
 .turbo
 next-env.d.ts
+tsconfig.tsbuildinfo
