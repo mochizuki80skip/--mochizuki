@@ -190,6 +190,48 @@ html, body {
 .choice-grid.one { grid-template-columns: 1fr; }
 .choice-grid.stack { grid-template-columns: 1fr; }
 
+/* ---- Stacked choice cards: chevron + richer hover (STEP1) ---- */
+.choice-grid.stack > .choice {
+  position: relative;
+  padding-right: 36px;
+  transition:
+    border-color .18s,
+    background .18s,
+    box-shadow .18s,
+    transform .12s,
+    padding-right .18s;
+}
+.choice-grid.stack > .choice::after {
+  content: '';
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  width: 9px;
+  height: 9px;
+  border-right: 2px solid var(--gold-deep);
+  border-top: 2px solid var(--gold-deep);
+  transform: translateY(-50%) rotate(45deg);
+  transition: right .18s, border-color .18s;
+  opacity: 0.7;
+}
+.choice-grid.stack > .choice:hover {
+  border-color: var(--gold-deep);
+  background: #fdf9ee;
+  box-shadow: 0 4px 14px rgba(156, 135, 83, 0.10);
+  padding-right: 40px;
+}
+.choice-grid.stack > .choice:hover::after {
+  right: 12px;
+  opacity: 1;
+}
+.choice-grid.stack > .choice:active {
+  transform: scale(0.985);
+}
+.choice-grid.stack > .choice.is-selected::after {
+  opacity: 1;
+  border-color: var(--gold-deep);
+}
+
 .choice {
   appearance: none;
   border: 1.5px solid var(--line);
