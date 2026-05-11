@@ -1,63 +1,112 @@
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Plus, MessageCircle } from "lucide-react";
+import { signOutAction } from "./actions";
+import { getCurrentUser, listAccessibleChannels } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-export default async function DashboardPage() {
-  const [followers, totalFriends, tags, scheduledBroadcasts, runningScenarios, recentInbound] =
-    await Promise.all([
-      prisma.friend.count({ where: { isFollowing: true } }),
-      prisma.friend.count(),
-      prisma.tag.count(),
-      prisma.broadcast.count({ where: { status: "scheduled" } }),
-      prisma.scenarioRun.count({ where: { status: "running" } }),
-      prisma.inboundMessage.findMany({
-        take: 10,
-        orderBy: { receivedAt: "desc" },
-        include: { friend: true },
-      }),
-    ]);
+export default async function DashboardHubPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
-  const stats = [
-    { label: "現在の友だち（ブロック除く）", value: followers },
-    { label: "累計友だち数", value: totalFriends },
-    { label: "タグ数", value: tags },
-    { label: "予約配信", value: scheduledBroadcasts },
-    { label: "稼働中シナリオ", value: runningScenarios },
-  ];
+  const channels = await listAccessibleChannels(user.id, user.role);
+
+  // 1 つだけならそのチャネルに直行
+  if (channels.length === 1 && user.role !== "super_admin") {
+    redirect(`/dashboard/c/${channels[0].id}`);
+  }
+
+  // 各チャネルの簡易統計を取得
+  const stats = await Promise.all(
+    channels.map(async (c) => ({
+      channel: c,
+      followers: await prisma.friend.count({
+        where: { lineChannelId: c.id, isFollowing: true },
+      }),
+    })),
+  );
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-xl font-semibold">ダッシュボード</h1>
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        {stats.map((s) => (
-          <div key={s.label} className="bg-white border rounded p-4">
-            <div className="text-xs text-gray-500">{s.label}</div>
-            <div className="text-2xl font-bold mt-1">{s.value}</div>
+    <div className="min-h-screen bg-gray-50">
+      <header className="bg-white border-b">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <div className="text-lg font-bold text-line">LINE Platform</div>
+            <div className="text-xs text-gray-500">{user.email}（{user.role === "super_admin" ? "管理者" : "オペレーター"}）</div>
           </div>
-        ))}
-      </div>
+          <div className="flex items-center gap-3">
+            {user.role === "super_admin" && (
+              <Link
+                href="/dashboard/channels"
+                className="text-sm text-gray-700 hover:text-line-dark"
+              >
+                LINE 管理
+              </Link>
+            )}
+            <form action={signOutAction}>
+              <button type="submit" className="text-sm text-gray-600 hover:text-gray-900">
+                ログアウト
+              </button>
+            </form>
+          </div>
+        </div>
+      </header>
 
-      <div className="bg-white border rounded">
-        <div className="px-4 py-3 border-b font-medium">最近の受信メッセージ</div>
-        <ul className="divide-y">
-          {recentInbound.length === 0 && (
-            <li className="px-4 py-6 text-sm text-gray-500">まだ受信メッセージはありません。</li>
+      <main className="max-w-6xl mx-auto p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h1 className="text-2xl font-semibold">LINE アカウント一覧</h1>
+          {user.role === "super_admin" && (
+            <Link
+              href="/dashboard/channels/new"
+              className="bg-line text-white px-3 py-1.5 rounded text-sm flex items-center gap-1"
+            >
+              <Plus size={14} /> LINE アカウント追加
+            </Link>
           )}
-          {recentInbound.map((m) => (
-            <li key={m.id} className="px-4 py-3 text-sm flex justify-between gap-2">
-              <div>
-                <span className="font-medium">{m.friend.displayName ?? m.friend.lineUserId}</span>
-                <span className="text-gray-500 ml-2">[{m.type}]</span>
-                <div className="text-gray-700 truncate max-w-xl">{m.text ?? "(non-text)"}</div>
+        </div>
+
+        {channels.length === 0 && (
+          <div className="bg-white border rounded p-8 text-center text-gray-500">
+            <MessageCircle size={48} className="mx-auto mb-3 text-gray-300" />
+            {user.role === "super_admin" ? (
+              <>
+                LINE アカウントがまだ登録されていません。
+                <div className="mt-3">
+                  <Link
+                    href="/dashboard/channels/new"
+                    className="text-line-dark hover:underline"
+                  >
+                    最初の LINE アカウントを追加する →
+                  </Link>
+                </div>
+              </>
+            ) : (
+              <>アクセス可能な LINE アカウントがありません。管理者にお問い合わせください。</>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {stats.map(({ channel, followers }) => (
+            <Link
+              key={channel.id}
+              href={`/dashboard/c/${channel.id}`}
+              className="bg-white border rounded p-5 hover:shadow-md transition block"
+              style={{ borderTopColor: channel.color, borderTopWidth: 3 }}
+            >
+              <div className="font-medium text-lg">{channel.name}</div>
+              {channel.description && (
+                <div className="text-sm text-gray-500 mt-1">{channel.description}</div>
+              )}
+              <div className="mt-4 text-sm text-gray-700">
+                友だち：<span className="font-bold text-line-dark">{followers}</span> 人
               </div>
-              <div className="text-xs text-gray-400 shrink-0">
-                {new Date(m.receivedAt).toLocaleString("ja-JP")}
-              </div>
-            </li>
+            </Link>
           ))}
-        </ul>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

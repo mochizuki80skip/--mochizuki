@@ -1,37 +1,57 @@
 import { Client, type Message } from "@line/bot-sdk";
+import { prisma } from "@/lib/prisma";
 
 export type { Message };
 
-const channelSecret = process.env.LINE_CHANNEL_SECRET ?? "";
-export const lineConfig = {
-  get channelAccessToken() {
-    return process.env.LINE_CHANNEL_ACCESS_TOKEN ?? "";
-  },
-  channelSecret,
-};
-
-let _client: Client | null = null;
-function getClient(): Client {
-  if (_client) return _client;
-  const token = process.env.LINE_CHANNEL_ACCESS_TOKEN;
-  if (!token) throw new Error("LINE_CHANNEL_ACCESS_TOKEN is not set");
-  _client = new Client({ channelAccessToken: token, channelSecret });
-  return _client;
-}
-
-// LINE はマルチキャストの宛先上限が 500 件
 const MULTICAST_LIMIT = 500;
 
-export async function pushTo(userId: string, messages: Message[]) {
-  return getClient().pushMessage(userId, messages);
+// チャネル ID からクライアントを構築（メモリキャッシュ）
+const clientCache = new Map<string, Client>();
+
+async function getClientByChannelId(channelId: string): Promise<{ client: Client; channelSecret: string }> {
+  const cached = clientCache.get(channelId);
+  const ch = await prisma.lineChannel.findUnique({
+    where: { id: channelId },
+    select: { channelAccessToken: true, channelSecret: true, isActive: true },
+  });
+  if (!ch) throw new Error(`channel not found: ${channelId}`);
+  if (!ch.isActive) throw new Error(`channel inactive: ${channelId}`);
+
+  if (cached) return { client: cached, channelSecret: ch.channelSecret };
+
+  const client = new Client({
+    channelAccessToken: ch.channelAccessToken,
+    channelSecret: ch.channelSecret,
+  });
+  clientCache.set(channelId, client);
+  return { client, channelSecret: ch.channelSecret };
 }
 
-export async function multicastTo(userIds: string[], messages: Message[]) {
+// キャッシュ無効化（トークン更新時に呼ぶ）
+export function invalidateClientCache(channelId: string) {
+  clientCache.delete(channelId);
+}
+
+export async function getChannelSecret(channelId: string): Promise<string> {
+  const ch = await prisma.lineChannel.findUnique({
+    where: { id: channelId },
+    select: { channelSecret: true },
+  });
+  if (!ch) throw new Error(`channel not found: ${channelId}`);
+  return ch.channelSecret;
+}
+
+export async function pushTo(channelId: string, userId: string, messages: Message[]) {
+  const { client } = await getClientByChannelId(channelId);
+  return client.pushMessage(userId, messages);
+}
+
+export async function multicastTo(channelId: string, userIds: string[], messages: Message[]) {
+  const { client } = await getClientByChannelId(channelId);
   const chunks: string[][] = [];
   for (let i = 0; i < userIds.length; i += MULTICAST_LIMIT) {
     chunks.push(userIds.slice(i, i + MULTICAST_LIMIT));
   }
-  const client = getClient();
   const results = await Promise.allSettled(
     chunks.map((chunk) => client.multicast(chunk, messages)),
   );
@@ -45,15 +65,28 @@ export async function multicastTo(userIds: string[], messages: Message[]) {
   };
 }
 
-export async function broadcastAll(messages: Message[]) {
-  return getClient().broadcast(messages);
+export async function broadcastAll(channelId: string, messages: Message[]) {
+  const { client } = await getClientByChannelId(channelId);
+  return client.broadcast(messages);
 }
 
-export async function getProfile(userId: string) {
+export async function getProfile(channelId: string, userId: string) {
   try {
-    return await getClient().getProfile(userId);
+    const { client } = await getClientByChannelId(channelId);
+    return await client.getProfile(userId);
   } catch (e) {
-    console.warn("[line] getProfile failed", userId, e);
+    console.warn(`[line] getProfile failed channel=${channelId} user=${userId}`, e);
     return null;
+  }
+}
+
+// トークン検証用：与えられたトークン/シークレットで profile を取得できるか
+export async function verifyChannelCredentials(channelAccessToken: string, channelSecret: string) {
+  const c = new Client({ channelAccessToken, channelSecret });
+  try {
+    await c.getBotInfo();
+    return { ok: true as const };
+  } catch (e) {
+    return { ok: false as const, message: e instanceof Error ? e.message : "unknown" };
   }
 }
