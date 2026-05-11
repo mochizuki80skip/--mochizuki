@@ -651,56 +651,49 @@ html, body {
   font-weight: 700;
 }
 
-/* ---- Step 4: 院情報カード ---- */
-.clinic-info-card {
-  display: flex;
-  gap: 12px;
-  align-items: stretch;
-  margin: 0 0 14px;
-  padding: 10px;
+/* ---- Step 4: 予約内容の確認カード ---- */
+.confirm-card {
   border: 1px solid var(--gold);
   border-radius: 12px;
+  padding: 12px;
+  margin: 0 0 14px;
   background: linear-gradient(180deg, var(--surface) 0%, #fbf6e8 100%);
-  text-decoration: none;
-  color: var(--ink);
-  transition: box-shadow .15s, transform .12s;
 }
-.clinic-info-card:hover { box-shadow: 0 4px 14px rgba(156, 135, 83, 0.15); }
-.clinic-info-card:active { transform: scale(0.99); }
-.clinic-info-card[hidden] { display: none; }
-.clinic-info-photo {
-  width: 96px;
-  height: 96px;
+.confirm-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-bottom: 10px;
+  margin-bottom: 8px;
+  border-bottom: 1px dashed var(--line);
+}
+.confirm-photo {
+  width: 72px;
+  height: 72px;
   object-fit: cover;
   border-radius: 8px;
   flex-shrink: 0;
   background: var(--bg);
 }
-.clinic-info-text {
+.confirm-head-text {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
+  gap: 3px;
 }
-.clinic-info-name {
+.confirm-clinic-name {
   font-size: 14px;
   font-weight: 700;
   color: var(--ink);
   line-height: 1.4;
 }
-.clinic-info-address {
-  font-size: 12px;
+.confirm-clinic-address {
+  font-size: 11px;
   color: var(--ink-soft);
   line-height: 1.5;
 }
-.clinic-info-map {
-  font-size: 11px;
-  color: var(--gold-deep);
-  font-weight: 600;
-  margin-top: 2px;
-}
+.confirm-card .summary { margin: 0; }
 
 /* ---- Step 4: 本予約 ---- */
 .book-method {

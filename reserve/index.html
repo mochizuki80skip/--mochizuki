@@ -117,26 +117,25 @@
     <section class="step" data-step="4" data-state="locked" id="step-4">
       <header class="step-head">
         <span class="step-num">4</span>
-        <h2>本予約</h2>
+        <h2>予約内容の確認</h2>
       </header>
       <div class="step-body">
         <div class="step-locked-msg">前のステップを完了してください</div>
 
-        <dl class="summary">
-          <dt>院</dt><dd id="m-clinic">—</dd>
-          <dt>来院</dt><dd id="m-firsttime">—</dd>
-          <dt>コース</dt><dd id="m-course">—</dd>
-          <dt>日時</dt><dd id="m-datetime">—</dd>
-        </dl>
-
-        <a class="clinic-info-card" id="clinic-info-card" target="_blank" rel="noopener">
-          <img class="clinic-info-photo" id="clinic-info-photo" alt="" loading="lazy" onerror="this.style.display='none'">
-          <div class="clinic-info-text">
-            <div class="clinic-info-name" id="clinic-info-name"></div>
-            <div class="clinic-info-address" id="clinic-info-address"></div>
-            <div class="clinic-info-map">📍 Google マップで開く</div>
+        <div class="confirm-card">
+          <div class="confirm-head">
+            <img class="confirm-photo" id="confirm-photo" alt="" loading="lazy" onerror="this.style.display='none'">
+            <div class="confirm-head-text">
+              <div class="confirm-clinic-name" id="m-clinic">—</div>
+              <div class="confirm-clinic-address" id="m-address"></div>
+            </div>
           </div>
-        </a>
+          <dl class="summary">
+            <dt>来院</dt><dd id="m-firsttime">—</dd>
+            <dt>コース</dt><dd id="m-course">—</dd>
+            <dt>日時</dt><dd id="m-datetime">—</dd>
+          </dl>
+        </div>
 
         <label class="firsttime-name" id="firsttime-name-wrap" hidden>
           <span class="firsttime-name-label">お名前 <small>(初診の方は必須)</small></span>

@@ -859,26 +859,17 @@
     document.getElementById('m-firsttime').textContent =
       state.firstTime === null ? '—' : visitModeLabel();
 
-    // 院情報カード（写真＋住所＋Googleマップリンク）
-    const infoCard = document.getElementById('clinic-info-card');
-    const infoPhoto = document.getElementById('clinic-info-photo');
-    const infoName = document.getElementById('clinic-info-name');
-    const infoAddr = document.getElementById('clinic-info-address');
-    if (infoCard && clinic.address) {
-      infoName.textContent = clinic.name;
-      infoAddr.textContent = clinic.address;
+    const addrEl = document.getElementById('m-address');
+    if (addrEl) addrEl.textContent = clinic.address || '';
+    const photoEl = document.getElementById('confirm-photo');
+    if (photoEl) {
       if (clinic.photo) {
-        infoPhoto.src = clinic.photo;
-        infoPhoto.alt = clinic.name;
-        infoPhoto.style.display = '';
+        photoEl.src = clinic.photo;
+        photoEl.alt = clinic.name;
+        photoEl.style.display = '';
       } else {
-        infoPhoto.style.display = 'none';
+        photoEl.style.display = 'none';
       }
-      const q = encodeURIComponent(clinic.address.replace(/^〒\d{3}-\d{4}\s*/, ''));
-      infoCard.href = `https://www.google.com/maps/search/?api=1&query=${q}`;
-      infoCard.hidden = false;
-    } else if (infoCard) {
-      infoCard.hidden = true;
     }
     document.getElementById('m-course').textContent = card ? card.name : '—';
     const dtSummary = state.selectedIsos.length === 0
