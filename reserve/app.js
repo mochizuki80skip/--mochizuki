@@ -638,7 +638,12 @@
     for (let i = 0; i < 7; i++) {
       const ymd = jstYmdCompact(addDays(state.weekStart, i));
       const url = `/api/availability?clinic=${state.clinic}&start=${ymd}&end=${ymd}${baseSuffix}`;
+      // 直近日から順に表示できるよう、後の日ほど発射を少し遅らせる。
+      // (7日同時発射より体感が良く、threease の瞬間負荷も少し軽くなる)
+      const stagger = i * 80;
       dayPromises.push((async () => {
+        if (stagger > 0) await new Promise((res) => setTimeout(res, stagger));
+        if (state._availabilityFetchKey !== fetchKey) return;
         try {
           const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
           if (state._availabilityFetchKey !== fetchKey) return;
