@@ -1,0 +1,197 @@
+// LINE 公式アカウント運用プラットフォーム
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 管理画面ログインユーザー
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// LINE 友だち
+model Friend {
+  id              String   @id @default(cuid())
+  lineUserId      String   @unique
+  displayName     String?
+  pictureUrl      String?
+  statusMessage   String?
+  language        String?
+  isFollowing     Boolean  @default(true)
+  followedAt      DateTime @default(now())
+  unfollowedAt    DateTime?
+  lastMessageAt   DateTime?
+  notes           String?
+  customFields    Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tags            FriendTag[]
+  inboundMessages InboundMessage[]
+  scenarioRuns    ScenarioRun[]
+  deliveryLogs    DeliveryLog[]
+
+  @@index([isFollowing])
+  @@index([followedAt])
+}
+
+// タグ
+model Tag {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  color     String   @default("#06C755")
+  createdAt DateTime @default(now())
+
+  friends     FriendTag[]
+  broadcasts  BroadcastTag[]
+}
+
+// 友だち x タグ
+model FriendTag {
+  friendId String
+  tagId    String
+  addedAt  DateTime @default(now())
+
+  friend Friend @relation(fields: [friendId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([friendId, tagId])
+  @@index([tagId])
+}
+
+// 受信メッセージ（履歴）
+model InboundMessage {
+  id          String   @id @default(cuid())
+  friendId    String
+  lineMessageId String?
+  type        String   // text / image / sticker / etc
+  text        String?
+  raw         Json
+  receivedAt  DateTime @default(now())
+
+  friend Friend @relation(fields: [friendId], references: [id], onDelete: Cascade)
+
+  @@index([friendId, receivedAt])
+}
+
+// 一斉配信
+model Broadcast {
+  id            String   @id @default(cuid())
+  title         String
+  messages      Json     // LINE Message[] 形式
+  status        String   @default("draft") // draft / scheduled / sending / sent / failed
+  scheduledAt   DateTime?
+  sentAt        DateTime?
+  targetAllFollowers Boolean @default(true)
+  totalTargets  Int      @default(0)
+  successCount  Int      @default(0)
+  failureCount  Int      @default(0)
+  errorMessage  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tags         BroadcastTag[]
+  deliveryLogs DeliveryLog[]
+
+  @@index([status, scheduledAt])
+}
+
+// 配信先タグ（指定があれば、そのタグを持つ友だちのみ）
+model BroadcastTag {
+  broadcastId String
+  tagId       String
+
+  broadcast Broadcast @relation(fields: [broadcastId], references: [id], onDelete: Cascade)
+  tag       Tag       @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([broadcastId, tagId])
+}
+
+// ステップ配信シナリオ
+model Scenario {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  triggerType String   @default("follow") // follow / tag_added / manual
+  triggerTagId String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  steps ScenarioStep[]
+  runs  ScenarioRun[]
+}
+
+// シナリオの各ステップ
+model ScenarioStep {
+  id          String   @id @default(cuid())
+  scenarioId  String
+  order       Int
+  delayMinutes Int     @default(0) // 直前ステップ（または起動時）からの待機分数
+  messages    Json     // LINE Message[]
+  createdAt   DateTime @default(now())
+
+  scenario      Scenario       @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  scheduledRuns ScenarioRunStep[]
+
+  @@unique([scenarioId, order])
+}
+
+// シナリオ実行（友だちごと）
+model ScenarioRun {
+  id         String   @id @default(cuid())
+  scenarioId String
+  friendId   String
+  startedAt  DateTime @default(now())
+  finishedAt DateTime?
+  status     String   @default("running") // running / completed / cancelled
+
+  scenario Scenario @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  friend   Friend   @relation(fields: [friendId], references: [id], onDelete: Cascade)
+  steps    ScenarioRunStep[]
+
+  @@unique([scenarioId, friendId])
+  @@index([status])
+}
+
+// 各ステップのスケジュール状態
+model ScenarioRunStep {
+  id          String   @id @default(cuid())
+  runId       String
+  stepId      String
+  scheduledAt DateTime
+  sentAt      DateTime?
+  status      String   @default("pending") // pending / sent / failed / skipped
+  errorMessage String?
+
+  run  ScenarioRun  @relation(fields: [runId], references: [id], onDelete: Cascade)
+  step ScenarioStep @relation(fields: [stepId], references: [id], onDelete: Cascade)
+
+  @@index([status, scheduledAt])
+}
+
+// 配信ログ（送信したPushの記録）
+model DeliveryLog {
+  id          String   @id @default(cuid())
+  friendId    String?
+  broadcastId String?
+  channel     String   // push / broadcast / multicast / scenario
+  status      String   // success / failed
+  errorMessage String?
+  sentAt      DateTime @default(now())
+
+  friend    Friend?    @relation(fields: [friendId], references: [id], onDelete: SetNull)
+  broadcast Broadcast? @relation(fields: [broadcastId], references: [id], onDelete: SetNull)
+
+  @@index([sentAt])
+}
