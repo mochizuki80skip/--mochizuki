@@ -13,7 +13,7 @@ const UPSTREAM_HEADERS = {
 // actually bookable then (taking real bookings into account). This is the
 // filter the reservation UI uses; the calendar endpoint alone only checks
 // room-level availability and over-reports.
-async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool) {
+async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool, attempts = 2) {
   const params = new URLSearchParams({
     per: '100',
     page: '1',
@@ -22,24 +22,38 @@ async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool) {
   });
   if (forNewBool !== null) params.set('for_new_customers', String(forNewBool));
   const url = `${UPSTREAM_BASE}/${clinic}/courses?${params.toString()}`;
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 4000);
-  try {
-    const r = await fetch(url, { headers: UPSTREAM_HEADERS, signal: ctrl.signal });
-    if (!r.ok) return null;
-    const data = await r.json();
-    if (data && Array.isArray(data.courses)) {
-      return data.courses.map((c) => c.id).filter((x) => x != null);
+  for (let i = 0; i < attempts; i++) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 8000);
+    try {
+      const r = await fetch(url, { headers: UPSTREAM_HEADERS, signal: ctrl.signal });
+      clearTimeout(timer);
+      if (r.ok) {
+        const data = await r.json();
+        if (data && Array.isArray(data.courses)) {
+          return data.courses.map((c) => c.id).filter((x) => x != null);
+        }
+        return [];
+      }
+      // 5xx だけ短いバックオフでリトライ
+      if (r.status >= 500 && r.status < 600 && i < attempts - 1) {
+        await new Promise((s) => setTimeout(s, 250 * (i + 1)));
+        continue;
+      }
+      return null;
+    } catch {
+      clearTimeout(timer);
+      if (i < attempts - 1) {
+        await new Promise((s) => setTimeout(s, 300 * (i + 1)));
+        continue;
+      }
+      return null;
     }
-    return null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
   }
+  return null;
 }
 
-async function filterByBookableCourse(clinic, courseIdNum, slots, forNewBool, concurrency = 12) {
+async function filterByBookableCourse(clinic, courseIdNum, slots, forNewBool, concurrency = 4) {
   const results = new Array(slots.length);
   let cursor = 0;
   async function worker() {
@@ -54,7 +68,9 @@ async function filterByBookableCourse(clinic, courseIdNum, slots, forNewBool, co
   for (let i = 0; i < slots.length; i++) debug[slots[i].iso] = results[i];
   const kept = slots.filter((_, i) => {
     const ids = results[i];
-    if (ids == null) return true; // fail open on error
+    // 取得失敗時は安全側（除外）。fail-open だとリロード毎に
+    // 結果が変わって誤って ○ で表示される枠が出るため。
+    if (ids == null) return false;
     return ids.includes(courseIdNum);
   });
   return { kept, debug };
