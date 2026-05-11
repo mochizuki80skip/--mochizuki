@@ -1,0 +1,106 @@
+import type { Message } from "@line/bot-sdk";
+import { prisma } from "@/lib/prisma";
+import { broadcastAll, multicastTo } from "@/lib/line";
+
+// 配信対象を解決：tagIds 指定なし→全員、ありなら指定タグを持つ友だち
+async function resolveTargets(broadcastId: string): Promise<{
+  targetAll: boolean;
+  userIds: string[];
+}> {
+  const b = await prisma.broadcast.findUniqueOrThrow({
+    where: { id: broadcastId },
+    include: { tags: true },
+  });
+
+  if (b.targetAllFollowers && b.tags.length === 0) {
+    const total = await prisma.friend.count({ where: { isFollowing: true } });
+    return { targetAll: true, userIds: new Array(total).fill("") };
+  }
+
+  const friends = await prisma.friend.findMany({
+    where: {
+      isFollowing: true,
+      tags: { some: { tagId: { in: b.tags.map((t) => t.tagId) } } },
+    },
+    select: { lineUserId: true },
+  });
+  return { targetAll: false, userIds: friends.map((f) => f.lineUserId) };
+}
+
+export async function executeBroadcast(broadcastId: string) {
+  const b = await prisma.broadcast.findUniqueOrThrow({ where: { id: broadcastId } });
+  if (b.status !== "draft" && b.status !== "scheduled") {
+    throw new Error(`broadcast already ${b.status}`);
+  }
+
+  await prisma.broadcast.update({
+    where: { id: broadcastId },
+    data: { status: "sending" },
+  });
+
+  try {
+    const { targetAll, userIds } = await resolveTargets(broadcastId);
+    const messages = b.messages as unknown as Message[];
+
+    if (targetAll) {
+      await broadcastAll(messages);
+      await prisma.broadcast.update({
+        where: { id: broadcastId },
+        data: {
+          status: "sent",
+          sentAt: new Date(),
+          totalTargets: userIds.length,
+          successCount: userIds.length,
+        },
+      });
+      await prisma.deliveryLog.create({
+        data: { broadcastId, channel: "broadcast", status: "success" },
+      });
+      return;
+    }
+
+    const result = await multicastTo(userIds, messages);
+    const failed = result.failedChunks > 0;
+    await prisma.broadcast.update({
+      where: { id: broadcastId },
+      data: {
+        status: failed ? "failed" : "sent",
+        sentAt: new Date(),
+        totalTargets: userIds.length,
+        successCount: result.successChunks * 500,
+        failureCount: result.failedChunks * 500,
+        errorMessage: result.errors.join("\n") || null,
+      },
+    });
+    await prisma.deliveryLog.create({
+      data: {
+        broadcastId,
+        channel: "multicast",
+        status: failed ? "failed" : "success",
+        errorMessage: result.errors.join("\n") || null,
+      },
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "unknown";
+    await prisma.broadcast.update({
+      where: { id: broadcastId },
+      data: { status: "failed", errorMessage: msg },
+    });
+    throw err;
+  }
+}
+
+export async function dispatchScheduledBroadcasts(now: Date = new Date()) {
+  const due = await prisma.broadcast.findMany({
+    where: { status: "scheduled", scheduledAt: { lte: now } },
+    take: 10,
+  });
+  for (const b of due) {
+    try {
+      await executeBroadcast(b.id);
+    } catch (e) {
+      console.error("[broadcast] failed", b.id, e);
+    }
+  }
+  return due.length;
+}
