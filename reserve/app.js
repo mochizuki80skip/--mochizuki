@@ -451,55 +451,58 @@
     if (msg) { el.textContent = msg; el.hidden = false; } else { el.hidden = true; }
   }
   // ----- Grid loading + progress bar -----
-  // Real progress is hard to surface since the heavy work happens server-side;
-  // animate a smooth "fake" bar that targets ~95% over ~4s and then jumps to
-  // 100% when the response actually arrives. Better than a static "loading".
+  // 実進捗（per-day 完了）とは別に、表示は常に滑らかに前進し続ける。
+  // 実値が止まっている間も微小ドリフトで動き、実値が更新されたら
+  // 一気にそこへ追従する（ただし 95% で止まり、完了で 100% にジャンプ）。
   let _progressTimer = null;
-  let _progressStart = 0;
-  function setProgress(pct) {
+  let _progressDisplay = 0;
+  let _progressTarget = 0;
+  function paintProgress(pct) {
     pct = Math.max(0, Math.min(100, pct));
     const bar = document.getElementById('grid-progress-bar');
     const txt = document.getElementById('grid-loading-pct');
-    if (bar) bar.style.width = pct.toFixed(0) + '%';
+    if (bar) bar.style.width = pct.toFixed(1) + '%';
     if (txt) txt.textContent = pct.toFixed(0) + '%';
   }
-  function startProgress() {
-    stopProgress();
-    _progressStart = Date.now();
-    setProgress(0);
-    // Ease-out: fast at first, slow as we approach the cap (95%)
-    const TARGET_DURATION_MS = 8000;
+  function setProgress(pct) {
+    // 実進捗の更新（per-day 完了通知から呼ばれる）
+    _progressTarget = Math.max(_progressTarget, Math.max(0, Math.min(100, pct)));
+  }
+  function startProgressTicker() {
+    if (_progressTimer) return;
     _progressTimer = setInterval(() => {
-      const elapsed = Date.now() - _progressStart;
-      const t = Math.min(elapsed / TARGET_DURATION_MS, 1);
-      // 1 - (1-t)^1.6 — fast start, gentle approach to 1
-      const eased = 1 - Math.pow(1 - t, 1.6);
-      setProgress(eased * 95);
+      // 最低でも 0.4% / tick(120ms) 進む = 約 3.3% / 秒
+      let next = _progressDisplay + 0.4;
+      // ターゲットが先にあれば、その差分の 18% 分だけ追加で詰める
+      if (_progressTarget > _progressDisplay) {
+        next += (_progressTarget - _progressDisplay) * 0.18;
+      }
+      // 完了前は 95% でキャップ
+      if (_progressTarget < 100 && next > 95) next = 95;
+      _progressDisplay = Math.min(next, 100);
+      paintProgress(_progressDisplay);
     }, 120);
   }
   function stopProgress(complete) {
-    if (_progressTimer) {
-      clearInterval(_progressTimer);
-      _progressTimer = null;
+    if (_progressTimer) { clearInterval(_progressTimer); _progressTimer = null; }
+    if (complete) {
+      _progressDisplay = 100;
+      _progressTarget = 100;
+      paintProgress(100);
     }
-    if (complete) setProgress(100);
   }
   function showGridLoading(on) {
     const el = document.getElementById('grid-loading');
     el.hidden = !on;
     if (on) {
-      stopProgress();
-      setProgress(0);
-      // 「読み込み開始」の手応えを出すため、開始から少しだけ進めておく。
-      // 実際の per-day 進捗 (>=14%) が来たら自然に上書きされる。
-      setTimeout(() => {
-        const bar = document.getElementById('grid-progress-bar');
-        const cur = bar ? parseFloat(bar.style.width) || 0 : 0;
-        if (cur < 8) setProgress(8);
-      }, 80);
+      _progressDisplay = 0;
+      _progressTarget = 0;
+      paintProgress(0);
+      startProgressTicker();
     } else {
       stopProgress(true);
     }
+  }
   }
   function showGridError(msg) {
     const el = document.getElementById('grid-error');
