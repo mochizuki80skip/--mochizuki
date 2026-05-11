@@ -196,6 +196,17 @@
   // --- Promo CRUD ---
 
   async function loadPromos() {
+    // 一覧表示で対象コース名を解決するため、4 つの (clinic × for_new) を
+    // バックグラウンドで事前ロードしておく。
+    Promise.all([
+      getCourses('192', true).catch(() => []),
+      getCourses('192', false).catch(() => []),
+      getCourses('193', true).catch(() => []),
+      getCourses('193', false).catch(() => []),
+    ]).then(() => {
+      // 名前が後で解決できたらもう一度描画し直す
+      if (window.__lastPromoItems) renderPromos(window.__lastPromoItems);
+    });
     try {
       const r = await apiFetch('/api/admin/promos');
       if (!r.ok) {
@@ -209,6 +220,50 @@
     }
   }
 
+  function clinicLabel(forClinic) {
+    if (forClinic === '192') return '三島院';
+    if (forClinic === '193') return '裾野院';
+    return '両院';
+  }
+  function visitLabel(forFt) {
+    if (forFt === 'true') return '初回';
+    if (forFt === 'false') return '2回目以降';
+    return '来院問わず';
+  }
+  function findCourseNameSync(targetCourseId, forClinic, forFt) {
+    if (typeof targetCourseId !== 'number') return null;
+    const clinics = forClinic === '192' || forClinic === '193' ? [forClinic] : ['192', '193'];
+    const fts = forFt === 'true' ? [true] : forFt === 'false' ? [false] : [true, false];
+    for (const c of clinics) {
+      for (const f of fts) {
+        const cached = courseCache[`${c}:${f}`];
+        if (cached) {
+          const found = cached.find((co) => co.id === targetCourseId);
+          if (found) return found.name;
+        }
+      }
+    }
+    return null;
+  }
+  function kindLabel(kind) {
+    return kind === 'override' ? '価格上書き'
+      : kind === 'shortcut' ? '空き状況へ直行'
+      : '新メニュー';
+  }
+  function buildPromoTitle(p, kind, courseName) {
+    const segments = [];
+    segments.push(clinicLabel(p.forClinic));
+    segments.push(visitLabel(p.forFirstTime));
+    if (kind === 'addon') {
+      const nm = p.name && p.name.trim() ? p.name.trim() : '(無題のキャンペーン)';
+      return `${segments.join(' / ')} / ${nm}`;
+    }
+    if (courseName) segments.push(courseName);
+    else if (typeof p.targetCourseId === 'number') segments.push(`コースID:${p.targetCourseId}`);
+    else segments.push('対象未指定');
+    return segments.join(' / ');
+  }
+
   function renderPromos(items, errorMsg) {
     const list = $('promo-list');
     if (errorMsg) {
@@ -217,48 +272,49 @@
     }
     if (!items.length) {
       list.innerHTML = '<p class="admin-help">登録されているキャンペーンはありません。</p>';
-      renderUrls([]);
+      window.__lastPromoItems = items;
       return;
     }
+    // 更新日時の新しい順に並べる
+    items = items.slice().sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+    window.__lastPromoItems = items;
+
     let html = '';
     for (const p of items) {
-      const meta = [];
-      if (p.duration != null) meta.push(`${p.duration}分`);
-      if (p.price != null) meta.push('¥' + Number(p.price).toLocaleString('ja-JP'));
-      const forClinic = p.forClinic === '192' ? '三島のみ'
-        : p.forClinic === '193' ? '裾野のみ'
-        : '両院';
-      const forFt = p.forFirstTime === 'true' ? '初回のみ'
-        : p.forFirstTime === 'false' ? '2回目以降のみ'
-        : '初回 / 2回目以降';
-      const detectedKind = detectKind(p);
-      const kindTag = detectedKind === 'override' ? '価格上書き'
-        : detectedKind === 'shortcut' ? '空き状況へ直行'
-        : '新メニュー追加';
-      const autoTag = p.autoOpen ? '<span class="tag tag-auto">自動進行</span>' : '';
+      const kind = detectKind(p);
+      const courseName = findCourseNameSync(p.targetCourseId, p.forClinic, p.forFirstTime);
+      const title = buildPromoTitle(p, kind, courseName);
       const fullUrl = location.origin + '/?promo=' + encodeURIComponent(p.code);
-      html += `<div class="promo-item" data-code="${escapeHtml(p.code)}">
-        <div class="promo-item-main">
-          <div class="promo-item-code">?promo=<strong>${escapeHtml(p.code)}</strong></div>
-          <div class="promo-item-name">${escapeHtml(p.name || '(表示名なし=元のコース名)')}</div>
-          ${meta.length ? `<div class="promo-item-meta">${meta.join(' / ')}</div>` : ''}
-          <div class="promo-item-tags">
-            <span class="tag">${escapeHtml(kindTag)}</span>
-            <span class="tag">${escapeHtml(forClinic)}</span>
-            <span class="tag">${escapeHtml(forFt)}</span>
-            ${autoTag}
-          </div>
-          <div class="promo-item-url">
-            <input type="text" readonly value="${escapeHtml(fullUrl)}" data-url-for="${escapeHtml(p.code)}">
-            <div class="promo-item-url-actions">
-              <button type="button" class="admin-btn-mini" data-act="copy" data-code="${escapeHtml(p.code)}">コピー</button>
-              <button type="button" class="admin-btn-mini" data-act="open" data-code="${escapeHtml(p.code)}">開く</button>
-            </div>
-          </div>
+      const chips = [];
+      if (p.autoOpen) chips.push(`<span class="tag tag-auto">⚡ 自動進行</span>`);
+      if (kind === 'override' && typeof p.price === 'number') {
+        chips.push(`<span class="tag tag-price">¥${Number(p.price).toLocaleString('ja-JP')}</span>`);
+      }
+      if (kind === 'addon') {
+        if (p.duration != null) chips.push(`<span class="tag">${p.duration}分</span>`);
+        if (typeof p.price === 'number') chips.push(`<span class="tag tag-price">¥${Number(p.price).toLocaleString('ja-JP')}</span>`);
+      }
+      const descShort = p.description && p.description.trim()
+        ? `<p class="promo-item-desc">${escapeHtml(p.description.trim())}</p>`
+        : '';
+      html += `<div class="promo-item promo-item--${kind}" data-code="${escapeHtml(p.code)}">
+        <div class="promo-item-head">
+          <span class="promo-kind-badge promo-kind-${kind}">${escapeHtml(kindLabel(kind))}</span>
+          <h3 class="promo-item-title">${escapeHtml(title)}</h3>
         </div>
-        <div class="promo-item-actions">
-          <button type="button" class="admin-btn-mini" data-act="edit" data-code="${escapeHtml(p.code)}">編集</button>
-          <button type="button" class="admin-btn-mini admin-btn-danger" data-act="del" data-code="${escapeHtml(p.code)}">削除</button>
+        ${descShort}
+        ${chips.length ? `<div class="promo-item-tags">${chips.join('')}</div>` : ''}
+        <div class="promo-item-url-row">
+          <input type="text" readonly value="${escapeHtml(fullUrl)}" data-url-for="${escapeHtml(p.code)}">
+          <button type="button" class="admin-btn-mini" data-act="copy" data-code="${escapeHtml(p.code)}">コピー</button>
+          <button type="button" class="admin-btn-mini" data-act="open" data-code="${escapeHtml(p.code)}">開く</button>
+        </div>
+        <div class="promo-item-footer">
+          <span class="promo-item-code-mini">?promo=<strong>${escapeHtml(p.code)}</strong></span>
+          <div class="promo-item-actions">
+            <button type="button" class="admin-btn-mini" data-act="edit" data-code="${escapeHtml(p.code)}">編集</button>
+            <button type="button" class="admin-btn-mini admin-btn-danger" data-act="del" data-code="${escapeHtml(p.code)}">削除</button>
+          </div>
         </div>
       </div>`;
     }
