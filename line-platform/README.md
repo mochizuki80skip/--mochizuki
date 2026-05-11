@@ -132,19 +132,23 @@ prisma/schema.prisma
 
 ### ワーカーのデプロイ
 
-Vercel Functions は短命プロセスなので `npm run worker` の常駐は不可。以下から選択：
+Vercel Functions は短命プロセスなので `npm run worker` の常駐は不可。**Vercel Hobby プランは Cron が 1 日 1 回まで** なので、ステップ配信の粒度が必要な本プロジェクトでは外部 Cron サービスを使う：
 
 | 方式 | おすすめ用途 |
 |---|---|
-| **Vercel Cron**（推奨） | `/api/cron/dispatch` を 1 分間隔で叩く。設定は下記。 |
-| Railway / Fly.io / VPS | 厳密な 30 秒間隔が欲しい場合 |
-| GitHub Actions schedule | 手軽だが 5 分粒度 |
+| **cron-job.org**（推奨・無料） | 1 分粒度。`/api/cron/dispatch` を 1 分間隔で叩く。 |
+| Vercel Cron（Pro $20/月） | Pro 契約済みなら vercel.json に `{ "crons": [{ "path": "/api/cron/dispatch", "schedule": "* * * * *" }] }` |
+| Railway / Fly.io / VPS | 自前運用したい場合 `npm run worker` を常駐 |
+| GitHub Actions schedule | 5 分粒度 |
 
-**Vercel Cron を使う場合**（次フェーズで `/api/cron/dispatch` を実装予定）：
-```json
-// vercel.json
-{ "crons": [{ "path": "/api/cron/dispatch", "schedule": "* * * * *" }] }
-```
+**cron-job.org の設定手順**：
+1. [cron-job.org](https://cron-job.org) で無料アカウント作成
+2. Create cronjob：
+   - URL: `https://{your-domain}.vercel.app/api/cron/dispatch`
+   - Schedule: Every 1 minute
+   - HTTP method: GET
+   - Headers: `Authorization: Bearer {CRON_SECRET の値}`
+3. Save → 自動実行開始
 
 ### DB（PostgreSQL）の用意
 
