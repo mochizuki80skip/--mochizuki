@@ -10,7 +10,38 @@
     $('auth-view').hidden = false;
     applyKindUI();
     refreshTargetCourseOptions();
+    bindPromoFilters();
     loadPromos();
+  }
+
+  let _promoFiltersBound = false;
+  function bindPromoFilters() {
+    if (_promoFiltersBound) return;
+    _promoFiltersBound = true;
+    document.querySelectorAll('.promo-tab').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.promo-tab').forEach((b) => b.classList.toggle('is-active', b === btn));
+        promoFilter.kind = btn.dataset.kind;
+        rerenderFiltered();
+      });
+    });
+    const search = document.getElementById('promo-search');
+    if (search) {
+      search.addEventListener('input', () => {
+        promoFilter.q = search.value;
+        rerenderFiltered();
+      });
+    }
+    const clinicSel = document.getElementById('promo-clinic-filter');
+    if (clinicSel) {
+      clinicSel.addEventListener('change', () => {
+        promoFilter.clinic = clinicSel.value;
+        rerenderFiltered();
+      });
+    }
+  }
+  function rerenderFiltered() {
+    if (window.__lastPromoItems) renderPromos(window.__lastPromoItems);
   }
 
   function showLoginView() {
@@ -264,20 +295,72 @@
     return segments.join(' / ');
   }
 
+  // ----- Filter state -----
+  const promoFilter = { kind: 'all', clinic: 'all', q: '' };
+
+  function applyPromoFilter(items) {
+    const q = promoFilter.q.trim().toLowerCase();
+    return items.filter((p) => {
+      const kind = detectKind(p);
+      if (promoFilter.kind !== 'all' && promoFilter.kind !== kind) return false;
+      if (promoFilter.clinic !== 'all') {
+        if (promoFilter.clinic === 'both' && p.forClinic !== 'both') return false;
+        if (promoFilter.clinic === '192' && p.forClinic !== '192') return false;
+        if (promoFilter.clinic === '193' && p.forClinic !== '193') return false;
+      }
+      if (q) {
+        const courseName = findCourseNameSync(p.targetCourseId, p.forClinic, p.forFirstTime) || '';
+        const haystack = [
+          p.code,
+          p.name,
+          p.description,
+          courseName,
+          buildPromoTitle(p, kind, courseName),
+        ].filter(Boolean).join(' ').toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    });
+  }
+
+  function updateFilterCounts(items) {
+    const counts = { all: items.length, override: 0, shortcut: 0, addon: 0 };
+    for (const p of items) counts[detectKind(p)]++;
+    document.querySelectorAll('[data-count]').forEach((el) => {
+      el.textContent = String(counts[el.dataset.count] || 0);
+    });
+  }
+
   function renderPromos(items, errorMsg) {
     const list = $('promo-list');
+    const filterBar = document.getElementById('promo-filters');
+    const emptyMsg = document.getElementById('promo-filter-empty');
     if (errorMsg) {
       list.innerHTML = `<p class="admin-error">${escapeHtml(errorMsg)}</p>`;
+      if (filterBar) filterBar.hidden = true;
       return;
     }
     if (!items.length) {
       list.innerHTML = '<p class="admin-help">登録されているキャンペーンはありません。</p>';
+      if (filterBar) filterBar.hidden = true;
       window.__lastPromoItems = items;
       return;
     }
     // 更新日時の新しい順に並べる
     items = items.slice().sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
     window.__lastPromoItems = items;
+
+    if (filterBar) filterBar.hidden = false;
+    updateFilterCounts(items);
+    const visible = applyPromoFilter(items);
+
+    if (visible.length === 0) {
+      list.innerHTML = '';
+      if (emptyMsg) emptyMsg.hidden = false;
+      return;
+    }
+    if (emptyMsg) emptyMsg.hidden = true;
+    items = visible;
 
     let html = '';
     for (const p of items) {

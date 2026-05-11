@@ -131,6 +131,116 @@
 .admin-input-row input { flex: 1; }
 .admin-input-row .admin-btn-mini { white-space: nowrap; }
 
+/* ---- Promo filters ---- */
+.promo-filters {
+  margin-bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.promo-filter-tabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1px;
+}
+.promo-tab {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .12s, color .12s;
+  position: relative;
+}
+.promo-tab:hover { background: var(--bg); color: var(--ink); }
+.promo-tab.is-active {
+  color: var(--ink);
+  background: var(--bg);
+}
+.promo-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--gold-deep);
+}
+.promo-tab-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.promo-tab-dot--override { background: var(--gold-deep); }
+.promo-tab-dot--shortcut { background: #58a06d; }
+.promo-tab-dot--addon    { background: #7a6ab8; }
+.promo-tab-count {
+  font-size: 10px;
+  font-weight: 700;
+  background: var(--line);
+  color: var(--ink-soft);
+  padding: 1px 6px;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+.promo-tab.is-active .promo-tab-count {
+  background: var(--gold-deep);
+  color: var(--white);
+}
+
+.promo-filter-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+#promo-search {
+  flex: 1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--ink);
+  -webkit-appearance: none;
+}
+#promo-search:focus {
+  outline: none;
+  border-color: var(--gold-deep);
+}
+#promo-clinic-filter {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  background: var(--surface);
+  color: var(--ink);
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+.promo-filter-empty {
+  font-size: 12px;
+  color: var(--ink-soft);
+  text-align: center;
+  padding: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  margin: 0;
+}
+
 /* ---- Promo list ---- */
 .promo-list {
   display: flex;
