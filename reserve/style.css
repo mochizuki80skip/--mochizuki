@@ -566,6 +566,38 @@ html, body {
   cursor: pointer;
   transition: background .12s;
 }
+.slot.unknown {
+  appearance: none;
+  background: var(--surface);
+  color: var(--ink-faint);
+  cursor: pointer;
+  border-left: 1px solid var(--line);
+  font-family: inherit;
+  padding: 0;
+  transition: background .12s;
+}
+.slot.unknown:hover { background: #f4f0e6; color: var(--ink-soft); }
+.slot.unknown:active { transform: scale(0.92); }
+.slot.unknown.is-loading {
+  background: #fbf6e8;
+  pointer-events: none;
+}
+.slot.unknown.is-loading .unknown-mark {
+  animation: unknown-spin 0.9s linear infinite;
+  display: inline-block;
+}
+@keyframes unknown-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.unknown-mark {
+  font-size: 14px;
+  font-weight: 700;
+  display: inline-block;
+}
+.mark-unknown {
+  color: var(--ink-faint);
+}
 .avail-mark {
   display: inline-block;
   font-size: 18px;

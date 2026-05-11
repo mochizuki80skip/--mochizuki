@@ -9,11 +9,20 @@ const UPSTREAM_HEADERS = {
   'Accept-Language': 'ja',
 };
 
+import { getCachedCourseIds, setCachedCourseIds, recordUpstreamCall } from './_cache-stats.js';
+
 // At a given clinic + start time, threease returns the course IDs that are
 // actually bookable then (taking real bookings into account). This is the
 // filter the reservation UI uses; the calendar endpoint alone only checks
 // room-level availability and over-reports.
 async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool, attempts = 2) {
+  // KV キャッシュ命中なら即返す（threease への呼び出しを減らす）
+  const cached = await getCachedCourseIds(clinic, forNewBool, startIso);
+  if (cached !== undefined) {
+    recordUpstreamCall('courses', 'cache_hit', 0);
+    return cached;
+  }
+
   const params = new URLSearchParams({
     per: '100',
     page: '1',
@@ -25,28 +34,37 @@ async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool, attempts =
   for (let i = 0; i < attempts; i++) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
+    const startTs = Date.now();
     try {
       const r = await fetch(url, { headers: UPSTREAM_HEADERS, signal: ctrl.signal });
       clearTimeout(timer);
+      const dur = Date.now() - startTs;
       if (r.ok) {
         const data = await r.json();
-        if (data && Array.isArray(data.courses)) {
-          return data.courses.map((c) => c.id).filter((x) => x != null);
-        }
-        return [];
+        const ids = data && Array.isArray(data.courses)
+          ? data.courses.map((c) => c.id).filter((x) => x != null)
+          : [];
+        recordUpstreamCall('courses', 'ok', dur);
+        setCachedCourseIds(clinic, forNewBool, startIso, ids);
+        return ids;
       }
       // 5xx だけ短いバックオフでリトライ
       if (r.status >= 500 && r.status < 600 && i < attempts - 1) {
         await new Promise((s) => setTimeout(s, 250 * (i + 1)));
         continue;
       }
+      recordUpstreamCall('courses', 'fail', dur);
+      setCachedCourseIds(clinic, forNewBool, startIso, null);
       return null;
     } catch {
       clearTimeout(timer);
+      const dur = Date.now() - startTs;
       if (i < attempts - 1) {
         await new Promise((s) => setTimeout(s, 300 * (i + 1)));
         continue;
       }
+      recordUpstreamCall('courses', 'fail', dur);
+      setCachedCourseIds(clinic, forNewBool, startIso, null);
       return null;
     }
   }
@@ -66,14 +84,19 @@ async function filterByBookableCourse(clinic, courseIdNum, slots, forNewBool, co
   await Promise.all(Array.from({ length: Math.min(concurrency, slots.length) }, worker));
   const debug = {};
   for (let i = 0; i < slots.length; i++) debug[slots[i].iso] = results[i];
-  const kept = slots.filter((_, i) => {
+  const kept = [];
+  const unknown = [];
+  slots.forEach((s, i) => {
     const ids = results[i];
-    // 取得失敗時は安全側（除外）。fail-open だとリロード毎に
-    // 結果が変わって誤って ○ で表示される枠が出るため。
-    if (ids == null) return false;
-    return ids.includes(courseIdNum);
+    if (ids == null) {
+      // 取得失敗 → unknown として返し、クライアントで「?」表示・再取得可能に
+      unknown.push(s);
+    } else if (ids.includes(courseIdNum)) {
+      kept.push(s);
+    }
+    // ids あり & courseId 含まない → 確定で予約不可（除外）
   });
-  return { kept, debug };
+  return { kept, unknown, debug };
 }
 
 async function fetchTherapistIds(clinic, courseId, startIso) {
@@ -257,6 +280,7 @@ export default async function handler(req, res) {
     const beforeFilter = available.length;
     let courseFilterApplied = false;
     let courseFilterDebug = null;
+    let unknown = [];
     if (courseId && available.length > 0) {
       const r = await filterByBookableCourse(
         clinic,
@@ -265,6 +289,7 @@ export default async function handler(req, res) {
         forNewBool,
       );
       available = r.kept;
+      unknown = r.unknown || [];
       courseFilterApplied = true;
       courseFilterDebug = r.debug;
     }
@@ -277,11 +302,10 @@ export default async function handler(req, res) {
       duration: duration,
       forNew: forNewBool,
       available,
+      unknown, // 取得失敗で確認できなかった枠（クライアントで「?」表示）
       _via: usedUrl ? new URL(usedUrl).pathname + (new URL(usedUrl).search || '') : null,
       _courseFilterApplied: courseFilterApplied,
       _beforeFilter: beforeFilter,
-      // Used by the client to build a stable time axis even when some rows
-      // become entirely unbookable for the selected course.
       axisAvailable: roomAvailable,
     };
     if (debug) {

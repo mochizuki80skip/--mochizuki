@@ -709,6 +709,49 @@
     return `${hh}:${mm}`;
   }
 
+  async function recheckSingleSlot(iso, btnEl) {
+    if (typeof state.courseId !== 'number') return;
+    if (btnEl) btnEl.classList.add('is-loading');
+    try {
+      const params = new URLSearchParams({
+        clinic: state.clinic,
+        iso,
+        course_id: String(state.courseId),
+      });
+      if (state.firstTime !== null) {
+        params.set('for_new', state.firstTime ? 'true' : 'false');
+      }
+      const card = getSelectedCardObject();
+      if (card && typeof card._forNew === 'boolean') {
+        params.set('for_new', card._forNew ? 'true' : 'false');
+      }
+      const r = await fetch(`/api/recheck?${params.toString()}`, { headers: { 'Accept': 'application/json' } });
+      const data = await r.json().catch(() => ({}));
+      const date = iso.slice(0, 10);
+      // unknown 配列から該当 iso を除く
+      if (state.availability && Array.isArray(state.availability.unknown)) {
+        state.availability.unknown = state.availability.unknown.filter((s) => s.iso !== iso);
+      }
+      if (data.status === 'ok' && data.bookable === true) {
+        // 予約可だった → available に追加
+        if (state.availability && Array.isArray(state.availability.available)) {
+          state.availability.available.push({ date, iso });
+        }
+      } else if (data.status === 'failed') {
+        // 再度失敗 → unknown に戻す（次のタップで再試行可能）
+        if (state.availability) {
+          state.availability.unknown.push({ date, iso });
+        }
+      }
+      // status === 'ok' && bookable === false の場合は確定で除外（何もせず）
+      renderGrid();
+    } catch {
+      // ネットワーク失敗時は unknown のまま残す
+    } finally {
+      if (btnEl) btnEl.classList.remove('is-loading');
+    }
+  }
+
   function getSlotsForSelection() {
     if (!state.availability || !state.courseId) return [];
     // サーバ側 (/api/availability) で threease の /courses?start_time=Y を
@@ -742,6 +785,15 @@
       const t = fmtTimeFromIso(s.iso);
       if (!byDate.has(s.date)) byDate.set(s.date, new Map());
       byDate.get(s.date).set(t, s.iso);
+    }
+    // 取得失敗で確認できなかった枠（クライアントで「?」表示）
+    const unknownAll = (state.availability && Array.isArray(state.availability.unknown))
+      ? state.availability.unknown : [];
+    const unknownByDate = new Map();
+    for (const s of unknownAll) {
+      const t = fmtTimeFromIso(s.iso);
+      if (!unknownByDate.has(s.date)) unknownByDate.set(s.date, new Map());
+      unknownByDate.get(s.date).set(t, s.iso);
     }
 
     const allDays = [];
@@ -829,8 +881,15 @@
               : '<span class="avail-mark">〇</span>';
             html += `<button class="${cls.join(' ')}" data-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 予約可">${badge}</button>`;
           } else {
-            cls.push('none');
-            html += `<div class="${cls.join(' ')}" aria-label="満員">―</div>`;
+            const um = unknownByDate.get(d.ymd);
+            const unknownIso = um ? um.get(t) : null;
+            if (unknownIso) {
+              cls.push('unknown');
+              html += `<button class="${cls.join(' ')}" data-recheck-iso="${unknownIso}" aria-label="${d.monthDay} ${d.weekday} ${t} 確認中（タップで再取得）"><span class="unknown-mark">?</span></button>`;
+            } else {
+              cls.push('none');
+              html += `<div class="${cls.join(' ')}" aria-label="満員">―</div>`;
+            }
           }
         }
         html += '</div>';
@@ -1070,6 +1129,13 @@ ${dtLines}${promoLine}${nameLine}
       }
       recomputeStepStates();
       activateStep(3);
+      return;
+    }
+
+    // Step 3: unknown slot — re-query single slot
+    const unknownBtn = e.target.closest('.slot.unknown');
+    if (unknownBtn && unknownBtn.dataset.recheckIso) {
+      recheckSingleSlot(unknownBtn.dataset.recheckIso, unknownBtn);
       return;
     }
 

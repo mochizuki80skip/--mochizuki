@@ -12,6 +12,57 @@
     refreshTargetCourseOptions();
     bindPromoFilters();
     loadPromos();
+    loadStats();
+  }
+
+  async function loadStats() {
+    const panel = document.getElementById('stats-panel');
+    if (!panel) return;
+    try {
+      const r = await apiFetch('/api/admin/stats?days=3');
+      if (!r.ok) {
+        panel.innerHTML = '<p class="admin-help">統計情報を取得できませんでした。</p>';
+        return;
+      }
+      const data = await r.json();
+      const stats = data.stats || {};
+      const days = Object.keys(stats).sort().reverse();
+      if (days.length === 0) {
+        panel.innerHTML = '<p class="admin-help">まだ計測データがありません。</p>';
+        return;
+      }
+      let html = '';
+      for (const day of days) {
+        const kinds = stats[day] || {};
+        const c = kinds.courses || { total: 0, ok: 0, fail: 0, avgMs: null, successRate: null };
+        if (c.total === 0) continue;
+        const rateColor = c.successRate >= 99 ? 'good' : c.successRate >= 95 ? 'warn' : 'bad';
+        html += `<div class="stats-day">
+          <div class="stats-day-head">${escapeHtml(day)}</div>
+          <div class="stats-day-body">
+            <div class="stats-item">
+              <div class="stats-label">問い合わせ数</div>
+              <div class="stats-value">${c.total.toLocaleString()}</div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">成功率</div>
+              <div class="stats-value stats-${rateColor}">${c.successRate != null ? c.successRate + '%' : '-'}</div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">失敗</div>
+              <div class="stats-value">${c.fail.toLocaleString()}</div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">平均応答</div>
+              <div class="stats-value">${c.avgMs != null ? c.avgMs + 'ms' : '-'}</div>
+            </div>
+          </div>
+        </div>`;
+      }
+      panel.innerHTML = html || '<p class="admin-help">まだ計測データがありません。</p>';
+    } catch (e) {
+      panel.innerHTML = '<p class="admin-help">統計情報を取得できませんでした。</p>';
+    }
   }
 
   let _promoFiltersBound = false;
