@@ -2,10 +2,10 @@ import type { Message } from "@line/bot-sdk";
 import { prisma } from "@/lib/prisma";
 import { pushTo } from "@/lib/line";
 
-// 友だち追加トリガーのシナリオを起動する
-export async function startScenariosForFollow(friendId: string) {
+// 友だち追加トリガーのシナリオを起動する（チャネル単位）
+export async function startScenariosForFollow(channelId: string, friendId: string) {
   const scenarios = await prisma.scenario.findMany({
-    where: { triggerType: "follow", isActive: true },
+    where: { lineChannelId: channelId, triggerType: "follow", isActive: true },
     include: { steps: { orderBy: { order: "asc" } } },
   });
   for (const sc of scenarios) {
@@ -13,10 +13,15 @@ export async function startScenariosForFollow(friendId: string) {
   }
 }
 
-// タグ付与トリガーのシナリオを起動する
-export async function startScenariosForTag(friendId: string, tagId: string) {
+// タグ付与トリガー
+export async function startScenariosForTag(channelId: string, friendId: string, tagId: string) {
   const scenarios = await prisma.scenario.findMany({
-    where: { triggerType: "tag_added", triggerTagId: tagId, isActive: true },
+    where: {
+      lineChannelId: channelId,
+      triggerType: "tag_added",
+      triggerTagId: tagId,
+      isActive: true,
+    },
     include: { steps: { orderBy: { order: "asc" } } },
   });
   for (const sc of scenarios) {
@@ -31,7 +36,6 @@ export async function startScenarioForFriend(scenarioId: string, friendId: strin
   });
   if (!scenario || !scenario.isActive || scenario.steps.length === 0) return;
 
-  // 既存の run があれば二重起動しない
   const existing = await prisma.scenarioRun.findUnique({
     where: { scenarioId_friendId: { scenarioId, friendId } },
   });
@@ -41,7 +45,6 @@ export async function startScenarioForFriend(scenarioId: string, friendId: strin
     data: { scenarioId, friendId, status: "running" },
   });
 
-  // 各ステップを delayMinutes の累積で予約
   let cursor = new Date();
   const runSteps = scenario.steps.map((step) => {
     cursor = new Date(cursor.getTime() + step.delayMinutes * 60_000);
@@ -56,6 +59,7 @@ export async function startScenarioForFriend(scenarioId: string, friendId: strin
 }
 
 // ワーカーが呼ぶ：到来した予約ステップを送信する
+// 全チャネル横断で動く（各 step → friend → channel を辿ってチャネル特定）
 export async function dispatchDueScenarioSteps(now: Date = new Date()) {
   const due = await prisma.scenarioRunStep.findMany({
     where: { status: "pending", scheduledAt: { lte: now } },
@@ -68,7 +72,8 @@ export async function dispatchDueScenarioSteps(now: Date = new Date()) {
   });
 
   for (const rs of due) {
-    if (!rs.run.friend.isFollowing) {
+    const friend = rs.run.friend;
+    if (!friend.isFollowing) {
       await prisma.scenarioRunStep.update({
         where: { id: rs.id },
         data: { status: "skipped", errorMessage: "friend not following" },
@@ -77,14 +82,15 @@ export async function dispatchDueScenarioSteps(now: Date = new Date()) {
     }
     try {
       const messages = rs.step.messages as unknown as Message[];
-      await pushTo(rs.run.friend.lineUserId, messages);
+      await pushTo(friend.lineChannelId, friend.lineUserId, messages);
       await prisma.scenarioRunStep.update({
         where: { id: rs.id },
         data: { status: "sent", sentAt: new Date() },
       });
       await prisma.deliveryLog.create({
         data: {
-          friendId: rs.run.friend.id,
+          lineChannelId: friend.lineChannelId,
+          friendId: friend.id,
           channel: "scenario",
           status: "success",
         },
@@ -97,7 +103,8 @@ export async function dispatchDueScenarioSteps(now: Date = new Date()) {
       });
       await prisma.deliveryLog.create({
         data: {
-          friendId: rs.run.friend.id,
+          lineChannelId: friend.lineChannelId,
+          friendId: friend.id,
           channel: "scenario",
           status: "failed",
           errorMessage: msg,
@@ -106,7 +113,6 @@ export async function dispatchDueScenarioSteps(now: Date = new Date()) {
     }
   }
 
-  // 全ステップが終端状態になった run を完了に
   await prisma.$executeRaw`
     UPDATE "ScenarioRun" r
     SET "status" = 'completed', "finishedAt" = NOW()

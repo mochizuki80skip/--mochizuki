@@ -9,13 +9,22 @@ async function main() {
   const password = process.env.ADMIN_PASSWORD ?? "changeme";
   const passwordHash = await bcrypt.hash(password, 10);
 
-  await prisma.adminUser.upsert({
+  // super_admin で upsert
+  const user = await prisma.adminUser.upsert({
     where: { email },
-    create: { email, passwordHash, name: "Admin" },
-    update: { passwordHash },
+    create: {
+      email,
+      passwordHash,
+      name: "Admin",
+      role: "super_admin",
+    },
+    update: {
+      passwordHash,
+      role: "super_admin",
+    },
   });
 
-  console.log(`[seed] admin user: ${email}`);
+  console.log(`[seed] super_admin user: ${user.email}`);
 }
 
 main()

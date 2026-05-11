@@ -8,7 +8,6 @@
     "postinstall": "prisma generate",
     "start": "next start -p 3001",
     "lint": "next lint",
-    "worker": "tsx src/worker/index.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
