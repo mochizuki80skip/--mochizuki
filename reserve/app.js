@@ -11,12 +11,16 @@
       short: '長泉三島院',
       lineUrl: 'https://lin.ee/s6l4Yso',
       lineBasicId: '@714hycwt',
+      address: '〒411-0943 静岡県駿東郡長泉町下土狩382-12',
+      photo: 'img/clinic-mishima.jpg',
     },
     '193': {
       name: 'リカバリー鍼灸院 裾野長泉院',
       short: '裾野長泉院',
       lineUrl: 'https://lin.ee/7RkbmAz',
       lineBasicId: '@579erouy',
+      address: '〒410-1123 静岡県裾野市伊豆島田825-7',
+      photo: 'img/clinic-susono.jpg',
     },
   };
 
@@ -484,10 +488,15 @@
     const el = document.getElementById('grid-loading');
     el.hidden = !on;
     if (on) {
-      // Real progress is driven by per-day fetch completion via setProgress().
-      // We just initialise to 0 here.
       stopProgress();
       setProgress(0);
+      // 「読み込み開始」の手応えを出すため、開始から少しだけ進めておく。
+      // 実際の per-day 進捗 (>=14%) が来たら自然に上書きされる。
+      setTimeout(() => {
+        const bar = document.getElementById('grid-progress-bar');
+        const cur = bar ? parseFloat(bar.style.width) || 0 : 0;
+        if (cur < 8) setProgress(8);
+      }, 80);
     } else {
       stopProgress(true);
     }
@@ -849,6 +858,28 @@
     document.getElementById('m-clinic').textContent = clinic.name;
     document.getElementById('m-firsttime').textContent =
       state.firstTime === null ? '—' : visitModeLabel();
+
+    // 院情報カード（写真＋住所＋Googleマップリンク）
+    const infoCard = document.getElementById('clinic-info-card');
+    const infoPhoto = document.getElementById('clinic-info-photo');
+    const infoName = document.getElementById('clinic-info-name');
+    const infoAddr = document.getElementById('clinic-info-address');
+    if (infoCard && clinic.address) {
+      infoName.textContent = clinic.name;
+      infoAddr.textContent = clinic.address;
+      if (clinic.photo) {
+        infoPhoto.src = clinic.photo;
+        infoPhoto.alt = clinic.name;
+        infoPhoto.style.display = '';
+      } else {
+        infoPhoto.style.display = 'none';
+      }
+      const q = encodeURIComponent(clinic.address.replace(/^〒\d{3}-\d{4}\s*/, ''));
+      infoCard.href = `https://www.google.com/maps/search/?api=1&query=${q}`;
+      infoCard.hidden = false;
+    } else if (infoCard) {
+      infoCard.hidden = true;
+    }
     document.getElementById('m-course').textContent = card ? card.name : '—';
     const dtSummary = state.selectedIsos.length === 0
       ? '—'
