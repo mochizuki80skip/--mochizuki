@@ -25,6 +25,7 @@ function Welcome() {
   const [busy, setBusy] = useState(false);
 
   const [autoCompleting, setAutoCompleting] = useState(false);
+  const [lineError, setLineError] = useState<string | null>(null);
 
   // LIFF 自動完了処理：戻ってきたときにログイン済みなら自動でAPI叩く
   useEffect(() => {
@@ -32,11 +33,14 @@ function Welcome() {
       try {
         const liff = await getLiff();
         if (!liff) return;
-        // 戻ってきた直後は isLoggedIn が一瞬遅れる場合があるため、init は getLiff 内で await 済み
         if (!liff.isLoggedIn()) return;
         setAutoCompleting(true);
         const token = await liffIdToken();
-        if (!token) { setAutoCompleting(false); return; }
+        if (!token) {
+          setLineError('IDトークンが取得できません。LIFFのScopeに "openid" が含まれているか確認してください。');
+          setAutoCompleting(false);
+          return;
+        }
         const res = await fetch('/api/auth/line', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -49,14 +53,23 @@ function Welcome() {
           if (!p || !p.sex) router.replace('/onboarding');
           else router.replace('/');
         } else {
+          const data = await res.json().catch(() => ({}));
+          setLineError(`サーバー認証失敗 (${res.status}): ${data.error || data.detail || '原因不明'}`);
           setAutoCompleting(false);
+          // LIFFのセッションをクリア（次回の試行のため）
+          try { liff.logout(); } catch {}
         }
-      } catch (e) {
-        console.error('LIFF auto-login error:', e);
+      } catch (e: any) {
+        setLineError('予期しないエラー: ' + (e?.message || String(e)));
         setAutoCompleting(false);
       }
     })();
   }, [router]);
+
+  // PWA standalone mode 検出
+  const isPWA = typeof window !== 'undefined' &&
+    (window.matchMedia('(display-mode: standalone)').matches ||
+     (window.navigator as any).standalone === true);
 
   const startAsGuest = async () => {
     document.cookie = 'om_intro=1; path=/';
@@ -237,6 +250,23 @@ function Welcome() {
             <span className="text-[10px] text-ink-mute">または</span>
             <div className="flex-1 h-px bg-ink-line" />
           </div>
+
+          {/* LINEエラー表示 */}
+          {lineError && (
+            <div className="mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
+              <div className="font-bold mb-1">⚠ LINEログイン失敗</div>
+              <div>{lineError}</div>
+            </div>
+          )}
+
+          {/* PWAモード警告 */}
+          {isPWA && (
+            <div className="mb-3 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              <div className="font-bold mb-1">💡 PWAアプリでご利用中</div>
+              <div>iOS のホーム画面アプリではLINEログインが正しく完了しないことがあります。<br />
+              <strong>メアド + パスワードでのログイン</strong>を推奨します。</div>
+            </div>
+          )}
 
           {/* LINE / ゲスト */}
           <div className="space-y-2">
