@@ -25,7 +25,7 @@ function Welcome() {
   const [busy, setBusy] = useState(false);
 
   const [autoCompleting, setAutoCompleting] = useState(false);
-  const [lineError, setLineError] = useState<string | null>(null);
+  const [lineError, setLineError] = useState<{ message: string; detail?: string; reason?: string; status?: number; channelIdHint?: string } | null>(null);
 
   // LIFF 自動完了処理：戻ってきたときにログイン済みなら自動でAPI叩く
   useEffect(() => {
@@ -37,10 +37,14 @@ function Welcome() {
         setAutoCompleting(true);
         const token = await liffIdToken();
         if (!token) {
-          setLineError('IDトークンが取得できません。LIFFのScopeに "openid" が含まれているか確認してください。');
+          setLineError({ message: 'IDトークンが取得できません。LIFFのScopeに "openid" が含まれているか確認してください。' });
           setAutoCompleting(false);
           return;
         }
+        // クライアント側で LIFF Channel ID prefix も控える（デバッグ補助）
+        const liffId = process.env.NEXT_PUBLIC_LIFF_ID || '';
+        const cidHint = liffId.split('-')[0] || '(未設定)';
+
         const res = await fetch('/api/auth/line', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -54,13 +58,18 @@ function Welcome() {
           else router.replace('/');
         } else {
           const data = await res.json().catch(() => ({}));
-          setLineError(`サーバー認証失敗 (${res.status}): ${data.error || data.detail || '原因不明'}`);
+          setLineError({
+            message: data.error || 'サーバー認証失敗',
+            detail: data.detail,
+            reason: data.reason,
+            status: res.status,
+            channelIdHint: cidHint
+          });
           setAutoCompleting(false);
-          // LIFFのセッションをクリア（次回の試行のため）
           try { liff.logout(); } catch {}
         }
       } catch (e: any) {
-        setLineError('予期しないエラー: ' + (e?.message || String(e)));
+        setLineError({ message: '予期しないエラー: ' + (e?.message || String(e)) });
         setAutoCompleting(false);
       }
     })();
@@ -254,8 +263,25 @@ function Welcome() {
           {/* LINEエラー表示 */}
           {lineError && (
             <div className="mb-3 p-3 bg-rose-50 border border-rose-200 rounded-lg text-xs text-rose-700">
-              <div className="font-bold mb-1">⚠ LINEログイン失敗</div>
-              <div>{lineError}</div>
+              <div className="font-bold mb-2">⚠ LINEログイン失敗</div>
+              <div className="space-y-1">
+                <div><span className="font-bold">エラー:</span> {lineError.message}</div>
+                {lineError.status && <div><span className="font-bold">HTTPステータス:</span> {lineError.status}</div>}
+                {lineError.reason && <div><span className="font-bold">原因コード:</span> {lineError.reason}</div>}
+                {lineError.detail && (
+                  <div className="break-all whitespace-pre-wrap">
+                    <span className="font-bold">詳細:</span> {lineError.detail}
+                  </div>
+                )}
+                {lineError.channelIdHint && (
+                  <div className="mt-2 pt-2 border-t border-rose-200 text-rose-600">
+                    <div>JS側 Channel ID（LIFF ID 前半）: <code className="bg-rose-100 px-1 rounded">{lineError.channelIdHint}</code></div>
+                    <div className="mt-1 text-rose-500">
+                      ↑ この値が Vercel の <code>LINE_LOGIN_CHANNEL_ID</code> と一致してるか確認してください。
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
