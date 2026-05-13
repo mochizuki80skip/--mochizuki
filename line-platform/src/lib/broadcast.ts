@@ -2,29 +2,40 @@ import type { Message } from "@line/bot-sdk";
 import { prisma } from "@/lib/prisma";
 import { broadcastAll, multicastTo } from "@/lib/line";
 
-// 配信対象を解決：tagIds 指定なし→全員、ありなら指定タグを持つ友だち
 async function resolveTargets(broadcastId: string): Promise<{
+  channelId: string;
   targetAll: boolean;
   userIds: string[];
+  totalIfAll: number;
 }> {
   const b = await prisma.broadcast.findUniqueOrThrow({
     where: { id: broadcastId },
     include: { tags: true },
   });
 
+  const channelId = b.lineChannelId;
+
   if (b.targetAllFollowers && b.tags.length === 0) {
-    const total = await prisma.friend.count({ where: { isFollowing: true } });
-    return { targetAll: true, userIds: new Array(total).fill("") };
+    const total = await prisma.friend.count({
+      where: { lineChannelId: channelId, isFollowing: true },
+    });
+    return { channelId, targetAll: true, userIds: [], totalIfAll: total };
   }
 
   const friends = await prisma.friend.findMany({
     where: {
+      lineChannelId: channelId,
       isFollowing: true,
       tags: { some: { tagId: { in: b.tags.map((t) => t.tagId) } } },
     },
     select: { lineUserId: true },
   });
-  return { targetAll: false, userIds: friends.map((f) => f.lineUserId) };
+  return {
+    channelId,
+    targetAll: false,
+    userIds: friends.map((f) => f.lineUserId),
+    totalIfAll: 0,
+  };
 }
 
 export async function executeBroadcast(broadcastId: string) {
@@ -39,27 +50,32 @@ export async function executeBroadcast(broadcastId: string) {
   });
 
   try {
-    const { targetAll, userIds } = await resolveTargets(broadcastId);
+    const { channelId, targetAll, userIds, totalIfAll } = await resolveTargets(broadcastId);
     const messages = b.messages as unknown as Message[];
 
     if (targetAll) {
-      await broadcastAll(messages);
+      await broadcastAll(channelId, messages);
       await prisma.broadcast.update({
         where: { id: broadcastId },
         data: {
           status: "sent",
           sentAt: new Date(),
-          totalTargets: userIds.length,
-          successCount: userIds.length,
+          totalTargets: totalIfAll,
+          successCount: totalIfAll,
         },
       });
       await prisma.deliveryLog.create({
-        data: { broadcastId, channel: "broadcast", status: "success" },
+        data: {
+          lineChannelId: channelId,
+          broadcastId,
+          channel: "broadcast",
+          status: "success",
+        },
       });
       return;
     }
 
-    const result = await multicastTo(userIds, messages);
+    const result = await multicastTo(channelId, userIds, messages);
     const failed = result.failedChunks > 0;
     await prisma.broadcast.update({
       where: { id: broadcastId },
@@ -74,6 +90,7 @@ export async function executeBroadcast(broadcastId: string) {
     });
     await prisma.deliveryLog.create({
       data: {
+        lineChannelId: channelId,
         broadcastId,
         channel: "multicast",
         status: failed ? "failed" : "success",
