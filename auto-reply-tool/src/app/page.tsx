@@ -21,13 +21,16 @@ export default function Home() {
             登録済みのお客様を見る / 新しく追加する
           </div>
         </Link>
-        <div className="block bg-white rounded-lg p-5 shadow-sm border border-brand-100 opacity-60">
+        <Link
+          href="/customers"
+          className="block bg-white rounded-lg p-5 shadow-sm border border-brand-100 hover:border-brand-500 transition"
+        >
           <div className="text-sm text-gray-500">2.</div>
-          <div className="font-semibold text-brand-700">返信を作る (Week 2)</div>
+          <div className="font-semibold text-brand-700">返信を作る</div>
           <div className="text-sm text-gray-600 mt-1">
-            お約束の達成状況を入力して返信案を生成
+            お客様を選んで「返信を作る」ボタンから生成
           </div>
-        </div>
+        </Link>
       </section>
     </div>
   );

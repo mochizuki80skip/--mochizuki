@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CustomerEditor } from "./customer-editor";
 import { PromiseManager, type PromiseRow } from "./promise-manager";
+import { HistoryList } from "./history-list";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,18 @@ export default async function CustomerDetailPage({
 
   return (
     <div className="space-y-6">
-      <div>
+      <div className="flex items-center justify-between gap-2">
         <Link
           href="/customers"
           className="text-sm text-brand-600 hover:underline"
         >
           ← お客様一覧
+        </Link>
+        <Link
+          href={`/customers/${customer.id}/reply`}
+          className="bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold px-4 py-2 rounded shadow-sm"
+        >
+          🪄 返信を作る
         </Link>
       </div>
 
@@ -44,12 +51,7 @@ export default async function CustomerDetailPage({
         initial={(promisesData ?? []) as PromiseRow[]}
       />
 
-      <div className="bg-white rounded-lg p-5 border border-brand-100 opacity-60">
-        <h2 className="font-semibold mb-1">過去のやり取り (Week 2 で実装)</h2>
-        <p className="text-sm text-gray-600">
-          ここに採用された返信履歴が新しい順に並びます。
-        </p>
-      </div>
+      <HistoryList customerId={customer.id} />
     </div>
   );
 }
