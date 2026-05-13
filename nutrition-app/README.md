@@ -1,81 +1,147 @@
-# ONE'S MEAL
+# ONE'S MEAL v2
 
-ONE'S BODY パーソナルジム会員向けの食事・体組成管理 PWA。
-あすけんを参考に、ジムのトレーナーが関与できる設計に絞り込んだ最小実用版。
+ONE'S BODY パーソナルジム × kaloko 風UI の食事・体組成管理プラットフォーム。
+ユーザー向けPWA + LINE LIFFミニアプリ + トレーナー向け管理サイト統合。
 
 ## 機能
 
-- **オンボーディング**: 性別/年齢/身長/体重/活動量/目標から BMR（Mifflin-St Jeor）/TDEE/PFC 目標を自動算出
-- **食事記録**: 約180品目の日本食品DBから検索、量を調整して朝/昼/夕/間食に登録
-- **写真AI解析**: スマホで料理を撮影 → Claude Vision が食品名と栄養価を推定
-- **手入力**: 自家製料理や外食を自由入力
-- **体重記録**: 折れ線グラフで7日/30日/90日の推移、目標体重との差表示
-- **AIアドバイス**: Claude が今日の食事内容を分析し具体的アドバイス（不足栄養素、明日の提案、週次レポート）
-- **会員モード**: 会員コードまたは LINE ログイン（LIFF）で認証。一般ゲストモードと切り分け
-- **PWA**: オフラインキャッシュ、ホーム画面追加、iOS Safe Area 対応
-- **データエクスポート/インポート**: JSON 形式でバックアップ可能
+### ユーザー向け（PWA / LIFF）
+- **ハイブリッド保存**: ゲストはローカル（IndexedDB）、LINEログインでサーバーDBへ
+- **オンボーディング**: 性別/年齢/身長/体重/活動量/目標 → BMR/TDEE/PFC自動計算
+- **食事記録**: 約180品目DB検索、写真AI解析（Claude Vision）、手入力、履歴ワンタップ追加
+- **体重管理**: 7/30/90日グラフ、目標体重ライン、BMI、体脂肪率対応
+- **AIアドバイス**: 今日 / 週次レポート（Claude Sonnet 4.6）
+- **会員モード**: 会員コード入力で特別管理対象に
+- **PWA**: オフライン、ホーム画面追加
+
+### 管理サイト `/admin`
+- **トレーナー認証**: LINEログイン + 環境変数許可リスト
+- **ダッシュボード**: 会員数、一般ユーザー数、見込み客数、本日アクティブ
+- **会員一覧**: 最終記録日、要フォロー判定、目標進捗
+- **会員詳細**: 食事ログ閲覧、PFCリング、体重グラフ、30日カロリー推移、トレーナーコメント投稿
+- **一般ユーザー一覧**: オンボード完了ユーザーの管理
+- **見込み客リスト**: LINE連携したが未オンボードの「営業対象」
+- **招待コード管理**: 発行・コピー・削除
+- **トレーナー管理（owner専用）**: 許可リスト確認
+
+## 技術スタック
+
+- **Next.js 15** (App Router, Server Components)
+- **TypeScript / React 19**
+- **Tailwind CSS** (kaloko風オレンジ #FF5F3D アクセント、ライトテーマ)
+- **Prisma + PostgreSQL** (Vercel Postgres / Supabase 等を想定)
+- **LINE LIFF** (`@line/liff`)
+- **LINE ID Token verification** (`api.line.me/oauth2/v2.1/verify`)
+- **Anthropic Claude API** (Sonnet 4.6 + Vision)
 
 ## ディレクトリ構成
 
 ```
 nutrition-app/
-  index.html           # SPA エントリ
-  app.js               # メインロジック
-  style.css            # デザインシステム
-  manifest.json, sw.js, icon.svg
-  js/
-    db.js              # IndexedDB ラッパー
-    foods.js           # 日本食品DB
-    nutrition.js       # BMR/TDEE/PFC 計算
-    charts.js          # Canvas チャート
-    ai.js              # Claude API クライアント（フォールバック付き）
-    liff.js            # LINE LIFF 連携
-    auth.js            # 会員 / ゲスト管理
-  api/
-    advice.js          # Claude API（栄養アドバイス）
-    analyze-photo.js   # Claude Vision（食事写真解析）
-  vercel.json
+├── prisma/schema.prisma
+├── public/
+│   ├── manifest.json, icon.svg
+├── src/
+│   ├── app/
+│   │   ├── layout.tsx, globals.css
+│   │   ├── page.tsx, home-view.tsx           # ホーム
+│   │   ├── onboarding/page.tsx               # オンボード
+│   │   ├── log/page.tsx                      # 食事記録
+│   │   ├── weight/page.tsx                   # 体重
+│   │   ├── advice/page.tsx                   # AIアドバイス
+│   │   ├── settings/page.tsx                 # 設定
+│   │   ├── admin/
+│   │   │   ├── layout.tsx, admin-shell.tsx
+│   │   │   ├── login/page.tsx
+│   │   │   ├── page.tsx                      # ダッシュボード
+│   │   │   ├── members/page.tsx
+│   │   │   ├── members/[id]/page.tsx, detail-view.tsx
+│   │   │   ├── users/page.tsx
+│   │   │   ├── leads/page.tsx
+│   │   │   ├── codes/page.tsx, codes-view.tsx
+│   │   │   └── trainers/page.tsx
+│   │   └── api/
+│   │       ├── auth/line/route.ts            # ユーザーログイン
+│   │       ├── profile, meals, weights/      # ユーザーデータ
+│   │       ├── advice, photo, sync/          # AI / ローカル同期
+│   │       └── admin/
+│   │           ├── auth/route.ts             # トレーナーログイン
+│   │           ├── comments/, codes/         # 管理操作
+│   ├── components/
+│   │   ├── layout/AppShell, BottomNav
+│   │   └── ui/Toast, Modal, ProgressBar, LineChart
+│   └── lib/
+│       ├── prisma, auth, line-auth, liff
+│       ├── nutrition, foods                  # 計算 + 食品DB
+│       ├── ai (Claude)
+│       ├── storage (ハイブリッド), utils
+└── package.json, next.config.mjs, tailwind.config.ts, tsconfig.json
 ```
 
-## デプロイ
+## デプロイ手順
 
-### Vercel
+### 1. データベース準備
 
-1. このリポジトリを Vercel に接続し、`nutrition-app/` をルートに指定
-2. 環境変数を設定:
-   - `ANTHROPIC_API_KEY` — Claude API キー
-3. デプロイ → `/index.html` でアクセス可能
+Vercel Postgres / Supabase / Neon などで PostgreSQL DB を作成し、接続文字列を取得。
 
-### ローカル動作確認
+### 2. LINE Developers セットアップ
 
-PWA 部分のみであれば任意の静的サーバーで動作（AI機能はフォールバックの簡易アドバイスのみ）:
+1. **LINE Login チャネル**を作成（または既存）
+2. **LIFF アプリ**を1つ作成し、エンドポイント URL に Vercel の本番 URL を設定
+3. **LIFF ID** と **チャネル ID** を控える
+4. 必要なスコープ: `profile`, `openid` (＋ email を取得したい場合 `email`)
 
-```sh
-cd nutrition-app
-python3 -m http.server 8080
+### 3. 自分（オーナー）の LINE userId を取得
+
+LIFFをデプロイしたあと管理サイトに一度アクセスし、ログイン画面でログイン → エラー画面で開発者ツールから `console.log` または LIFF SDK の `liff.getProfile().then(p => console.log(p.userId))` で取得。
+
+### 4. Vercel 環境変数
+
+```bash
+DATABASE_URL=postgresql://...                         # Postgres 接続文字列
+ANTHROPIC_API_KEY=sk-ant-...                          # Claude API キー
+LINE_LOGIN_CHANNEL_ID=1234567890                      # LINE Login チャネル ID（IDトークン検証用）
+NEXT_PUBLIC_LIFF_ID=1234567890-abcdefgh               # LIFF ID（クライアント側）
+OWNER_LINE_USER_IDS=Uxxxxxxxxxxxxxxxxxxx              # オーナー（カンマ区切り、複数可）
+TRAINER_LINE_USER_IDS=Uxxxxxxxxxxxxxxxxxxx,Uyyy...    # トレーナー（カンマ区切り、複数可）
 ```
 
-### LINE LIFF 設定（会員機能を LINE で使う場合）
+### 5. デプロイ
 
-1. LINE Developers で LIFF アプリを作成し、エンドポイント URL に Vercel の本番 URL を設定
-2. 取得した LIFF ID を、設定→データ→（KV 内 `liffId`）に保存
-3. `index.html` の `<head>` に LIFF SDK を追加:
-   ```html
-   <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-   ```
-4. 会員モードから「LINE でログイン」が利用可能に
+```bash
+# Vercel ダッシュボードで「Import Project」
+# Root Directory: nutrition-app
+# Framework: Next.js（自動検出）
+# Branch: claude/nutrition-fitness-tracker-Mvt0M
+# Deploy
+```
+
+ビルド時に `prisma db push` が自動実行され、DBスキーマが作成されます。
+
+### 6. 動作確認
+
+- **ユーザー側**: `https://your-domain.vercel.app/` → オンボード → 食事記録
+- **管理サイト**: `https://your-domain.vercel.app/admin/login` → LINEログイン
+
+## ハイブリッド保存の挙動
+
+| 状態 | データの保存先 |
+|---|---|
+| ゲスト（未ログイン） | IndexedDB（端末内） |
+| LINE ログイン直後 | ローカル → サーバーへ自動同期、以降はサーバー |
+| ログアウト | サーバーセッション切断（データはサーバーに残る） |
 
 ## カスタマイズ
 
-- **食品DB追加**: `js/foods.js` の `FOODS` 配列に追記
-- **会員コード**: `js/auth.js` の `MEMBER_CODES` を変更（実運用ではサーバー側検証推奨）
-- **AIモデル**: `api/advice.js` `api/analyze-photo.js` の `MODEL` を変更
-- **目標係数**: `js/nutrition.js` の `GOAL_PRESETS` で PFC 比率と kcal 調整値を変更
+- **食品DB**: `src/lib/foods.ts` の `FOODS` 配列に追記
+- **目標プリセット**: `src/lib/nutrition.ts` の `GOAL_PRESETS`
+- **ブランドカラー**: `tailwind.config.ts` の `brand` パレット
+- **AIモデル**: `src/lib/ai.ts` の `MODEL`
 
-## 今後の拡張候補
+## 今後の拡張
 
-- トレーナー管理画面（会員の食事ログ閲覧 + コメント）
-- ジムトレーニング記録との連動（消費カロリー加算）
-- LINE プッシュ通知（食事忘れリマインド、週次レポート配信）
-- 外食チェーン店メニュー DB の追加
-- 食事写真ギャラリーと履歴検索
+- LINE トーク内通知（食事忘れリマインド、トレーナーコメント通知）
+- Apple ヘルスケア / Google Fit 連携
+- トレーニングメニュー記録（kaloko本家の主要機能）
+- 写真ギャラリー
+- 外食チェーン店メニューDB追加

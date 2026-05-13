@@ -1,0 +1,133 @@
+// ONE'S MEAL — ジム会員/一般ユーザー食事管理 + 管理サイト
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// エンドユーザー（LINE LIFF ログインで作成される）
+model User {
+  id            String    @id @default(cuid())
+  lineUserId    String    @unique
+  displayName   String
+  pictureUrl    String?
+  email         String?
+
+  // ONE'S BODY 会員フラグ
+  isMember      Boolean   @default(false)
+  memberCode    String?   @unique
+  memberSince   DateTime?
+
+  // プロフィール
+  sex           String?   // male / female
+  age           Int?
+  heightCm      Float?
+  weightKg      Float?
+  targetWeight  Float?
+  activity      String?   // low / mid / high
+  goal          String?   // diet / bodymake / bulk
+  onboardedAt   DateTime?
+
+  // メタ
+  lastSeenAt    DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  meals         Meal[]
+  weights       Weight[]
+  comments      TrainerComment[]
+
+  @@index([isMember])
+  @@index([createdAt])
+}
+
+// 食事ログ
+model Meal {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String   // YYYY-MM-DD
+  meal      String   // breakfast / lunch / dinner / snack
+  name      String
+  qty       Float    @default(1)
+  unit      String   @default("1人前")
+  kcal      Int
+  protein   Float    @default(0)
+  fat       Float    @default(0)
+  carbs     Float    @default(0)
+  source    String   @default("manual") // manual / db / photo
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+}
+
+// 体重ログ
+model Weight {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String
+  weight    Float
+  bodyFat   Float?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// トレーナー（管理サイトユーザー）
+model Trainer {
+  id           String   @id @default(cuid())
+  lineUserId   String   @unique
+  displayName  String
+  pictureUrl   String?
+  role         String   @default("trainer") // trainer / admin / owner
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  comments     TrainerComment[]
+}
+
+// トレーナーから会員へのコメント
+model TrainerComment {
+  id         String   @id @default(cuid())
+  userId     String
+  trainerId  String
+  date       String?  // 特定日付に対するコメント or null=全般
+  content    String
+  createdAt  DateTime @default(now())
+
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trainer    Trainer  @relation(fields: [trainerId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+// 会員招待コード
+model MemberCode {
+  code       String   @id
+  note       String?
+  used       Boolean  @default(false)
+  usedByUser String?
+  usedAt     DateTime?
+  createdAt  DateTime @default(now())
+  createdBy  String?
+}
+
+// 管理サイトのセッション（簡易実装）
+model TrainerSession {
+  id         String   @id @default(cuid())
+  trainerId  String
+  token      String   @unique
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+
+  @@index([token])
+}
