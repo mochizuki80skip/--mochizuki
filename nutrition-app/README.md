@@ -32,7 +32,7 @@ ONE'S BODY パーソナルジム × kaloko 風UI の食事・体組成管理プ�
 - **Prisma + PostgreSQL** (Vercel Postgres / Supabase 等を想定)
 - **LINE LIFF** (`@line/liff`)
 - **LINE ID Token verification** (`api.line.me/oauth2/v2.1/verify`)
-- **Anthropic Claude API** (Sonnet 4.6 + Vision)
+- **Google Gemini API** (Gemini 2.0 Flash + Vision、無料枠あり)
 
 ## ディレクトリ構成
 
@@ -98,12 +98,12 @@ LIFFをデプロイしたあと管理サイトに一度アクセスし、ログ�
 ### 4. Vercel 環境変数
 
 ```bash
-DATABASE_URL=postgresql://...                         # Postgres 接続文字列
-ANTHROPIC_API_KEY=sk-ant-...                          # Claude API キー
+DATABASE_URL=postgresql://...                         # Postgres 接続文字列（Neon 自動投入）
+GEMINI_API_KEY=AIza...                                # Google Gemini API キー（無料枠で十分）
 LINE_LOGIN_CHANNEL_ID=1234567890                      # LINE Login チャネル ID（IDトークン検証用）
 NEXT_PUBLIC_LIFF_ID=1234567890-abcdefgh               # LIFF ID（クライアント側）
-OWNER_LINE_USER_IDS=Uxxxxxxxxxxxxxxxxxxx              # オーナー（カンマ区切り、複数可）
-TRAINER_LINE_USER_IDS=Uxxxxxxxxxxxxxxxxxxx,Uyyy...    # トレーナー（カンマ区切り、複数可）
+OWNER_LINE_USER_IDS=                                  # 空でOK（初回ログインで自動owner化）
+TRAINER_LINE_USER_IDS=                                # 空でOK
 ```
 
 ### 5. デプロイ

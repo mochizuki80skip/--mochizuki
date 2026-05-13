@@ -1,8 +1,8 @@
-// Claude API クライアント — サーバーサイド
+// Gemini API クライアント — サーバーサイド
 import type { Targets } from './nutrition';
 
-const MODEL = 'claude-sonnet-4-6';
-const API_URL = 'https://api.anthropic.com/v1/messages';
+const MODEL = 'gemini-2.0-flash';
+const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
 interface AdvicePayload {
   profile: {
@@ -64,33 +64,31 @@ function buildPrompt(p: AdvicePayload): string {
 }
 
 export async function generateAdvice(payload: AdvicePayload): Promise<string> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return ruleAdvice(payload);
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 700,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: buildPrompt(payload) }]
+        system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+        contents: [{ role: 'user', parts: [{ text: buildPrompt(payload) }] }],
+        generationConfig: {
+          maxOutputTokens: 800,
+          temperature: 0.7
+        }
       })
     });
     if (!res.ok) {
-      console.error('Claude API failed:', res.status);
+      console.error('Gemini API failed:', res.status, await res.text().catch(() => ''));
       return ruleAdvice(payload);
     }
     const data = await res.json();
-    const text = (data.content || []).map((c: any) => c.text || '').join('').trim();
+    const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
     return text || ruleAdvice(payload);
   } catch (e) {
-    console.error('Claude error:', e);
+    console.error('Gemini error:', e);
     return ruleAdvice(payload);
   }
 }
@@ -134,39 +132,41 @@ const PHOTO_USER = `この食事写真の食品を識別し、以下のJSON配�
 最大8品目。識別不能なら []。`;
 
 export async function analyzePhoto(imageBase64: string): Promise<PhotoItem[]> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) return [];
 
   const m = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
   if (!m) return [];
-  const mediaType = m[1];
+  const mimeType = m[1];
   const data = m[2];
 
   try {
-    const res = await fetch(API_URL, {
+    const res = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 800,
-        system: PHOTO_SYSTEM,
-        messages: [{
+        system_instruction: { parts: [{ text: PHOTO_SYSTEM }] },
+        contents: [{
           role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
-            { type: 'text', text: PHOTO_USER }
+          parts: [
+            { inline_data: { mime_type: mimeType, data } },
+            { text: PHOTO_USER }
           ]
-        }]
+        }],
+        generationConfig: {
+          maxOutputTokens: 1000,
+          temperature: 0.4,
+          responseMimeType: 'application/json'
+        }
       })
     });
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.error('Gemini Vision failed:', res.status);
+      return [];
+    }
     const result = await res.json();
-    const text = (result.content || []).map((c: any) => c.text || '').join('').trim();
-    return parseItems(text);
+    const text = result.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
+    return parseItems(text || '');
   } catch (e) {
     console.error('photo analysis error:', e);
     return [];
