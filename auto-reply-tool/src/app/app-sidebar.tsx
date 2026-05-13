@@ -1,14 +1,14 @@
+"use client";
+
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { usePathname } from "next/navigation";
 
-export async function AppSidebar() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+type SidebarProps = {
+  userEmail: string;
+  trainerDisplayName: string | null;
+};
 
-  if (!user) return null;
-
+export function AppSidebar({ userEmail, trainerDisplayName }: SidebarProps) {
   return (
     <aside className="bg-ink-900 text-white flex flex-col w-60 min-h-screen sticky top-0">
       <div className="px-4 py-5 flex items-center gap-2 border-b border-ink-800">
@@ -23,18 +23,28 @@ export async function AppSidebar() {
 
       <div className="px-4 py-4 border-b border-ink-800">
         <div className="bg-ink-800 rounded px-3 py-2 text-xs">
-          <div className="text-[10px] text-brand-300 mb-0.5">スタッフ</div>
-          <div className="truncate">{user.email}</div>
+          <div className="text-[10px] text-brand-300 mb-0.5">
+            {trainerDisplayName ? "トレーナー" : "スタッフ"}
+          </div>
+          <div className="truncate font-medium">
+            {trainerDisplayName ?? userEmail}
+          </div>
+          {trainerDisplayName && (
+            <div className="text-[10px] text-gray-500 truncate mt-0.5">
+              {userEmail}
+            </div>
+          )}
         </div>
       </div>
 
       <nav className="px-3 py-4 space-y-6 flex-1 overflow-y-auto">
         <NavSection title="管理">
           <NavItem href="/" icon="🏠" label="ホーム" />
-          <NavItem href="/customers" icon="👥" label="お客様一覧" active />
+          <NavItem href="/customers" icon="👥" label="お客様一覧" />
         </NavSection>
 
         <NavSection title="設定">
+          <NavItem href="/settings/profile" icon="🧑‍🏫" label="トレーナー設定" />
           <form action="/auth/signout" method="post">
             <button
               type="submit"
@@ -48,7 +58,7 @@ export async function AppSidebar() {
       </nav>
 
       <div className="px-4 py-3 text-[10px] text-gray-500 border-t border-ink-800">
-        v0.3 · Week 2.5
+        v0.4 · Week 3
       </div>
     </aside>
   );
@@ -75,13 +85,15 @@ function NavItem({
   href,
   icon,
   label,
-  active,
 }: {
   href: string;
   icon: string;
   label: string;
-  active?: boolean;
 }) {
+  const pathname = usePathname();
+  const isHome = href === "/";
+  const active = isHome ? pathname === "/" : pathname.startsWith(href);
+
   return (
     <Link
       href={href}

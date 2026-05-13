@@ -16,7 +16,7 @@ export default async function CustomerDetailPage({
   const supabase = await createClient();
   const { data: customer } = await supabase
     .from("customers")
-    .select("id, name, goal, tone_memo")
+    .select("id, name, goal, tone_memo, notes")
     .eq("id", id)
     .single();
 
@@ -24,7 +24,7 @@ export default async function CustomerDetailPage({
 
   const { data: promisesData } = await supabase
     .from("promises")
-    .select("id, title, unit, target, is_active")
+    .select("id, title, unit, target, is_active, notes, started_at")
     .eq("customer_id", id)
     .order("created_at", { ascending: true });
 
