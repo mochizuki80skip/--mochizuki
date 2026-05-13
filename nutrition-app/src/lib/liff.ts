@@ -33,7 +33,12 @@ export async function liffLogin() {
   const liff = await getLiff();
   if (!liff) return false;
   if (!liff.isLoggedIn()) {
-    liff.login();
+    // 明示的に /welcome に戻すように指定（ルートにリダイレクトされて
+    // サーバー側 redirect で OAuth params が失われるのを防ぐ）
+    const redirectUri = typeof window !== 'undefined'
+      ? `${window.location.origin}/welcome`
+      : undefined;
+    liff.login(redirectUri ? { redirectUri } : undefined);
     return false;
   }
   return true;

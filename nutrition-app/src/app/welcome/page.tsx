@@ -24,14 +24,19 @@ function Welcome() {
   const [displayName, setDisplayName] = useState('');
   const [busy, setBusy] = useState(false);
 
+  const [autoCompleting, setAutoCompleting] = useState(false);
+
   // LIFF 自動完了処理：戻ってきたときにログイン済みなら自動でAPI叩く
   useEffect(() => {
     (async () => {
       try {
         const liff = await getLiff();
-        if (!liff || !liff.isLoggedIn()) return;
+        if (!liff) return;
+        // 戻ってきた直後は isLoggedIn が一瞬遅れる場合があるため、init は getLiff 内で await 済み
+        if (!liff.isLoggedIn()) return;
+        setAutoCompleting(true);
         const token = await liffIdToken();
-        if (!token) return;
+        if (!token) { setAutoCompleting(false); return; }
         const res = await fetch('/api/auth/line', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -39,12 +44,17 @@ function Welcome() {
         });
         if (res.ok) {
           await storage.syncLocalToServer().catch(() => {});
-          document.cookie = 'om_intro=1; path=/';
+          document.cookie = 'om_intro=1; path=/; max-age=2592000';
           const p = await storage.getProfile();
           if (!p || !p.sex) router.replace('/onboarding');
           else router.replace('/');
+        } else {
+          setAutoCompleting(false);
         }
-      } catch {}
+      } catch (e) {
+        console.error('LIFF auto-login error:', e);
+        setAutoCompleting(false);
+      }
     })();
   }, [router]);
 
@@ -115,6 +125,18 @@ function Welcome() {
       setBusy(false);
     }
   };
+
+  // LIFF 自動ログイン中はオーバーレイ表示
+  if (autoCompleting) {
+    return (
+      <div className="min-h-screen bg-white flex items-center justify-center">
+        <div className="text-center">
+          <span className="spinner mx-auto mb-3 block" />
+          <div className="text-sm text-ink-dim">LINEログイン中...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-white" style={{ paddingTop: 'var(--safe-top)' }}>
