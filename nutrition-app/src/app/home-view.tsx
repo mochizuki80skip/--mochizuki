@@ -12,7 +12,9 @@ import * as storage from '@/lib/storage';
 import type { UserFeatures } from '@/components/layout/Navigation';
 import { GoalCard } from '@/components/goal/GoalCard';
 import { GoalSetupModal } from '@/components/goal/GoalSetupModal';
-import { evaluateProgress, buildPredictionPoints, type GoalPlan, type GoalProgress } from '@/lib/goal';
+import { evaluateProgress, type GoalPlan, type GoalProgress } from '@/lib/goal';
+import { predictWeight } from '@/lib/weight-prediction';
+import { WeightPredictionChart } from '@/components/ui/WeightPredictionChart';
 
 interface Props {
   user: { displayName: string; pictureUrl: string | null; isMember: boolean } | null;
@@ -139,19 +141,31 @@ export function HomeView(props: Props) {
 
   // 目標進捗
   let goalProgress: GoalProgress | null = null;
-  let chartPoints: { y: number; label: string }[] = [];
-  let predictionPoints: { y: number; label: string }[] = [];
+  let actualPoints: any[] = [];
+  let predictPoints: any[] = [];
   if (goalPlan) {
     goalProgress = evaluateProgress({
       plan: goalPlan,
       weights: weights.map((w) => ({ date: w.date, weight: w.weight })),
       todayStr: todayStr()
     });
-    const { actual, future } = buildPredictionPoints(goalPlan, weights, todayStr());
-    chartPoints = actual;
-    predictionPoints = future;
+    // 摂取kcal + 代謝係数から予測
+    const pred = predictWeight({
+      profile: {
+        sex: profile.sex, age: profile.age, heightCm: profile.heightCm,
+        weightKg: profile.weightKg, activity: profile.activity
+      },
+      goalDeadline: goalPlan.deadline,
+      todayStr: todayStr(),
+      weights: weights.map((w: any) => ({ date: w.date, weight: w.weight })),
+      meals: [], // ホーム表示ではキャッシュ無しなのでルートからの直接ロードに任せる
+      workouts: [],
+      goalKcal: goalPlan.kcal
+    });
+    actualPoints = pred.actual;
+    predictPoints = pred.predict.slice(1); // 先頭は今日と重複するので除外
   } else {
-    chartPoints = weights.map((w: any) => ({ y: w.weight, label: fmtShortDate(w.date) }));
+    actualPoints = weights.map((w: any) => ({ date: w.date, y: w.weight, label: fmtShortDate(w.date) }));
   }
 
   const hour = new Date().getHours();
@@ -253,7 +267,7 @@ export function HomeView(props: Props) {
             )}
           </div>
           {weights.length > 1 ? (
-            <PredictionChart actual={chartPoints} future={predictionPoints} target={goalPlan?.targetWeight} />
+            <WeightPredictionChart actual={actualPoints} predict={predictPoints} target={goalPlan?.targetWeight} height={160} />
           ) : (
             <div className="text-center text-xs text-ink-mute py-6">記録を続けると推移と予測が表示されます</div>
           )}
@@ -263,18 +277,8 @@ export function HomeView(props: Props) {
         {features.featExercise && (
           <TrainingWidget />
         )}
-        {features.featSleep && (
-          <div className="card">
-            <h2 className="text-sm font-bold mb-2">昨夜の睡眠</h2>
-            <div className="text-center py-3 text-xs text-ink-mute">睡眠機能は近日対応</div>
-          </div>
-        )}
-        {features.featWater && (
-          <div className="card">
-            <h2 className="text-sm font-bold mb-2">水分摂取</h2>
-            <div className="text-center py-3 text-xs text-ink-mute">水分機能は近日対応</div>
-          </div>
-        )}
+        {features.featSleep && <SleepWidget />}
+        {features.featWater && <WaterWidget />}
         {features.featSteps && <StepsWidget />}
 
         {/* AIアドバイス */}
@@ -298,6 +302,90 @@ export function HomeView(props: Props) {
         onApproved={onGoalApproved}
       />
     </AppShell>
+  );
+}
+
+function SleepWidget() {
+  const [hours, setHours] = useState<number | null>(null);
+  const [draft, setDraft] = useState('');
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const s = await storage.getSleepByDate(todayStr());
+      if (s) { setHours(s.hours); setDraft(String(s.hours)); }
+    })();
+  }, []);
+  const save = async () => {
+    const n = +draft;
+    if (!n || isNaN(n)) return;
+    await storage.setSleep({ date: todayStr(), hours: n });
+    setHours(n);
+    setEditing(false);
+  };
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-bold">昨夜の睡眠</h2>
+        {!editing && (
+          <button onClick={() => setEditing(true)} className="text-xs text-brand-600 font-bold">
+            <Plus className="w-3 h-3 inline" /> 入力
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex items-center gap-2">
+          <input type="number" step="0.5" inputMode="decimal" className="input flex-1" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="例: 7.5" autoFocus />
+          <span className="text-xs text-ink-mute">時間</span>
+          <button onClick={save} className="btn-primary !min-h-[40px] !px-3 text-xs">保存</button>
+        </div>
+      ) : (
+        <div className="flex items-baseline gap-2">
+          <div className="text-2xl font-bold">{hours != null ? hours.toFixed(1) : '—'}</div>
+          <div className="text-xs text-ink-dim">時間</div>
+          {hours != null && (
+            <div className={`ml-auto text-[10px] font-bold ${
+              hours < 6 ? 'text-rose-500' : hours < 7 ? 'text-amber-500' : 'text-emerald-500'
+            }`}>
+              {hours < 6 ? '少なめ' : hours < 7 ? 'もう少し' : '良好'}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WaterWidget() {
+  const [ml, setMl] = useState(0);
+  const target = 2000; // 1日2L目安
+  useEffect(() => {
+    (async () => {
+      const w = await storage.getWaterByDate(todayStr());
+      if (w) setMl(w.ml);
+    })();
+  }, []);
+  const addMl = async (delta: number) => {
+    await storage.addWater(todayStr(), delta);
+    const w = await storage.getWaterByDate(todayStr());
+    setMl(w?.ml || 0);
+  };
+  const pct = Math.min(100, (ml / target) * 100);
+  return (
+    <div className="card">
+      <h2 className="text-sm font-bold mb-2">水分摂取</h2>
+      <div className="flex items-baseline gap-1 mb-2">
+        <div className="text-2xl font-bold">{ml}</div>
+        <div className="text-[10px] text-ink-dim">/ {target}ml</div>
+      </div>
+      <div className="h-2 bg-surface-alt rounded-full overflow-hidden mb-3">
+        <div className="h-full bg-sky-500 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+      <div className="grid grid-cols-3 gap-1.5">
+        <button onClick={() => addMl(200)} className="py-2 text-xs font-bold bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100">+200ml</button>
+        <button onClick={() => addMl(350)} className="py-2 text-xs font-bold bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100">+350ml</button>
+        <button onClick={() => addMl(500)} className="py-2 text-xs font-bold bg-sky-50 text-sky-600 rounded-lg hover:bg-sky-100">+500ml</button>
+      </div>
+    </div>
   );
 }
 
@@ -400,27 +488,6 @@ function PfcRow({ name, letter, value, target, color, textColor }: { name: strin
       <div className="h-2 bg-surface-alt rounded-full overflow-hidden">
         <div className={`h-full ${color} transition-all`} style={{ width: `${pct}%` }} />
       </div>
-    </div>
-  );
-}
-
-function PredictionChart({ actual, future, target }: { actual: any[]; future: any[]; target?: number }) {
-  // actual + future を結合してチャートに表示。色違いで表示するため future を別途渡したい。
-  // LineChart は単一系列なので、ここでは結合点を返し、target を点線表示。
-  const merged = [...actual, ...future];
-  return (
-    <div>
-      <LineChart
-        points={merged}
-        target={target}
-        height={160}
-      />
-      {future.length > 0 && (
-        <div className="mt-2 flex items-center gap-3 text-[10px] text-ink-mute justify-end">
-          <div className="flex items-center gap-1"><span className="w-3 h-0.5 bg-brand-500" /> 実績</div>
-          <div className="flex items-center gap-1"><span className="w-3 h-0.5 bg-brand-300 border-dashed" /> 予測</div>
-        </div>
-      )}
     </div>
   );
 }

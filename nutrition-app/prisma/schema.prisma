@@ -60,6 +60,8 @@ model User {
   weights       Weight[]
   workouts      Workout[]
   steps         Steps[]
+  sleeps        Sleep[]
+  waters        Water[]
   comments      TrainerComment[]
 
   @@index([isMember])
@@ -86,6 +88,39 @@ model Workout {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sets         StrengthSet[]
 
+  @@index([userId, date])
+}
+
+// 睡眠（起床日付ベース）
+model Sleep {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String   // 起床日 YYYY-MM-DD
+  bedtime   String?  // HH:MM
+  wakeTime  String?  // HH:MM
+  hours     Float    // 睡眠時間（時）
+  quality   Int?     // 1〜5
+  memo      String?
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+// 水分（日付ベース）
+model Water {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String
+  ml        Int      // その日の合計摂取ml
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
   @@index([userId, date])
 }
 

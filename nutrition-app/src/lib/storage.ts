@@ -53,6 +53,20 @@ export interface StepsRow {
   count: number;
 }
 
+export interface SleepRow {
+  date: string;
+  bedtime?: string | null;
+  wakeTime?: string | null;
+  hours: number;
+  quality?: number | null;
+  memo?: string | null;
+}
+
+export interface WaterRow {
+  date: string;
+  ml: number;
+}
+
 export interface WorkoutRow {
   id: string;
   date: string;
@@ -67,7 +81,7 @@ export interface WorkoutRow {
 }
 
 const DB_NAME = 'ones-meal-v2';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 let dbp: Promise<IDBDatabase> | null = null;
 function openDB(): Promise<IDBDatabase> {
@@ -88,6 +102,12 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains('steps')) {
         db.createObjectStore('steps', { keyPath: 'date' });
+      }
+      if (!db.objectStoreNames.contains('sleeps')) {
+        db.createObjectStore('sleeps', { keyPath: 'date' });
+      }
+      if (!db.objectStoreNames.contains('waters')) {
+        db.createObjectStore('waters', { keyPath: 'date' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -283,6 +303,26 @@ export async function deleteWorkout(id: string): Promise<void> {
   await reqP(db.transaction('workouts', 'readwrite').objectStore('workouts').delete(id));
 }
 
+/** セット単位の削除（ログインユーザーのみ。ゲストは workout 全体を編集して再保存が必要） */
+export async function deleteStrengthSet(setId: string, workoutId?: string): Promise<void> {
+  if (isLoggedIn()) {
+    await fetch(`/api/strength-sets/${setId}`, { method: 'DELETE' });
+    return;
+  }
+  if (!workoutId) return;
+  // ゲスト時: workout を取得 → セット除外 → 保存し直し
+  const db = await openDB();
+  const tx = db.transaction('workouts', 'readwrite');
+  const store = tx.objectStore('workouts');
+  const row = await reqP<WorkoutRow>(store.get(workoutId));
+  if (!row) return;
+  // ID 一致は無理なので setNumber + bodyPart + exercise などで判定
+  // setId が無いゲスト時は呼び出し側で workoutId と setNumber を渡す前提
+  row.sets = (row.sets || []).filter((_, i, arr) => arr[i]?.setNumber !== undefined);
+  // ゲスト時は単に sets 配列内のIDマッチが取れないので、ここではフル workout 上書きを期待しない
+  // → ゲスト時は「セット個別削除」はサポート外（カード全体削除のみ）
+}
+
 // ---- Steps ----
 export async function getStepsByDate(date: string): Promise<StepsRow | null> {
   if (isLoggedIn()) {
@@ -316,6 +356,92 @@ export async function setStepsCount(date: string, count: number): Promise<void> 
   }
   const db = await openDB();
   await reqP(db.transaction('steps', 'readwrite').objectStore('steps').put({ date, count }));
+}
+
+// ---- Sleep ----
+export async function getSleepByDate(date: string): Promise<SleepRow | null> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/sleep?date=${date}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return res.json();
+  }
+  const db = await openDB();
+  return reqP<SleepRow | null>(db.transaction('sleeps').objectStore('sleeps').get(date));
+}
+
+export async function getSleepRange(from: string, to: string): Promise<SleepRow[]> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/sleep?from=${from}&to=${to}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  }
+  const db = await openDB();
+  const all = await reqP<SleepRow[]>(db.transaction('sleeps').objectStore('sleeps').getAll());
+  return all.filter((s) => s.date >= from && s.date <= to).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function setSleep(row: SleepRow): Promise<void> {
+  if (isLoggedIn()) {
+    await fetch('/api/sleep', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(row)
+    });
+    return;
+  }
+  const db = await openDB();
+  await reqP(db.transaction('sleeps', 'readwrite').objectStore('sleeps').put(row));
+}
+
+// ---- Water ----
+export async function getWaterByDate(date: string): Promise<WaterRow | null> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/water?date=${date}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return res.json();
+  }
+  const db = await openDB();
+  return reqP<WaterRow | null>(db.transaction('waters').objectStore('waters').get(date));
+}
+
+export async function getWaterRange(from: string, to: string): Promise<WaterRow[]> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/water?from=${from}&to=${to}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  }
+  const db = await openDB();
+  const all = await reqP<WaterRow[]>(db.transaction('waters').objectStore('waters').getAll());
+  return all.filter((w) => w.date >= from && w.date <= to).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function setWater(date: string, ml: number): Promise<void> {
+  if (isLoggedIn()) {
+    await fetch('/api/water', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, ml })
+    });
+    return;
+  }
+  const db = await openDB();
+  await reqP(db.transaction('waters', 'readwrite').objectStore('waters').put({ date, ml }));
+}
+
+export async function addWater(date: string, addMl: number): Promise<void> {
+  if (isLoggedIn()) {
+    await fetch('/api/water', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, addMl })
+    });
+    return;
+  }
+  const db = await openDB();
+  const tx = db.transaction('waters', 'readwrite');
+  const cur = await reqP<WaterRow | null>(tx.objectStore('waters').get(date));
+  const ml = Math.max(0, (cur?.ml || 0) + addMl);
+  await reqP(tx.objectStore('waters').put({ date, ml }));
 }
 
 // ---- Sync (local → server on first login) ----

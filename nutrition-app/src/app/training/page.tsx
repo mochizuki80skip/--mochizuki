@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
-import { Plus, Dumbbell, ChevronLeft, ChevronRight, Activity, ArrowLeft } from 'lucide-react';
+import { Plus, Dumbbell, ChevronLeft, ChevronRight, Activity, ArrowLeft, Trash2 } from 'lucide-react';
 import * as storage from '@/lib/storage';
 import { BODY_PARTS, setVolume, maxRMFromSets } from '@/lib/training';
 import { todayStr, daysAgo, fmtShortDate } from '@/lib/utils';
@@ -12,7 +12,9 @@ import type { UserFeatures } from '@/components/layout/Navigation';
 import { ExerciseSelectModal } from '@/components/training/ExerciseSelectModal';
 import { SetRecordModal } from '@/components/training/SetRecordModal';
 import { CardioInputModal } from '@/components/training/CardioInputModal';
-import { WorkoutListItem } from '@/components/training/WorkoutListItem';
+import { ExerciseCard } from '@/components/training/ExerciseCard';
+import { WeeklyVolumeBars } from '@/components/training/WeeklyVolumeBars';
+import { groupDayWorkouts, dayExerciseLabels } from '@/lib/strength-set-grouping';
 
 type TabKey = 'record' | 'analysis';
 
@@ -80,11 +82,26 @@ function TrainingContent() {
         <DayDetailView
           date={selectedDate}
           workouts={allWorkouts.filter((w) => w.date === selectedDate)}
+          allWorkouts={allWorkouts}
           bodyWeight={profile.weightKg}
           onBack={() => setSelectedDate(null)}
           onPickExercise={() => setShowExerciseSelect(true)}
           onPickCardio={() => setShowCardio(true)}
-          onDelete={async (id: string) => { await storage.deleteWorkout(id); toast('削除'); await refresh(); }}
+          onAddSetToExercise={(bodyPart: string, exercise: string) => setPickedExercise({ bodyPart, exercise })}
+          onDeleteSet={async (setId: string | undefined, workoutId: string) => {
+            if (setId) {
+              await storage.deleteStrengthSet(setId, workoutId);
+            } else {
+              await storage.deleteWorkout(workoutId);
+            }
+            toast('削除');
+            await refresh();
+          }}
+          onDeleteCardio={async (workoutId: string) => {
+            await storage.deleteWorkout(workoutId);
+            toast('削除');
+            await refresh();
+          }}
         />
         <ExerciseSelectModal
           open={showExerciseSelect}
@@ -152,14 +169,25 @@ function TabBtn({ active, onClick, children }: { active: boolean; onClick: () =>
   );
 }
 
-/* ---------- 記録タブ：カレンダー + サマリー ---------- */
+/* ---------- 記録タブ：カレンダー + 週別棒グラフ ---------- */
 function RecordTab({ allWorkouts, calMonth, onChangeMonth, onSelectDate }: any) {
   const monthStart = new Date(calMonth.getFullYear(), calMonth.getMonth(), 1);
   const monthEnd = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0);
   const firstDay = monthStart.getDay();
   const daysInMonth = monthEnd.getDate();
   const monthLabel = `${calMonth.getFullYear()}年${calMonth.getMonth() + 1}月`;
-  const workoutDates = new Set(allWorkouts.map((w: any) => w.date));
+
+  // 日付ごとの種目名（カレンダーホバー/タップで見せる用）
+  const labelsByDate = new Map<string, string[]>();
+  for (const w of allWorkouts) {
+    if (!labelsByDate.has(w.date)) labelsByDate.set(w.date, []);
+    if (w.type === 'cardio') labelsByDate.get(w.date)!.push(w.cardioName || '有酸素');
+    else if (w.type === 'strength') {
+      const exs = new Set<string>();
+      for (const s of (w.sets || [])) exs.add(s.exercise);
+      exs.forEach((e) => labelsByDate.get(w.date)!.push(e));
+    }
+  }
 
   // 期間サマリー
   const days7Volume = volumeSumForRange(allWorkouts, 7);
@@ -170,7 +198,7 @@ function RecordTab({ allWorkouts, calMonth, onChangeMonth, onSelectDate }: any) 
   for (let i = 0; i < firstDay; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
-  const totalDays = workoutDates.size;
+  const workoutDates = new Set(allWorkouts.map((w: any) => w.date));
   const monthArchive = Array.from(workoutDates).filter((d) => {
     const date = new Date(d as string);
     return date.getFullYear() === calMonth.getFullYear() && date.getMonth() === calMonth.getMonth();
@@ -178,7 +206,7 @@ function RecordTab({ allWorkouts, calMonth, onChangeMonth, onSelectDate }: any) 
 
   return (
     <>
-      {/* サマリー4ステート（添付1枚目風） */}
+      {/* サマリー4ステート */}
       <div className="grid grid-cols-2 gap-2 mb-3">
         <SummaryStat label="7日間 総負荷" value={(days7Volume / 1000).toFixed(2)} unit="t" />
         <SummaryStat label="28日間 総負荷" value={(days28Volume / 1000).toFixed(2)} unit="t" />
@@ -186,46 +214,79 @@ function RecordTab({ allWorkouts, calMonth, onChangeMonth, onSelectDate }: any) 
         <SummaryStat label="総合 総負荷" value={(totalVolume / 1000).toFixed(2)} unit="t" />
       </div>
 
-      {/* カレンダー */}
-      <div className="card mb-3">
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={() => onChangeMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="p-2 hover:bg-surface-alt rounded-lg">
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <div className="font-bold">{monthLabel}</div>
-          <button onClick={() => onChangeMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="p-2 hover:bg-surface-alt rounded-lg">
-            <ChevronRight className="w-4 h-4" />
-          </button>
+      {/* カレンダー + 週別棒グラフ（左右2列 on md+） */}
+      <div className="grid md:grid-cols-2 gap-3 mb-3">
+        {/* カレンダー */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-3">
+            <button onClick={() => onChangeMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))} className="p-2 hover:bg-surface-alt rounded-lg">
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <div className="font-bold">{monthLabel}</div>
+            <button onClick={() => onChangeMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))} className="p-2 hover:bg-surface-alt rounded-lg">
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-ink-mute font-bold mb-1">
+            {['日','月','火','水','木','金','土'].map((d) => <div key={d} className="py-1">{d}</div>)}
+          </div>
+          <div className="grid grid-cols-7 gap-1">
+            {cells.map((d, i) => {
+              if (d === null) return <div key={i} className="aspect-square" />;
+              const dateStr = `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+              const has = workoutDates.has(dateStr);
+              const isToday = dateStr === todayStr();
+              return (
+                <button
+                  key={i}
+                  onClick={() => onSelectDate(dateStr)}
+                  className={`aspect-square rounded-full flex items-center justify-center text-xs font-bold transition ${
+                    has ? 'bg-brand-500 text-white' :
+                    isToday ? 'border-2 border-brand-500 text-brand-600' :
+                    'text-ink-dim hover:bg-surface-alt'
+                  }`}
+                >{d}</button>
+              );
+            })}
+          </div>
         </div>
-        <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-ink-mute font-bold mb-1">
-          {['日','月','火','水','木','金','土'].map((d) => <div key={d} className="py-1">{d}</div>)}
-        </div>
-        <div className="grid grid-cols-7 gap-1">
-          {cells.map((d, i) => {
-            if (d === null) return <div key={i} className="aspect-square" />;
-            const dateStr = `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-            const has = workoutDates.has(dateStr);
-            const isToday = dateStr === todayStr();
-            return (
-              <button
-                key={i}
-                onClick={() => onSelectDate(dateStr)}
-                className={`aspect-square rounded-full flex items-center justify-center text-xs font-bold transition ${
-                  has ? 'bg-brand-500 text-white' :
-                  isToday ? 'border-2 border-brand-500 text-brand-600' :
-                  'text-ink-dim hover:bg-surface-alt'
-                }`}
-              >{d}</button>
-            );
-          })}
+
+        {/* 週別棒グラフ */}
+        <div className="card">
+          <h3 className="font-bold text-sm mb-3">週別 総負荷</h3>
+          <WeeklyVolumeBars allWorkouts={allWorkouts} weeks={6} />
         </div>
       </div>
 
-      {/* 本日のトレを追加 */}
-      <button
-        onClick={() => onSelectDate(todayStr())}
-        className="btn-primary w-full !py-4"
-      >
+      {/* 直近の種目（カレンダーで日付なしでも見える） */}
+      <div className="card mb-3">
+        <h3 className="font-bold text-sm mb-2">最近の種目</h3>
+        {allWorkouts.length === 0 ? (
+          <div className="text-xs text-ink-mute text-center py-4">まだ記録がありません</div>
+        ) : (
+          <div className="space-y-1.5 max-h-60 overflow-y-auto">
+            {Array.from(new Set(allWorkouts.map((w: any) => w.date as string))).slice(0, 14).map((date) => {
+              const d = date as string;
+              const labels = labelsByDate.get(d) || [];
+              return (
+                <button
+                  key={d}
+                  onClick={() => onSelectDate(d)}
+                  className="w-full flex items-center justify-between px-3 py-2 bg-surface-alt rounded-lg hover:bg-ink-line/30 transition text-left"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-bold">{d}</div>
+                    <div className="text-[11px] text-ink-dim truncate">{labels.join(' · ')}</div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-ink-mute shrink-0" />
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <button onClick={() => onSelectDate(todayStr())} className="btn-primary w-full !py-4">
         <Plus className="w-5 h-5" /> 本日のトレーニングを開く
       </button>
     </>
@@ -250,32 +311,29 @@ function volumeSumForRange(all: any[], days: number) {
 }
 
 /* ---------- 日付詳細画面（添付1枚目風） ---------- */
-function DayDetailView({ date, workouts, bodyWeight, onBack, onPickExercise, onPickCardio, onDelete }: any) {
-  const totalExercises = new Set(
-    workouts.filter((w: any) => w.type === 'strength')
-      .flatMap((w: any) => (w.sets || []).map((s: any) => `${s.bodyPart}-${s.exercise}`))
-  ).size + workouts.filter((w: any) => w.type === 'cardio').length;
-  const totalSets = workouts.filter((w: any) => w.type === 'strength').reduce((s: number, w: any) => s + (w.sets || []).length, 0);
-  const totalReps = workouts.filter((w: any) => w.type === 'strength').flatMap((w: any) => w.sets || []).reduce((s: number, st: any) => s + (st.reps || 0), 0);
-  const totalVolume = workouts.filter((w: any) => w.type === 'strength').flatMap((w: any) => w.sets || []).reduce((s: number, st: any) => s + setVolume(st.weight, st.reps), 0);
+function DayDetailView({ date, workouts, allWorkouts, bodyWeight, onBack, onPickExercise, onPickCardio, onAddSetToExercise, onDeleteSet, onDeleteCardio }: any) {
+  const groups = groupDayWorkouts(workouts);
+
+  // 自己ベストを過去全データから取得
+  const bestRMByExercise = computeBestRMs(allWorkouts);
 
   return (
     <>
-      {/* ヘッダー（添付1枚目風） */}
-      <div className="mb-4">
-        <div className="flex items-center justify-between mb-3">
-          <button onClick={onBack} className="text-sm text-brand-600 font-bold flex items-center gap-1">
-            <ArrowLeft className="w-4 h-4" /> 戻る
+      {/* ヘッダー */}
+      <div className="bg-brand-500 -mx-4 md:-mx-8 px-4 md:px-8 pt-2 pb-4 mb-4">
+        <div className="flex items-center justify-between mb-3 text-white">
+          <button onClick={onBack} className="text-white flex items-center gap-1 text-sm">
+            <ArrowLeft className="w-5 h-5" />
           </button>
           <div className="text-base font-bold">{date}</div>
-          <div className="w-12" />
+          <div className="w-5" />
         </div>
 
         <div className="grid grid-cols-4 gap-1.5">
-          <DayStat label="種目数" value={totalExercises} />
-          <DayStat label="セット数" value={totalSets} />
-          <DayStat label="レップ数" value={totalReps} />
-          <DayStat label="負荷量" value={totalVolume === 0 ? '0.0' : (totalVolume / 1000).toFixed(2) + 't'} large />
+          <DayStat label="合計種目数" value={groups.totalExercises} />
+          <DayStat label="合計セット数" value={groups.totalSets} />
+          <DayStat label="合計レップ数" value={groups.totalReps} />
+          <DayStat label="合計負荷量" value={String(groups.totalVolume)} />
         </div>
       </div>
 
@@ -284,7 +342,7 @@ function DayDetailView({ date, workouts, bodyWeight, onBack, onPickExercise, onP
         <div className="card text-center py-12 mb-3">
           <Dumbbell className="w-14 h-14 text-rose-300 mx-auto mb-3" />
           <div className="text-sm font-bold text-ink-dim mb-2">タップしてトレーニング記録を追加</div>
-          <div className="flex gap-2 justify-center">
+          <div className="flex gap-2 justify-center mt-3">
             <button onClick={onPickExercise} className="btn-primary text-xs !py-2">
               <Plus className="w-3 h-3" /> 筋トレ
             </button>
@@ -295,13 +353,37 @@ function DayDetailView({ date, workouts, bodyWeight, onBack, onPickExercise, onP
         </div>
       ) : (
         <>
-          <div className="card mb-3">
-            <h2 className="font-bold text-base mb-3">この日のワークアウト</h2>
-            <div className="space-y-3">
-              {workouts.map((w: any) => (
-                <WorkoutListItem key={w.id} workout={w} expanded onDelete={() => onDelete(w.id)} />
-              ))}
-            </div>
+          <div className="space-y-3 mb-3">
+            {groups.exercises.map((g) => (
+              <ExerciseCard
+                key={`${g.bodyPart}-${g.exercise}`}
+                group={g}
+                bestRM={bestRMByExercise.get(`${g.bodyPart}-${g.exercise}`) || 0}
+                onAddSet={() => onAddSetToExercise(g.bodyPart, g.exercise)}
+                onDeleteSet={(setId, workoutId) => onDeleteSet(setId, workoutId)}
+              />
+            ))}
+
+            {groups.cardios.map((c) => (
+              <div key={c.workoutId} className="bg-white rounded-2xl shadow-card overflow-hidden">
+                <div className="bg-emerald-500 text-white px-4 py-3 flex items-center justify-between">
+                  <div>
+                    <div className="font-bold text-base">{c.cardioName}</div>
+                    <div className="text-[10px] opacity-90">
+                      {c.durationMin ? `${c.durationMin}分` : ''}
+                      {c.distanceKm ? ` · ${c.distanceKm}km` : ''}
+                      {c.kcal ? ` · ${c.kcal}kcal` : ''}
+                    </div>
+                  </div>
+                  <button onClick={() => onDeleteCardio(c.workoutId)} className="text-white/80 hover:text-white p-1">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                {c.memo && (
+                  <div className="px-4 py-2 text-xs text-ink-dim italic">{c.memo}</div>
+                )}
+              </div>
+            ))}
           </div>
           <div className="grid grid-cols-2 gap-2">
             <button onClick={onPickExercise} className="btn-primary"><Plus className="w-4 h-4" /> 筋トレ追加</button>
@@ -313,10 +395,24 @@ function DayDetailView({ date, workouts, bodyWeight, onBack, onPickExercise, onP
   );
 }
 
+function computeBestRMs(allWorkouts: any[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const w of allWorkouts) {
+    if (w.type !== 'strength') continue;
+    for (const s of (w.sets || [])) {
+      const key = `${s.bodyPart}-${s.exercise}`;
+      const rm = (s.weight || 0) * 36 / Math.max(1, 37 - Math.min(s.reps || 0, 12));
+      if (!isFinite(rm) || rm <= 0) continue;
+      if ((map.get(key) || 0) < rm) map.set(key, rm);
+    }
+  }
+  return map;
+}
+
 function DayStat({ label, value, large }: { label: string; value: string | number; large?: boolean }) {
   return (
-    <div className="bg-brand-500 text-white rounded-xl px-2 py-2 text-center">
-      <div className="text-[10px] opacity-90 font-bold">{label}</div>
+    <div className="bg-white/15 border border-white/30 text-white rounded-xl px-2 py-2 text-center">
+      <div className="text-[10px] opacity-90 font-medium">{label}</div>
       <div className={`font-bold mt-0.5 ${large ? 'text-base' : 'text-lg'}`}>{value}</div>
     </div>
   );
