@@ -29,20 +29,28 @@ export default async function CustomerDetailPage({
     .order("created_at", { ascending: true });
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between gap-2">
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Link
           href="/customers"
           className="text-sm text-brand-600 hover:underline"
         >
           ← お客様一覧
         </Link>
-        <Link
-          href={`/customers/${customer.id}/reply`}
-          className="bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold px-4 py-2 rounded shadow-sm"
-        >
-          🪄 返信を作る
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href={`/customers/${customer.id}/import`}
+            className="border border-brand-500 text-brand-600 hover:bg-brand-50 text-sm font-medium px-3 py-2 rounded"
+          >
+            📥 過去返信をインポート
+          </Link>
+          <Link
+            href={`/customers/${customer.id}/reply`}
+            className="bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold px-4 py-2 rounded shadow-sm"
+          >
+            🪄 返信を作る
+          </Link>
+        </div>
       </div>
 
       <CustomerEditor customer={customer} />

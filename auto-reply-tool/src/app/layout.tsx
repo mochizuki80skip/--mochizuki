@@ -1,6 +1,6 @@
 import "./globals.css";
 import type { Metadata } from "next";
-import Link from "next/link";
+import { AppSidebar } from "./app-sidebar";
 import { createClient } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -20,37 +20,17 @@ export default async function RootLayout({
 
   return (
     <html lang="ja">
-      <body className="min-h-screen">
-        <header className="bg-white border-b border-brand-100">
-          <div className="max-w-5xl mx-auto flex items-center justify-between px-4 py-3">
-            <Link href="/" className="font-semibold text-brand-700">
-              ONE&apos;S BODY 返信アシスタント
-            </Link>
-            <nav className="flex items-center gap-4 text-sm">
-              {user ? (
-                <>
-                  <Link href="/customers" className="hover:underline">
-                    お客様一覧
-                  </Link>
-                  <span className="text-gray-500">{user.email}</span>
-                  <form action="/auth/signout" method="post">
-                    <button
-                      type="submit"
-                      className="text-gray-600 hover:text-brand-600"
-                    >
-                      ログアウト
-                    </button>
-                  </form>
-                </>
-              ) : (
-                <Link href="/login" className="text-brand-600 hover:underline">
-                  ログイン
-                </Link>
-              )}
-            </nav>
+      <body className="min-h-screen bg-brand-50 text-gray-900">
+        {user ? (
+          <div className="flex">
+            <AppSidebar />
+            <main className="flex-1 min-w-0 px-6 py-6">
+              <div className="max-w-5xl mx-auto">{children}</div>
+            </main>
           </div>
-        </header>
-        <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
+        ) : (
+          <main className="max-w-5xl mx-auto px-4 py-6">{children}</main>
+        )}
       </body>
     </html>
   );
