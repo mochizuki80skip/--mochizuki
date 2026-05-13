@@ -134,8 +134,7 @@ export async function getCurrentTrainer() {
   const token = c.get(TRAINER_COOKIE)?.value;
   if (!token) return null;
   const session = await prisma.trainerSession.findUnique({
-    where: { token },
-    include: { }
+    where: { token }
   });
   if (!session) return null;
   if (session.expiresAt < new Date()) {

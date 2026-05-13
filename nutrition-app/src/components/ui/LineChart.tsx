@@ -135,7 +135,7 @@ export function BarChart({ bars, height = 140, color = '#FF5F3D', max }: BarChar
     const padL = 8, padR = 8, padT = 12, padB = 22;
     const innerW = W - padL - padR;
     const innerH = H - padT - padB;
-    const m = max ?? Math.max(...bars.map((b) => b.value)) || 1;
+    const m = (max ?? Math.max(...bars.map((b) => b.value))) || 1;
     const gap = 4;
     const bw = (innerW - gap * (bars.length - 1)) / bars.length;
     bars.forEach((b, i) => {
