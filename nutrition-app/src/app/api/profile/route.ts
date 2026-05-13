@@ -19,7 +19,12 @@ function shapeUser(u: any) {
     featExercise: u.featExercise,
     featSleep: u.featSleep,
     featWater: u.featWater,
-    featSteps: u.featSteps
+    featSteps: u.featSteps,
+    goalStartedAt: u.goalStartedAt,
+    goalDeadline: u.goalDeadline,
+    goalPlanSummary: u.goalPlanSummary,
+    goalPlanJson: u.goalPlanJson ? JSON.parse(u.goalPlanJson) : null,
+    goalApproved: u.goalApproved
   };
 }
 

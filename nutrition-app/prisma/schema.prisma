@@ -29,8 +29,15 @@ model User {
   weightKg      Float?
   targetWeight  Float?
   activity      String?   // low / mid / high
-  goal          String?   // diet / bodymake / bulk
+  goal          String?   // diet / bodymake / bulk / log (←logは記録のみ)
   onboardedAt   DateTime?
+
+  // 目標と計画
+  goalStartedAt   DateTime?
+  goalDeadline    DateTime?
+  goalPlanSummary String?   // 表示用要旨
+  goalPlanJson    String?   // 構造化プラン {kcal, protein, fat, carbs, weeklyPace, foods, trainingFreq, tips}
+  goalApproved    Boolean   @default(false)
 
   // 機能モジュール（選択制）
   featExercise  Boolean   @default(false)
@@ -45,10 +52,50 @@ model User {
 
   meals         Meal[]
   weights       Weight[]
+  workouts      Workout[]
   comments      TrainerComment[]
 
   @@index([isMember])
   @@index([createdAt])
+}
+
+// トレーニングセッション
+model Workout {
+  id           String   @id @default(cuid())
+  userId       String
+  date         String   // YYYY-MM-DD
+  type         String   // cardio / strength
+
+  // 有酸素用
+  cardioName   String?
+  durationMin  Int?
+  distanceKm   Float?
+
+  // 共通
+  kcal         Int?     // 消費カロリー（推定 or 手入力）
+  memo         String?
+  createdAt    DateTime @default(now())
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sets         StrengthSet[]
+
+  @@index([userId, date])
+}
+
+// 筋トレのセット
+model StrengthSet {
+  id         String   @id @default(cuid())
+  workoutId  String
+  bodyPart   String   // chest / back / legs / shoulders / arms / abs / other
+  exercise   String
+  setNumber  Int      @default(1)
+  weight     Float?
+  reps       Int?
+  createdAt  DateTime @default(now())
+
+  workout    Workout  @relation(fields: [workoutId], references: [id], onDelete: Cascade)
+
+  @@index([workoutId])
 }
 
 // 食事ログ

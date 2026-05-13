@@ -25,11 +25,15 @@ export default async function Page() {
       orderBy: { createdAt: 'asc' }
     });
     const weights = await prisma.weight.findMany({
-      where: { userId: user.id, date: { gte: daysAgo(14) } },
+      where: { userId: user.id, date: { gte: daysAgo(30) } },
       orderBy: { date: 'asc' }
     });
     const targets = calcTargets(user);
     const todaySum = sumDay(meals);
+    const goalData = user.goalApproved && user.goalPlanJson ? {
+      plan: JSON.parse(user.goalPlanJson),
+      summary: user.goalPlanSummary
+    } : null;
     return (
       <HomeView
         user={{ displayName: user.displayName, pictureUrl: user.pictureUrl, isMember: user.isMember }}
@@ -48,6 +52,7 @@ export default async function Page() {
         weights={weights}
         todaySum={todaySum}
         isTrainer={!!trainer}
+        goalData={goalData}
       />
     );
   }
@@ -56,6 +61,7 @@ export default async function Page() {
     <HomeView
       user={null} features={null} profile={null} targets={null}
       meals={null} weights={null} todaySum={null} isTrainer={false}
+      goalData={null}
     />
   );
 }

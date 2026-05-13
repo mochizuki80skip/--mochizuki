@@ -173,6 +173,109 @@ export async function analyzePhoto(imageBase64: string): Promise<PhotoItem[]> {
   }
 }
 
+/* ---- 目標プラン生成 ---- */
+
+export interface PlanAiInput {
+  profile: {
+    sex: 'male' | 'female';
+    age: number;
+    heightCm: number;
+    weightKg: number;
+    targetWeight: number;
+    activity: 'low' | 'mid' | 'high';
+  };
+  goalType: 'diet' | 'bulk' | 'bodymake' | 'log';
+  deadline: string; // YYYY-MM-DD
+  daysAhead: number;
+  basePlan: {
+    kcal: number;
+    protein: number;
+    fat: number;
+    carbs: number;
+    weeklyKg: number;
+  };
+}
+
+export interface PlanAiOutput {
+  summary: string;         // 4〜6行の人間向け要旨（**強調**OK）
+  recommendedFoods: string[];
+  recommendedFreq: string;
+  tips: string[];
+}
+
+const PLAN_SYSTEM = `あなたはONE'S BODYパーソナルジムの管理栄養士兼トレーナーです。
+利用者の身体情報と目標から、実行可能で前向きな計画コメントを返します。
+ルール:
+- JSONのみで返す（コードブロック・前置き禁止）
+- summary: 4〜6行、強調は **〜**、励まし口調
+- 数値は基本計画値をそのまま採用する（書き換え禁止）
+- recommendedFoods: 5項目程度の食品名
+- tips: 3〜5項目、具体的行動指示
+- recommendedFreq: 「週X回のXトレーニング」`;
+
+function buildPlanPrompt(p: PlanAiInput): string {
+  return [
+    `# 利用者`,
+    `- ${p.profile.sex === 'male' ? '男性' : '女性'} / ${p.profile.age}歳 / ${p.profile.heightCm}cm / ${p.profile.weightKg}kg`,
+    `- 目標体重: ${p.profile.targetWeight}kg`,
+    `- 活動量: ${({ low: '低', mid: '中', high: '高' })[p.profile.activity]}`,
+    ``,
+    `# 目標`,
+    `- タイプ: ${({ diet: 'ダイエット', bulk: 'バルクアップ', bodymake: '体型維持', log: '記録のみ' })[p.goalType]}`,
+    `- 期限: ${p.deadline}（あと${p.daysAhead}日）`,
+    ``,
+    `# 基本計画値（採用必須）`,
+    `- 1日 ${p.basePlan.kcal}kcal / P${p.basePlan.protein}g / F${p.basePlan.fat}g / C${p.basePlan.carbs}g`,
+    `- 週次ペース: ${p.basePlan.weeklyKg >= 0 ? '+' : ''}${p.basePlan.weeklyKg}kg/週`,
+    ``,
+    `# 出力フォーマット (JSON配列以外NG)`,
+    `{`,
+    `  "summary": "短い励まし+計画概要",`,
+    `  "recommendedFoods": ["食品名", ...],`,
+    `  "recommendedFreq": "週X回の...",`,
+    `  "tips": ["行動1", "行動2", ...]`,
+    `}`
+  ].join('\n');
+}
+
+export async function generatePlan(input: PlanAiInput): Promise<PlanAiOutput | null> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) return null;
+  try {
+    const res = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        system_instruction: { parts: [{ text: PLAN_SYSTEM }] },
+        contents: [{ role: 'user', parts: [{ text: buildPlanPrompt(input) }] }],
+        generationConfig: {
+          maxOutputTokens: 800,
+          temperature: 0.7,
+          responseMimeType: 'application/json'
+        }
+      })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const text = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
+    if (!text) return null;
+    try {
+      const parsed = JSON.parse(text);
+      return {
+        summary: String(parsed.summary || '').slice(0, 800),
+        recommendedFoods: Array.isArray(parsed.recommendedFoods) ? parsed.recommendedFoods.slice(0, 8).map(String) : [],
+        recommendedFreq: String(parsed.recommendedFreq || '').slice(0, 80),
+        tips: Array.isArray(parsed.tips) ? parsed.tips.slice(0, 6).map(String) : []
+      };
+    } catch {
+      return null;
+    }
+  } catch (e) {
+    console.error('plan AI error:', e);
+    return null;
+  }
+}
+
 function parseItems(text: string): PhotoItem[] {
   if (!text) return [];
   let parsed: any = null;

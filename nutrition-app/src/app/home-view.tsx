@@ -10,6 +10,9 @@ import { calcTargets, sumDay, sumByMeal, type Targets } from '@/lib/nutrition';
 import { fmtDateJp, fmtShortDate, todayStr } from '@/lib/utils';
 import * as storage from '@/lib/storage';
 import type { UserFeatures } from '@/components/layout/Navigation';
+import { GoalCard } from '@/components/goal/GoalCard';
+import { GoalSetupModal } from '@/components/goal/GoalSetupModal';
+import { evaluateProgress, buildPredictionPoints, type GoalPlan, type GoalProgress } from '@/lib/goal';
 
 interface Props {
   user: { displayName: string; pictureUrl: string | null; isMember: boolean } | null;
@@ -20,6 +23,7 @@ interface Props {
   weights: any[] | null;
   todaySum: any;
   isTrainer: boolean;
+  goalData: { plan: GoalPlan; summary: string | null } | null;
 }
 
 const DEFAULT_FEATURES: UserFeatures = { featExercise: false, featSleep: false, featWater: false, featSteps: false };
@@ -33,6 +37,9 @@ export function HomeView(props: Props) {
   const [weights, setWeights] = useState<any[]>(props.weights || []);
   const [today, setToday] = useState(props.todaySum || { kcal: 0, protein: 0, fat: 0, carbs: 0 });
   const [advice, setAdvice] = useState<string>('食事を記録するとアドバイスが表示されます。');
+  const [goalPlan, setGoalPlan] = useState<GoalPlan | null>(props.goalData?.plan || null);
+  const [goalSummary, setGoalSummary] = useState<string | null>(props.goalData?.summary || null);
+  const [showGoalSetup, setShowGoalSetup] = useState(false);
 
   useEffect(() => {
     if (props.profile) return;
@@ -47,13 +54,21 @@ export function HomeView(props: Props) {
       setMeals(m);
       setWeights(w);
       setToday(sumDay(m as any));
-      // ローカルではプロフィールから feat* フラグを読み取り
       setFeatures({
         featExercise: !!(p as any).featExercise,
         featSleep: !!(p as any).featSleep,
         featWater: !!(p as any).featWater,
         featSteps: !!(p as any).featSteps
       });
+      // ゲスト時のローカル目標プラン
+      const localPlan = (p as any).goalPlanJson;
+      if (localPlan && (p as any).goalApproved) {
+        try {
+          const parsedPlan = typeof localPlan === 'string' ? JSON.parse(localPlan) : localPlan;
+          setGoalPlan(parsedPlan);
+          setGoalSummary((p as any).goalPlanSummary || null);
+        } catch {}
+      }
     })();
   }, [props.profile, router]);
 
@@ -74,6 +89,42 @@ export function HomeView(props: Props) {
     })();
   }, [targets, today, profile]);
 
+  const onGoalApproved = async (plan: GoalPlan, summary: string) => {
+    // ゲスト時はローカル保存、ログイン時はサーバー保存
+    const isLoggedIn = typeof document !== 'undefined' && document.cookie.includes('om_user=');
+    if (isLoggedIn) {
+      await fetch('/api/goal', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          goalType: plan.goalType,
+          targetWeight: plan.targetWeight,
+          goalStartedAt: plan.startedAt,
+          goalDeadline: plan.deadline,
+          goalPlanSummary: summary,
+          goalPlanJson: plan,
+          goalApproved: true
+        })
+      });
+      // プロフィールに目標体重を反映
+      await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetWeight: plan.targetWeight, goal: plan.goalType })
+      });
+    } else {
+      await storage.saveProfile({
+        ...profile,
+        goal: plan.goalType,
+        targetWeight: plan.targetWeight,
+        ...({ goalPlanJson: plan as any, goalPlanSummary: summary, goalApproved: true } as any)
+      });
+    }
+    setGoalPlan(plan);
+    setGoalSummary(summary);
+    setProfile({ ...profile, goal: plan.goalType, targetWeight: plan.targetWeight });
+  };
+
   if (!profile || !targets) {
     return (
       <AppShell user={props.user} features={features} isTrainer={props.isTrainer}>
@@ -84,8 +135,25 @@ export function HomeView(props: Props) {
 
   const kcalRem = targets.kcal - today.kcal;
   const byMeal = sumByMeal(meals as any);
-  const lastWeight = weights.length ? weights[weights.length - 1] : null;
-  const wDiff = lastWeight && profile.targetWeight ? +(lastWeight.weight - profile.targetWeight).toFixed(1) : null;
+  const lastWeight = weights.length ? weights[weights.length - 1].weight : null;
+
+  // 目標進捗
+  let goalProgress: GoalProgress | null = null;
+  let chartPoints: { y: number; label: string }[] = [];
+  let predictionPoints: { y: number; label: string }[] = [];
+  if (goalPlan) {
+    goalProgress = evaluateProgress({
+      plan: goalPlan,
+      weights: weights.map((w) => ({ date: w.date, weight: w.weight })),
+      todayStr: todayStr()
+    });
+    const { actual, future } = buildPredictionPoints(goalPlan, weights, todayStr());
+    chartPoints = actual;
+    predictionPoints = future;
+  } else {
+    chartPoints = weights.map((w: any) => ({ y: w.weight, label: fmtShortDate(w.date) }));
+  }
+
   const hour = new Date().getHours();
   const greeting = hour < 11 ? 'おはようございます' : hour < 18 ? 'こんにちは' : 'こんばんは';
 
@@ -95,6 +163,17 @@ export function HomeView(props: Props) {
       <div className="mb-4">
         <div className="text-xs text-ink-mute">今日 · {fmtDateJp(todayStr())}</div>
         <h1 className="text-xl md:text-2xl font-bold mt-1">{greeting}{props.user ? `、${props.user.displayName}さん` : ''}</h1>
+      </div>
+
+      {/* 目標カード（常時表示） */}
+      <div className="mb-3 md:mb-4">
+        <GoalCard
+          plan={goalPlan}
+          progress={goalProgress}
+          currentWeight={lastWeight}
+          onOpen={() => setShowGoalSetup(true)}
+          onSetup={() => setShowGoalSetup(true)}
+        />
       </div>
 
       <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-4">
@@ -113,7 +192,7 @@ export function HomeView(props: Props) {
           </div>
         </div>
 
-        {/* PFCバー（コンパクト横長） */}
+        {/* PFCバー */}
         <div className="card md:col-span-2">
           <h2 className="text-sm font-bold mb-3">PFCバランス</h2>
           <div className="space-y-3">
@@ -140,7 +219,7 @@ export function HomeView(props: Props) {
                 <Link
                   key={slot}
                   href="/log"
-                  className="block bg-surface-alt rounded-xl p-3 hover:bg-ink-line transition"
+                  className="block bg-surface-alt rounded-xl p-3 hover:bg-ink-line/30 transition"
                 >
                   <div className="text-[10px] text-ink-mute font-bold">{label}</div>
                   <div className="text-lg font-bold mt-0.5">{kcal}<span className="text-[10px] font-normal text-ink-mute ml-0.5">kcal</span></div>
@@ -153,10 +232,10 @@ export function HomeView(props: Props) {
           </div>
         </div>
 
-        {/* 体組成サマリー */}
+        {/* 体重 + 予測曲線 */}
         <div className="card md:col-span-2">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold">体組成</h2>
+            <h2 className="text-sm font-bold">体重と予測</h2>
             <Link href="/weight" className="text-xs text-brand-600 font-bold flex items-center hover:underline">
               詳細 <ChevronRight className="w-3 h-3" />
             </Link>
@@ -164,27 +243,19 @@ export function HomeView(props: Props) {
           <div className="flex items-baseline justify-between mb-3 gap-4">
             <div>
               <div className="text-[10px] text-ink-mute font-bold">現在</div>
-              <div className="text-2xl md:text-3xl font-bold">{lastWeight ? lastWeight.weight : '—'}<span className="text-sm font-normal text-ink-dim ml-1">kg</span></div>
-              {wDiff != null && wDiff !== 0 && (
-                <div className={`text-[11px] mt-1 flex items-center gap-1 ${wDiff > 0 ? 'text-orange-500' : 'text-blue-500'}`}>
-                  {wDiff > 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                  目標まで {Math.abs(wDiff)} kg
-                </div>
-              )}
+              <div className="text-2xl md:text-3xl font-bold">{lastWeight ?? '—'}<span className="text-sm font-normal text-ink-dim ml-1">kg</span></div>
             </div>
-            <div className="text-right">
-              <div className="text-[10px] text-ink-mute font-bold">目標</div>
-              <div className="text-base md:text-lg font-semibold">{profile.targetWeight} kg</div>
-            </div>
+            {goalPlan && (
+              <div className="text-right">
+                <div className="text-[10px] text-ink-mute font-bold">目標</div>
+                <div className="text-base md:text-lg font-semibold text-brand-600">{goalPlan.targetWeight} kg</div>
+              </div>
+            )}
           </div>
           {weights.length > 1 ? (
-            <LineChart
-              points={weights.map((w: any) => ({ y: w.weight, label: fmtShortDate(w.date) }))}
-              target={profile.targetWeight}
-              height={120}
-            />
+            <PredictionChart actual={chartPoints} future={predictionPoints} target={goalPlan?.targetWeight} />
           ) : (
-            <div className="text-center text-xs text-ink-mute py-4">記録を続けると推移グラフが表示されます</div>
+            <div className="text-center text-xs text-ink-mute py-6">記録を続けると推移と予測が表示されます</div>
           )}
         </div>
 
@@ -197,7 +268,7 @@ export function HomeView(props: Props) {
                 <Plus className="w-3 h-3" /> 記録
               </Link>
             </div>
-            <div className="text-center py-3 text-xs text-ink-mute">トレーニングはPhase 2で実装します</div>
+            <div className="text-center py-3 text-xs text-ink-mute">トレーニング画面で記録できます</div>
           </div>
         )}
         {features.featSleep && (
@@ -228,11 +299,17 @@ export function HomeView(props: Props) {
             <div className="font-bold text-sm">AIトレーナーから</div>
           </div>
           <div className="text-sm leading-relaxed whitespace-pre-wrap text-ink" dangerouslySetInnerHTML={{ __html: formatAdvice(advice) }} />
-          <Link href="/advice" className="mt-3 inline-flex items-center text-brand-600 text-xs font-bold hover:underline">
-            詳しいアドバイスを見る <ChevronRight className="w-3 h-3" />
-          </Link>
         </div>
       </div>
+
+      {/* 目標設定モーダル */}
+      <GoalSetupModal
+        open={showGoalSetup}
+        onClose={() => setShowGoalSetup(false)}
+        profile={profile}
+        initialPlan={goalPlan}
+        onApproved={onGoalApproved}
+      />
     </AppShell>
   );
 }
@@ -248,6 +325,27 @@ function PfcRow({ name, letter, value, target, color, textColor }: { name: strin
       <div className="h-2 bg-surface-alt rounded-full overflow-hidden">
         <div className={`h-full ${color} transition-all`} style={{ width: `${pct}%` }} />
       </div>
+    </div>
+  );
+}
+
+function PredictionChart({ actual, future, target }: { actual: any[]; future: any[]; target?: number }) {
+  // actual + future を結合してチャートに表示。色違いで表示するため future を別途渡したい。
+  // LineChart は単一系列なので、ここでは結合点を返し、target を点線表示。
+  const merged = [...actual, ...future];
+  return (
+    <div>
+      <LineChart
+        points={merged}
+        target={target}
+        height={160}
+      />
+      {future.length > 0 && (
+        <div className="mt-2 flex items-center gap-3 text-[10px] text-ink-mute justify-end">
+          <div className="flex items-center gap-1"><span className="w-3 h-0.5 bg-brand-500" /> 実績</div>
+          <div className="flex items-center gap-1"><span className="w-3 h-0.5 bg-brand-300 border-dashed" /> 予測</div>
+        </div>
+      )}
     </div>
   );
 }
