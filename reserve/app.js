@@ -503,7 +503,6 @@
       stopProgress(true);
     }
   }
-  }
   function showGridError(msg) {
     const el = document.getElementById('grid-error');
     if (msg) {
