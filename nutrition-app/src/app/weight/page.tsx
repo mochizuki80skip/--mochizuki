@@ -172,13 +172,13 @@ function WeightView() {
       <div className="card mb-3">
         <h2 className="font-bold text-base mb-3">体重を記録</h2>
         <div className="grid grid-cols-2 gap-3 mb-3">
-          <div>
+          <div className="min-w-0">
             <label className="label">日付</label>
-            <input className="input" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <input className="input w-full" style={{ minWidth: 0 }} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label className="label">体重 (kg)</label>
-            <input className="input" type="number" inputMode="decimal" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} />
+            <input className="input w-full" style={{ minWidth: 0 }} type="number" inputMode="decimal" step="0.1" value={weight} onChange={(e) => setWeight(e.target.value)} />
           </div>
         </div>
         <div className="mb-3">

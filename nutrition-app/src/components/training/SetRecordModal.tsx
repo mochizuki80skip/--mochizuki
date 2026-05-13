@@ -234,7 +234,7 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
       )}
 
       {/* セット一覧 — 直感入力 */}
-      <div className="space-y-2 mb-3">
+      <div className="space-y-2 mb-4">
         {sets.map((s, i) => (
           <SetRow
             key={i}
@@ -246,17 +246,18 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
             onRemove={() => removeSet(i)}
           />
         ))}
-        <button onClick={addSet} className="btn-ghost w-full !py-2.5">
-          <Plus className="w-4 h-4" /> セットを追加
-        </button>
+        {/* 余白 + セット追加ボタンを固定配置 */}
+        <div className="pt-2">
+          <button onClick={addSet} className="btn-ghost w-full !py-3">
+            <Plus className="w-4 h-4" /> セットを追加
+          </button>
+        </div>
       </div>
 
-      {/* 総負荷 */}
-      {totalVolume > 0 && (
-        <div className="text-center text-xs text-ink-dim mb-3">
-          総負荷 <strong className="text-brand-600 text-base">{totalVolume}kg</strong>
-        </div>
-      )}
+      {/* 総負荷 — 常に同じ位置に表示（位置が動かないよう確保） */}
+      <div className="bg-surface-alt rounded-lg p-2.5 mb-3 text-center text-xs text-ink-dim">
+        総負荷 <strong className="text-brand-600 text-base ml-1">{totalVolume}<span className="text-xs font-normal">kg</span></strong>
+      </div>
 
       <textarea
         className="input mb-3"
@@ -266,7 +267,8 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
         placeholder="メモ（フォーム改善点・感触など）"
       />
 
-      <div className="flex gap-2">
+      {/* 下部固定ボタン */}
+      <div className="flex gap-2 sticky bottom-0 bg-white pt-2 -mx-1 px-1 pb-1">
         <button className="btn-secondary flex-1" onClick={onClose}>キャンセル</button>
         <button className="btn-primary flex-1" onClick={save}>記録する</button>
       </div>

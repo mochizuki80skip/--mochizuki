@@ -179,20 +179,51 @@ export function HomeView(props: Props) {
         <h1 className="text-xl md:text-2xl font-bold mt-1">{greeting}{props.user ? `、${props.user.displayName}さん` : ''}</h1>
       </div>
 
-      {/* 目標カード（常時表示） */}
-      <div className="mb-3 md:mb-4">
-        <GoalCard
-          plan={goalPlan}
-          progress={goalProgress}
-          currentWeight={lastWeight}
-          onOpen={() => setShowGoalSetup(true)}
-          onSetup={() => setShowGoalSetup(true)}
-        />
-      </div>
-
       <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-4">
-        {/* カロリー収支カード */}
-        <div className="card bg-gradient-to-br from-brand-500 to-brand-600 text-white md:col-span-2">
+        {/* 🎯 セクション1: 目標 + 体重予測 + AIアドバイス（統合） */}
+        <div className="card md:col-span-2 bg-gradient-to-br from-brand-50/40 to-white border border-brand-100">
+          {/* 目標カード */}
+          <GoalCard
+            plan={goalPlan}
+            progress={goalProgress}
+            currentWeight={lastWeight}
+            onOpen={() => setShowGoalSetup(true)}
+            onSetup={() => setShowGoalSetup(true)}
+          />
+
+          {/* 体重と予測 */}
+          {weights.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-brand-100">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-ink-dim">体重の推移と予測</h3>
+                <Link href="/weight" className="text-[10px] text-brand-600 font-bold flex items-center hover:underline">
+                  詳細 <ChevronRight className="w-3 h-3" />
+                </Link>
+              </div>
+              {weights.length > 1 ? (
+                <WeightPredictionChart actual={actualPoints} predict={predictPoints} target={goalPlan?.targetWeight} height={140} />
+              ) : (
+                <div className="text-center text-xs text-ink-mute py-4">記録を続けると推移と予測が表示されます</div>
+              )}
+            </div>
+          )}
+
+          {/* AIアドバイス：目標達成のため */}
+          <div className="mt-4 pt-4 border-t border-brand-100">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div className="font-bold text-xs">
+                {goalPlan ? '目標達成のためのアドバイス' : 'AIトレーナーから'}
+              </div>
+            </div>
+            <div className="text-xs leading-relaxed whitespace-pre-wrap text-ink-dim" dangerouslySetInnerHTML={{ __html: formatAdvice(advice) }} />
+          </div>
+        </div>
+
+        {/* 🍽 セクション2: 本日のカロリー + PFC + 説明（統合） */}
+        <div className="card md:col-span-2 bg-gradient-to-br from-brand-500 to-brand-600 text-white">
           <div className="text-xs font-medium opacity-90">本日の摂取カロリー</div>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-4xl md:text-5xl font-bold tracking-tight">{Math.round(today.kcal)}</span>
@@ -201,22 +232,25 @@ export function HomeView(props: Props) {
           <div className="mt-1 text-sm opacity-95">
             {kcalRem >= 0 ? `残り ${kcalRem} kcal` : `${Math.abs(kcalRem)} kcal オーバー`}
           </div>
-          <div className="mt-3">
+          <div className="mt-3 mb-4">
             <ProgressBar value={today.kcal} target={targets.kcal} color="bg-white/90" className="bg-white/20" />
           </div>
-        </div>
 
-        {/* PFCバー */}
-        <div className="card md:col-span-2">
-          <h2 className="text-sm font-bold mb-3">PFCバランス</h2>
-          <div className="space-y-3">
-            <PfcRow name="タンパク質" letter="P" value={today.protein} target={targets.protein} color="bg-blue-500" textColor="text-blue-600" />
-            <PfcRow name="脂質"       letter="F" value={today.fat}     target={targets.fat}     color="bg-amber-500" textColor="text-amber-600" />
-            <PfcRow name="炭水化物"   letter="C" value={today.carbs}   target={targets.carbs}   color="bg-rose-500" textColor="text-rose-600" />
+          {/* PFC バランス（同じカード内に統合） */}
+          <div className="bg-white/15 rounded-xl p-3 mt-3">
+            <h3 className="text-[11px] font-bold opacity-95 mb-2">PFCバランス</h3>
+            <div className="space-y-2">
+              <PfcRowLight letter="P" name="タンパク質" value={today.protein} target={targets.protein} />
+              <PfcRowLight letter="F" name="脂質"       value={today.fat}     target={targets.fat} />
+              <PfcRowLight letter="C" name="炭水化物"   value={today.carbs}   target={targets.carbs} />
+            </div>
+            <div className="text-[10px] opacity-90 mt-3 leading-relaxed border-t border-white/20 pt-2">
+              {goalPlan ? <GoalPfcExplain plan={goalPlan} /> : 'PFCバランスを意識することで、栄養を偏らせず体組成を改善できます。'}
+            </div>
           </div>
         </div>
 
-        {/* 今日の食事 */}
+        {/* 🍱 今日の食事 */}
         <div className="card md:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold">今日の食事</h2>
@@ -246,33 +280,6 @@ export function HomeView(props: Props) {
           </div>
         </div>
 
-        {/* 体重 + 予測曲線 */}
-        <div className="card md:col-span-2">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold">体重と予測</h2>
-            <Link href="/weight" className="text-xs text-brand-600 font-bold flex items-center hover:underline">
-              詳細 <ChevronRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="flex items-baseline justify-between mb-3 gap-4">
-            <div>
-              <div className="text-[10px] text-ink-mute font-bold">現在</div>
-              <div className="text-2xl md:text-3xl font-bold">{lastWeight ?? '—'}<span className="text-sm font-normal text-ink-dim ml-1">kg</span></div>
-            </div>
-            {goalPlan && (
-              <div className="text-right">
-                <div className="text-[10px] text-ink-mute font-bold">目標</div>
-                <div className="text-base md:text-lg font-semibold text-brand-600">{goalPlan.targetWeight} kg</div>
-              </div>
-            )}
-          </div>
-          {weights.length > 1 ? (
-            <WeightPredictionChart actual={actualPoints} predict={predictPoints} target={goalPlan?.targetWeight} height={160} />
-          ) : (
-            <div className="text-center text-xs text-ink-mute py-6">記録を続けると推移と予測が表示されます</div>
-          )}
-        </div>
-
         {/* オプション機能のサマリー */}
         {features.featExercise && (
           <TrainingWidget />
@@ -280,17 +287,6 @@ export function HomeView(props: Props) {
         {features.featSleep && <SleepWidget />}
         {features.featWater && <WaterWidget />}
         {features.featSteps && <StepsWidget />}
-
-        {/* AIアドバイス */}
-        <div className="card md:col-span-2 bg-gradient-to-br from-brand-50 to-white border border-brand-100">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-white" />
-            </div>
-            <div className="font-bold text-sm">AIトレーナーから</div>
-          </div>
-          <div className="text-sm leading-relaxed whitespace-pre-wrap text-ink" dangerouslySetInnerHTML={{ __html: formatAdvice(advice) }} />
-        </div>
       </div>
 
       {/* 目標設定モーダル */}
@@ -475,6 +471,34 @@ function TrainingWidget() {
       )}
     </div>
   );
+}
+
+function PfcRowLight({ letter, name, value, target }: { letter: string; name: string; value: number; target: number }) {
+  const pct = target > 0 ? Math.min((value / target) * 100, 100) : 0;
+  return (
+    <div>
+      <div className="flex justify-between items-baseline text-[11px] mb-1">
+        <span className="font-bold opacity-95">{letter} {name}</span>
+        <span className="opacity-90">{value.toFixed(1)} <span className="opacity-70 text-[9px]">/ {target}g</span></span>
+      </div>
+      <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+        <div className="h-full bg-white/90 transition-all" style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
+function GoalPfcExplain({ plan }: { plan: any }) {
+  const label = plan.goalType === 'diet' ? 'ダイエット' :
+                plan.goalType === 'bulk' ? 'バルクアップ' :
+                plan.goalType === 'bodymake' ? '体型維持' : '記録';
+  const tipMap: Record<string, string> = {
+    diet: 'タンパク質を多めに摂ることで、減量中も筋肉量をキープしながら体脂肪を落としやすくなります。',
+    bulk: 'タンパク質と炭水化物を充実させることで、筋肉合成を促しながら効率的に増量できます。',
+    bodymake: 'バランスの取れた配分で代謝を維持しつつ、現状の体組成をキープします。',
+    log: 'まずは現在のバランスを把握することで、改善ポイントが見えてきます。'
+  };
+  return <>「{label}」目標のためのPFC配分。{tipMap[plan.goalType] || tipMap.bodymake}</>;
 }
 
 function PfcRow({ name, letter, value, target, color, textColor }: { name: string; letter: string; value: number; target: number; color: string; textColor: string }) {

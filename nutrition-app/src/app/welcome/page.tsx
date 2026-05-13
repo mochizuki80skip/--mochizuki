@@ -31,6 +31,11 @@ function Welcome() {
   useEffect(() => {
     (async () => {
       try {
+        // ログアウト直後（?logout=1）は自動再ログインをスキップ
+        if (typeof window !== 'undefined') {
+          const sp = new URL(window.location.href).searchParams;
+          if (sp.get('logout') === '1') return;
+        }
         const liff = await getLiff();
         if (!liff) return;
         if (!liff.isLoggedIn()) return;

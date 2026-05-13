@@ -346,7 +346,7 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
         <div className="text-center py-6">
           <Camera className="w-12 h-12 text-brand-500 mx-auto mb-3" />
           <p className="text-sm text-ink-dim mb-4">食事の写真を撮影 or 選択すると、AIが食品とカロリーを推定します。</p>
-          <input ref={photoRef} type="file" accept="image/*" capture="environment" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = ''; }} />
+          <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = ''; }} />
           <button onClick={() => photoRef.current?.click()} disabled={photoLoading} className="btn-primary w-full">
             {photoLoading ? <><span className="spinner" /> 解析中...</> : <><Camera className="w-4 h-4" /> 写真を選択</>}
           </button>

@@ -144,7 +144,10 @@ export function Sidebar({ features, user, isTrainer }: { features: UserFeatures;
 
 export function TopBar({ user }: { user: NavUser | null }) {
   return (
-    <header className="md:hidden sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-ink-line">
+    <header
+      className="md:hidden sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-ink-line"
+      style={{ paddingTop: 'var(--safe-top)' }}
+    >
       <div className="px-4 py-3 flex items-center justify-between">
         <BrandHeader />
         {user && (

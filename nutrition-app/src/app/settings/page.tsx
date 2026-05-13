@@ -83,11 +83,20 @@ function SettingsView() {
 
   const onLogout = async () => {
     if (!confirm('ログアウトしますか？')) return;
-    await fetch('/api/auth/line', { method: 'DELETE' });
-    await liffLogout();
+    // 1. サーバー側Cookie削除（om_user, om_session）
+    try { await fetch('/api/auth/line', { method: 'DELETE' }); } catch {}
+    // 2. クライアント側のCookieも明示的にクリア（保険）
+    try {
+      document.cookie = 'om_session=; path=/; max-age=0';
+      document.cookie = 'om_intro=; path=/; max-age=0';
+    } catch {}
+    // 3. LIFF セッションをクリア（LINEログインしてた場合）
+    try { await liffLogout(); } catch {}
+    // 4. ローカルのフラグも反映
     setLoggedIn(false);
     toast('ログアウトしました');
-    location.reload();
+    // 5. /welcome に確実に遷移（?logout=1 で自動再ログインを抑止）
+    setTimeout(() => { window.location.href = '/welcome?logout=1'; }, 300);
   };
 
   // ---- Profile edit ----

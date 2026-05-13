@@ -69,18 +69,31 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
   };
 
   const isLogMode = goalType === 'log';
+  const isMaintainMode = goalType === 'bodymake';
 
-  const nextFromType = () => setStep('period');
+  const nextFromType = () => {
+    // 記録のみは何も設定しないでキャンセル扱い
+    if (goalType === 'log') {
+      toast('記録モードは目標設定不要です');
+      onClose();
+      return;
+    }
+    // 体型維持は期間ステップをスキップ、運動選択へ
+    if (goalType === 'bodymake') {
+      // 体型維持なら目標体重 = 現在体重、期間 = 3ヶ月固定
+      setTargetWeight(String(profile?.weightKg || ''));
+      setPeriod('3m');
+      setStep('exercise');
+      return;
+    }
+    setStep('period');
+  };
   const nextFromPeriod = () => {
     if (!isLogMode && !targetWeight) {
       toast('目標体重を入力してください');
       return;
     }
-    if (isLogMode) {
-      generatePlan(false, 0);
-    } else {
-      setStep('exercise');
-    }
+    setStep('exercise');
   };
 
   const generatePlan = async (uex: boolean, freq: number, opts?: { deadline?: string }) => {
@@ -148,10 +161,11 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
     }
   };
 
-  const stepIdx = isLogMode
-    ? ['type', 'period', 'review'].indexOf(step)
+  // ステップ数: 通常は4 (type→period→exercise→review)、体型維持は3 (period スキップ)、log は使わない
+  const stepIdx = isMaintainMode
+    ? ['type', 'exercise', 'review'].indexOf(step)
     : ['type', 'period', 'exercise', 'review'].indexOf(step);
-  const totalSteps = isLogMode ? 3 : 4;
+  const totalSteps = isMaintainMode ? 3 : 4;
 
   return (
     <Modal open={open} onClose={onClose} title="目標を設定">
@@ -396,7 +410,7 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
           )}
 
           <div className="flex gap-2 pt-2">
-            <button className="btn-secondary flex-1" onClick={() => setStep(isLogMode ? 'period' : 'exercise')}>戻る</button>
+            <button className="btn-secondary flex-1" onClick={() => setStep(isMaintainMode ? 'type' : 'exercise')}>戻る</button>
             <button className="btn-primary flex-1" onClick={approve} disabled={saving || loading}>
               {saving ? <span className="spinner" /> : 'この計画で進める'}
             </button>

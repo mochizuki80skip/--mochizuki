@@ -206,14 +206,6 @@ function RecordTab({ allWorkouts, calMonth, onChangeMonth, onSelectDate }: any) 
 
   return (
     <>
-      {/* サマリー4ステート */}
-      <div className="grid grid-cols-2 gap-2 mb-3">
-        <SummaryStat label="7日間 総負荷" value={(days7Volume / 1000).toFixed(2)} unit="t" />
-        <SummaryStat label="28日間 総負荷" value={(days28Volume / 1000).toFixed(2)} unit="t" />
-        <SummaryStat label="月の記録日数" value={`${monthArchive}`} unit="日" />
-        <SummaryStat label="総合 総負荷" value={(totalVolume / 1000).toFixed(2)} unit="t" />
-      </div>
-
       {/* カレンダー + 週別棒グラフ（左右2列 on md+） */}
       <div className="grid md:grid-cols-2 gap-3 mb-3">
         {/* カレンダー */}
@@ -482,25 +474,25 @@ function AnalysisTab({ allWorkouts, bodyPartFilter, onChangeFilter }: any) {
 
       <div className="card mb-3">
         <h3 className="font-bold text-sm mb-2">総負荷推移</h3>
-        {volumeByDate.length > 1 ? (
+        {volumeByDate.length > 0 ? (
           <LineChart
             points={volumeByDate.map(([d, v]) => ({ y: v, label: fmtShortDate(d) }))}
             height={160}
           />
         ) : (
-          <div className="text-xs text-ink-mute text-center py-6">記録を続けるとグラフが表示されます</div>
+          <div className="text-xs text-ink-mute text-center py-6">記録するとグラフが表示されます</div>
         )}
       </div>
 
       <div className="card">
         <h3 className="font-bold text-sm mb-2">最大1RM推移（推定）</h3>
-        {maxRMByDate.length > 1 ? (
+        {maxRMByDate.length > 0 ? (
           <LineChart
             points={maxRMByDate.map(([d, v]) => ({ y: v, label: fmtShortDate(d) }))}
             height={160}
           />
         ) : (
-          <div className="text-xs text-ink-mute text-center py-6">記録を続けるとグラフが表示されます</div>
+          <div className="text-xs text-ink-mute text-center py-6">記録するとグラフが表示されます</div>
         )}
       </div>
     </>
