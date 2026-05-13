@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import type Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@/lib/supabase/server";
-import { anthropic, CLAUDE_MODEL } from "@/lib/claude";
+import { gemini, GEMINI_MODEL } from "@/lib/gemini";
 
 /**
  * Week 1: 疎通用スケルトン。
@@ -103,36 +102,39 @@ export async function POST(req: Request) {
   ].join("\n");
 
   try {
-    const response = await anthropic.messages.create({
-      model: CLAUDE_MODEL,
-      max_tokens: 1024,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
+    const response = await gemini.models.generateContent({
+      model: GEMINI_MODEL,
+      contents: userPrompt,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+      },
     });
 
-    const text = response.content
-      .filter((c): c is Anthropic.TextBlock => c.type === "text")
-      .map((c) => c.text)
-      .join("\n")
-      .trim();
+    const text = (response.text ?? "").trim();
 
     let suggestions: string[] = [];
-    const match = text.match(/\[[\s\S]*\]/);
-    if (match) {
-      try {
-        suggestions = JSON.parse(match[0]);
-      } catch {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed)) suggestions = parsed.map(String);
+    } catch {
+      const match = text.match(/\[[\s\S]*\]/);
+      if (match) {
+        try {
+          suggestions = JSON.parse(match[0]);
+        } catch {
+          suggestions = [text];
+        }
+      } else {
         suggestions = [text];
       }
-    } else {
-      suggestions = [text];
     }
 
     return NextResponse.json({ suggestions });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
-      { error: "claude_api_failed", detail: msg },
+      { error: "gemini_api_failed", detail: msg },
       { status: 500 }
     );
   }

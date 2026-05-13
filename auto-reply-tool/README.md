@@ -12,7 +12,7 @@ kaloko アプリの「お約束機能」(歩数 5000 歩 / 水 2L など) への
 - 認証 (Supabase)
 - お客様 CRUD
 - お約束 CRUD
-- Claude API 疎通 (`POST /api/generate-reply`)
+- Gemini API 疎通 (`POST /api/generate-reply`)
 
 Week 2 で「返信作成画面」を、Week 3 で「距離感 AI 提案 / トーン切替 / スマホ UI 仕上げ」を実装予定です。
 
@@ -20,7 +20,7 @@ Week 2 で「返信作成画面」を、Week 3 で「距離感 AI 提案 / ト�
 
 - Node.js 20+
 - [Supabase](https://supabase.com) プロジェクト (無料枠でOK)
-- [Anthropic API キー](https://console.anthropic.com)
+- [Google Gemini API キー](https://aistudio.google.com/apikey) (完全無料・クレカ不要)
 
 ## セットアップ
 
@@ -43,9 +43,15 @@ cp .env.local.example .env.local
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-ANTHROPIC_API_KEY=sk-ant-...
-ANTHROPIC_MODEL=claude-sonnet-4-6
+GEMINI_API_KEY=AIza...
+GEMINI_MODEL=gemini-2.5-flash
 ```
+
+**Gemini API キーの取り方:**
+1. https://aistudio.google.com/apikey にアクセス(Google ログイン)
+2. 「Create API key」→ Google Cloud プロジェクトを選ぶ(or 新規作成)
+3. 表示された `AIza...` の文字列をコピー
+4. クレジットカード登録は不要。無料枠で1日 1500 回まで呼べます
 
 ### 3. インストール & 起動
 
@@ -79,7 +85,7 @@ npm run dev
 
 ### POST /api/generate-reply
 
-返信案を 3 つ生成。Week 2 で UI と接続予定。
+返信案を 3 つ生成 (Gemini)。Week 2 で UI と接続予定。
 
 リクエスト:
 ```json
@@ -113,10 +119,10 @@ auto-reply-tool/
     │   ├── auth/               # auth コールバック / ログアウト
     │   ├── customers/          # お客様 CRUD
     │   └── api/
-    │       └── generate-reply/ # Claude API
+    │       └── generate-reply/ # Gemini API
     ├── lib/
     │   ├── supabase/           # client / server / middleware
-    │   └── claude.ts           # Anthropic SDK
+    │   └── gemini.ts           # Google GenAI SDK
     └── middleware.ts           # 未ログイン時 /login にリダイレクト
 ```
 
