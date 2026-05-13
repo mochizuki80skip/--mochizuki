@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/AppShell';
 import { useToast } from '@/components/ui/Toast';
 import { LineChart } from '@/components/ui/LineChart';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Sparkles, RefreshCw } from 'lucide-react';
 import * as storage from '@/lib/storage';
-import { todayStr, fmtShortDate } from '@/lib/utils';
-import { bmi } from '@/lib/nutrition';
+import { todayStr, fmtShortDate, daysAgo } from '@/lib/utils';
+import { bmi, calcTargets, sumDay } from '@/lib/nutrition';
 
 export default function WeightPage() {
   return <WeightView />;
@@ -21,6 +21,34 @@ function WeightView() {
   const [weight, setWeight] = useState('');
   const [bodyFat, setBodyFat] = useState('');
   const [range, setRange] = useState<7 | 30 | 90>(7);
+  const [advice, setAdvice] = useState<string>('');
+  const [adviceLoading, setAdviceLoading] = useState(false);
+
+  const fetchWeeklyAdvice = async (p: any) => {
+    setAdviceLoading(true);
+    try {
+      const t = calcTargets(p);
+      const fromDate = daysAgo(7);
+      const range = await storage.getMealsRange(fromDate, todayStr());
+      const byDate: Record<string, any> = {};
+      for (const m of range) {
+        const d = byDate[m.date] = byDate[m.date] || { date: m.date, kcal: 0, protein: 0, fat: 0, carbs: 0 };
+        d.kcal += m.kcal; d.protein += m.protein; d.fat += m.fat; d.carbs += m.carbs;
+      }
+      const recent7 = Object.values(byDate).sort((a: any, b: any) => a.date.localeCompare(b.date));
+      const todayMeals = await storage.getMealsByDate(todayStr());
+      const todaySum = sumDay(todayMeals as any);
+      const ws = (await storage.getAllWeights()).slice(-14);
+      const res = await fetch('/api/advice', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: p, targets: t, today: todaySum, recent7, weights: ws, mode: 'weekly' })
+      });
+      const data = await res.json();
+      setAdvice(data.advice || '');
+    } catch {}
+    finally { setAdviceLoading(false); }
+  };
 
   useEffect(() => {
     (async () => {
@@ -34,6 +62,7 @@ function WeightView() {
         featSteps: !!(p as any).featSteps
       });
       setWeights(await storage.getAllWeights());
+      fetchWeeklyAdvice(p);
     })();
   }, []);
 
@@ -159,6 +188,31 @@ function WeightView() {
         <button className="btn-primary w-full" onClick={save}>保存する</button>
       </div>
 
+      {/* AI 週次レポート */}
+      <div className="card mb-3 bg-gradient-to-br from-brand-50 to-white border border-brand-100">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center">
+              <Sparkles className="w-4 h-4 text-white" />
+            </div>
+            <div className="font-bold text-sm">AI 週次レポート</div>
+          </div>
+          <button
+            onClick={() => fetchWeeklyAdvice(profile)}
+            className="text-xs text-brand-600 font-bold flex items-center gap-1 hover:underline"
+          >
+            <RefreshCw className={`w-3 h-3 ${adviceLoading ? 'animate-spin' : ''}`} /> 更新
+          </button>
+        </div>
+        {adviceLoading ? (
+          <div className="flex items-center gap-2 text-ink-dim text-sm py-4">
+            <span className="spinner" /> 分析中...
+          </div>
+        ) : (
+          <div className="text-sm leading-relaxed whitespace-pre-wrap text-ink" dangerouslySetInnerHTML={{ __html: formatAdvice(advice) }} />
+        )}
+      </div>
+
       {/* History list */}
       <div className="card">
         <h2 className="font-bold text-base mb-3">履歴</h2>
@@ -191,4 +245,10 @@ function WeightView() {
       </div>
     </AppShell>
   );
+}
+
+function formatAdvice(text: string): string {
+  const escaped = text.replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c] as string));
+  return escaped.replace(/\*\*(.+?)\*\*/g, '<strong class="text-brand-600 font-bold">$1</strong>')
+                .replace(/\n/g, '<br/>');
 }

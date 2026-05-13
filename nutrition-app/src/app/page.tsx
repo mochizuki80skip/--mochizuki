@@ -1,3 +1,5 @@
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { getCurrentUser, getCurrentTrainer } from '@/lib/auth';
 import { calcTargets, sumDay } from '@/lib/nutrition';
 import { prisma } from '@/lib/prisma';
@@ -9,6 +11,12 @@ export const dynamic = 'force-dynamic';
 export default async function Page() {
   const user = await getCurrentUser();
   const trainer = await getCurrentTrainer().catch(() => null);
+
+  // ゲスト（未ログイン）かつ「ようこそ画面」未通過なら /welcome へ
+  if (!user) {
+    const c = await cookies();
+    if (!c.get('om_intro')) redirect('/welcome');
+  }
 
   if (user && user.onboardedAt) {
     const today = todayStr();

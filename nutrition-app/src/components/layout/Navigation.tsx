@@ -27,20 +27,17 @@ interface NavItem {
 }
 
 // すべてのナビ項目（visible で表示制御）
+// 「アドバイス」はタブから外し、各画面に統合する方針
 const ALL_NAV: NavItem[] = [
   { href: '/',          label: 'ホーム',       icon: Home,      visible: () => true },
   { href: '/log',       label: '食事',         icon: Utensils,  visible: () => true },
   { href: '/training',  label: 'トレーニング', icon: Dumbbell,  visible: (f) => f.featExercise },
   { href: '/weight',    label: '体組成',       icon: LineChart, visible: () => true },
-  { href: '/advice',    label: 'アドバイス',   icon: Sparkles,  visible: () => true },
   { href: '/settings',  label: '設定',         icon: Settings,  visible: () => true }
 ];
 
 function visibleNav(features: UserFeatures, max: number = 5): NavItem[] {
-  const items = ALL_NAV.filter((n) => n.visible(features));
-  if (items.length <= max) return items;
-  // モバイルでオーバーフローしたら「アドバイス」を隠す（設定経由で到達可）
-  return items.filter((n) => n.href !== '/advice');
+  return ALL_NAV.filter((n) => n.visible(features)).slice(0, max);
 }
 
 function isActive(pathname: string, href: string) {
