@@ -19,9 +19,10 @@ export interface GoalPlan {
   carbs: number;
   // 補助情報
   weeksTotal: number;
-  recommendedFoods: string[];   // ["鶏むね肉", "ブロッコリー"] 等
-  recommendedFreq: string;       // "週3回のトレーニング" 等
-  tips: string[];                // 行動のヒント
+  // 運動の組み合わせ
+  useExercise: boolean;
+  weeklyFreq: number;       // 週運動回数（運動ありの場合）
+  exerciseKcalPerDay: number; // 1日あたりの運動消費kcal（日割り）
 }
 
 export interface GoalProgressInput {
@@ -73,9 +74,13 @@ export function diffDays(from: Date | string, to: Date | string): number {
   return Math.round((t.getTime() - f.getTime()) / (1000 * 60 * 60 * 24));
 }
 
+// 1回あたりの運動消費kcal（一律）
+export const EXERCISE_KCAL_PER_SESSION = 250;
+
 /**
- * 目標と期間から「ベースとなる計画」を計算（AIなしの即時版）
- * 1kg脂肪 ≒ 7200kcal を基準にカロリー収支を算出
+ * 目標と期間 + 運動有無から計画を計算
+ * 1kg脂肪 ≒ 7200kcal を基準にカロリー収支算出
+ * 運動ありの場合: 目標摂取kcal = TDEE + 運動分(日割り) + 目標調整
  */
 export function calculateBasePlan(opts: {
   goalType: 'diet' | 'bulk' | 'bodymake' | 'log';
@@ -87,6 +92,8 @@ export function calculateBasePlan(opts: {
   activity: 'low' | 'mid' | 'high';
   deadline: Date;
   startedAt?: Date;
+  useExercise?: boolean;
+  weeklyFreq?: number;
 }): GoalPlan {
   const start = opts.startedAt || new Date();
   const days = Math.max(7, diffDays(start, opts.deadline));
@@ -95,7 +102,6 @@ export function calculateBasePlan(opts: {
   const weeklyKg = +(deltaKg / weeks).toFixed(2);
 
   // 必要日次カロリー調整: 1kg脂肪 = 7200kcal
-  // 日次調整 kcal = (deltaKg * 7200) / days
   const dailyAdjust = Math.round((deltaKg * 7200) / days);
 
   const targets: Targets = calcTargets({
@@ -103,19 +109,21 @@ export function calculateBasePlan(opts: {
     weightKg: opts.weightKg, activity: opts.activity, goal: opts.goalType
   });
 
-  // 目標期間が決まっている場合は dailyAdjust を優先（プリセットでなく）
-  let kcal = Math.max(1200, targets.tdee + dailyAdjust);
+  // 運動消費を日割りで加算
+  const useExercise = !!opts.useExercise && opts.goalType !== 'log';
+  const weeklyFreq = useExercise ? Math.max(1, Math.min(7, opts.weeklyFreq || 3)) : 0;
+  const exerciseKcalPerDay = useExercise ? Math.round((weeklyFreq * EXERCISE_KCAL_PER_SESSION) / 7) : 0;
+
+  // 目標期間からの基本カロリー
+  let kcal = Math.max(1200, targets.tdee + dailyAdjust + exerciseKcalPerDay);
   if (opts.goalType === 'log') kcal = targets.tdee; // 記録のみは維持
 
-  // PFC比率は目標タイプから取得
+  // PFC比率
   const preset = GOAL_PRESETS[opts.goalType === 'log' ? 'bodymake' : opts.goalType] || GOAL_PRESETS.bodymake;
   const proteinFloor = Math.round(opts.weightKg * 1.6);
   const protein = Math.max(Math.round((kcal * preset.pRatio) / 4), proteinFloor);
   const fat = Math.round((kcal * preset.fRatio) / 9);
   const carbs = Math.round((kcal * preset.cRatio) / 4);
-
-  // 推奨食品・頻度・Tips（タイプ別の固定テンプレ — AIで上書き可能）
-  const { recommendedFoods, recommendedFreq, tips } = getDefaultRecommendations(opts.goalType, weeklyKg);
 
   return {
     goalType: opts.goalType,
@@ -130,51 +138,9 @@ export function calculateBasePlan(opts: {
     fat,
     carbs,
     weeksTotal: Math.round(weeks),
-    recommendedFoods,
-    recommendedFreq,
-    tips
-  };
-}
-
-function getDefaultRecommendations(goalType: string, weeklyKg: number) {
-  if (goalType === 'diet') {
-    return {
-      recommendedFoods: ['鶏むね肉', 'ブロッコリー', '玄米', '卵', 'ギリシャヨーグルト'],
-      recommendedFreq: '週3〜4回のトレーニング（有酸素＋筋トレ）',
-      tips: [
-        '夕食の主食は通常の半量を目安に',
-        '間食はナッツ・ヨーグルト等のタンパク質源を優先',
-        '水分を1日2L以上'
-      ]
-    };
-  }
-  if (goalType === 'bulk') {
-    return {
-      recommendedFoods: ['鶏もも肉', 'サーモン', 'オートミール', 'バナナ', 'プロテイン'],
-      recommendedFreq: '週4〜5回の筋トレ（部位別に分割推奨）',
-      tips: [
-        '主食をしっかり摂る（特にトレ後）',
-        '間食を活用してカロリーを補う',
-        '睡眠時間を7時間以上確保'
-      ]
-    };
-  }
-  if (goalType === 'bodymake') {
-    return {
-      recommendedFoods: ['バランスの良い和食', '魚介類', '野菜', '果物'],
-      recommendedFreq: '週2〜3回のトレーニング',
-      tips: [
-        'PFCバランスを意識',
-        '食べ過ぎ・食べなさ過ぎを避ける',
-        '体重を週1回計測'
-      ]
-    };
-  }
-  // log
-  return {
-    recommendedFoods: [],
-    recommendedFreq: '自由',
-    tips: ['まずは記録を続けることが大切', '気になる傾向を発見してから次の目標へ']
+    useExercise,
+    weeklyFreq,
+    exerciseKcalPerDay
   };
 }
 

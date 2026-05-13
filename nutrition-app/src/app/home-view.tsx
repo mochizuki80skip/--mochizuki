@@ -266,21 +266,16 @@ export function HomeView(props: Props) {
         {features.featSleep && (
           <div className="card">
             <h2 className="text-sm font-bold mb-2">昨夜の睡眠</h2>
-            <div className="text-center py-3 text-xs text-ink-mute">睡眠機能はPhase 3で実装します</div>
+            <div className="text-center py-3 text-xs text-ink-mute">睡眠機能は近日対応</div>
           </div>
         )}
         {features.featWater && (
           <div className="card">
             <h2 className="text-sm font-bold mb-2">水分摂取</h2>
-            <div className="text-center py-3 text-xs text-ink-mute">水分機能はPhase 3で実装します</div>
+            <div className="text-center py-3 text-xs text-ink-mute">水分機能は近日対応</div>
           </div>
         )}
-        {features.featSteps && (
-          <div className="card">
-            <h2 className="text-sm font-bold mb-2">歩数</h2>
-            <div className="text-center py-3 text-xs text-ink-mute">歩数機能はPhase 3で実装します</div>
-          </div>
-        )}
+        {features.featSteps && <StepsWidget />}
 
         {/* AIアドバイス */}
         <div className="card md:col-span-2 bg-gradient-to-br from-brand-50 to-white border border-brand-100">
@@ -303,6 +298,53 @@ export function HomeView(props: Props) {
         onApproved={onGoalApproved}
       />
     </AppShell>
+  );
+}
+
+function StepsWidget() {
+  const [todaySteps, setTodaySteps] = useState<number | null>(null);
+  const [input, setInput] = useState('');
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    (async () => {
+      const s = await storage.getStepsByDate(todayStr());
+      if (s) { setTodaySteps(s.count); setInput(String(s.count)); }
+    })();
+  }, []);
+  const save = async () => {
+    const n = +input;
+    if (!n || isNaN(n)) return;
+    await storage.setStepsCount(todayStr(), n);
+    setTodaySteps(n);
+    setEditing(false);
+  };
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-bold">歩数</h2>
+        {!editing && (
+          <button onClick={() => setEditing(true)} className="text-xs text-brand-600 font-bold">
+            <Plus className="w-3 h-3 inline" /> 入力
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex items-center gap-2">
+          <input type="number" inputMode="numeric" className="input flex-1" value={input} onChange={(e) => setInput(e.target.value)} placeholder="例: 8000" autoFocus />
+          <button onClick={save} className="btn-primary !min-h-[40px] !px-3 text-xs">保存</button>
+        </div>
+      ) : (
+        <>
+          <div className="text-2xl font-bold">
+            {todaySteps != null ? todaySteps.toLocaleString() : '—'}
+            <span className="text-xs font-normal text-ink-dim ml-1">歩</span>
+          </div>
+          <div className="text-[10px] text-ink-mute mt-1">
+            iOSヘルスケア連携は将来対応予定（現在は手動入力）
+          </div>
+        </>
+      )}
+    </div>
   );
 }
 

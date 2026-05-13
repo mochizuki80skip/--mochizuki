@@ -34,7 +34,9 @@ export async function PUT(req: NextRequest) {
       goalDeadline: body.goalDeadline ? new Date(body.goalDeadline) : user.goalDeadline,
       goalPlanSummary: typeof body.goalPlanSummary === 'string' ? body.goalPlanSummary : undefined,
       goalPlanJson: body.goalPlanJson ? JSON.stringify(body.goalPlanJson) : undefined,
-      goalApproved: typeof body.goalApproved === 'boolean' ? body.goalApproved : true
+      goalApproved: typeof body.goalApproved === 'boolean' ? body.goalApproved : true,
+      goalUseExercise: typeof body.goalUseExercise === 'boolean' ? body.goalUseExercise : undefined,
+      goalWeeklyFreq: body.goalWeeklyFreq != null ? Number(body.goalWeeklyFreq) : undefined
     }
   });
 

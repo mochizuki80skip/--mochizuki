@@ -39,6 +39,33 @@ export function setVolume(weight: number | null | undefined, reps: number | null
   return (weight || 0) * (reps || 0);
 }
 
+/**
+ * 1RM (One Rep Max) 推定 — Brzycki式
+ * 1RM = weight × 36 / (37 - reps)
+ * reps が 10 を超えると精度が落ちるため上限あり
+ */
+export function estimate1RM(weight: number | null | undefined, reps: number | null | undefined): number {
+  const w = weight || 0;
+  const r = reps || 0;
+  if (w <= 0 || r <= 0) return 0;
+  if (r === 1) return w;
+  const r2 = Math.min(r, 12);
+  const max = w * 36 / (37 - r2);
+  return +max.toFixed(1);
+}
+
+/**
+ * セット配列から最大1RMを取得
+ */
+export function maxRMFromSets(sets: Array<{ weight?: number | null; reps?: number | null }>): number {
+  let max = 0;
+  for (const s of sets) {
+    const rm = estimate1RM(s.weight, s.reps);
+    if (rm > max) max = rm;
+  }
+  return max;
+}
+
 // 体重・有酸素時間から消費kcalを推定 (MET法)
 const METS: Record<string, number> = {
   'ランニング': 8.0,

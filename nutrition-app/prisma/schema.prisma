@@ -36,8 +36,14 @@ model User {
   goalStartedAt   DateTime?
   goalDeadline    DateTime?
   goalPlanSummary String?   // 表示用要旨
-  goalPlanJson    String?   // 構造化プラン {kcal, protein, fat, carbs, weeklyPace, foods, trainingFreq, tips}
+  goalPlanJson    String?   // 構造化プラン
   goalApproved    Boolean   @default(false)
+  goalUseExercise Boolean   @default(false)  // 運動ありき目標か
+  goalWeeklyFreq  Int?                       // 週運動回数（1〜7）
+
+  // 個人代謝係数（学習結果）
+  metabolicFactor   Float     @default(1.0)
+  metabolicLastCalc DateTime?
 
   // 機能モジュール（選択制）
   featExercise  Boolean   @default(false)
@@ -53,6 +59,7 @@ model User {
   meals         Meal[]
   weights       Weight[]
   workouts      Workout[]
+  steps         Steps[]
   comments      TrainerComment[]
 
   @@index([isMember])
@@ -79,6 +86,21 @@ model Workout {
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sets         StrengthSet[]
 
+  @@index([userId, date])
+}
+
+// 歩数（手動入力、将来 HealthKit 連携予定）
+model Steps {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String   // YYYY-MM-DD
+  count     Int
+  source    String   @default("manual") // manual / healthkit / googlefit
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
   @@index([userId, date])
 }
 

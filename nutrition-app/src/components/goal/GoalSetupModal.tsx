@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import { TrendingDown, TrendingUp, Activity, Edit3, Sparkles, Calendar, Target } from 'lucide-react';
-import { addDays, periodToDays } from '@/lib/goal';
+import { TrendingDown, TrendingUp, Activity, Edit3, Sparkles, Calendar, Dumbbell, Apple } from 'lucide-react';
+import { addDays, periodToDays, EXERCISE_KCAL_PER_SESSION } from '@/lib/goal';
 import type { GoalPlan } from '@/lib/goal';
 import { useToast } from '@/components/ui/Toast';
 
@@ -14,7 +14,7 @@ interface Props {
   onApproved: (plan: GoalPlan, summary: string) => Promise<void>;
 }
 
-type Step = 'type' | 'period' | 'review';
+type Step = 'type' | 'period' | 'exercise' | 'review';
 type GoalType = 'diet' | 'bulk' | 'bodymake' | 'log';
 
 const TYPE_OPTIONS: { value: GoalType; label: string; sub: string; icon: any; color: string }[] = [
@@ -38,6 +38,8 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
   const [targetWeight, setTargetWeight] = useState<string>('');
   const [period, setPeriod] = useState<string>('3m');
   const [customDeadline, setCustomDeadline] = useState<string>('');
+  const [useExercise, setUseExercise] = useState<boolean | null>(null);
+  const [weeklyFreq, setWeeklyFreq] = useState<number>(3);
   const [plan, setPlan] = useState<GoalPlan | null>(null);
   const [summary, setSummary] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -50,6 +52,8 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
     setTargetWeight(initialPlan?.targetWeight?.toString() || profile?.targetWeight?.toString() || '');
     setPeriod('3m');
     setCustomDeadline('');
+    setUseExercise(initialPlan?.useExercise ?? null);
+    setWeeklyFreq(initialPlan?.weeklyFreq || 3);
     setPlan(null);
     setSummary('');
   }, [open, initialPlan, profile]);
@@ -61,11 +65,24 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
     return d.toISOString().slice(0, 10);
   };
 
-  const goToReview = async () => {
-    if (goalType !== 'log' && !targetWeight) {
+  // 「記録のみ」は運動選択スキップ
+  const isLogMode = goalType === 'log';
+
+  const nextFromType = () => setStep('period');
+  const nextFromPeriod = () => {
+    if (!isLogMode && !targetWeight) {
       toast('目標体重を入力してください');
       return;
     }
+    if (isLogMode) {
+      // log mode skips exercise step and goes straight to review
+      generatePlan(false, 0);
+    } else {
+      setStep('exercise');
+    }
+  };
+
+  const generatePlan = async (uex: boolean, freq: number) => {
     setLoading(true);
     try {
       const deadline = computedDeadline();
@@ -74,9 +91,11 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           goalType,
-          targetWeight: goalType === 'log' ? profile.weightKg : Number(targetWeight),
+          targetWeight: isLogMode ? profile.weightKg : Number(targetWeight),
           deadline,
-          profile
+          profile,
+          useExercise: uex,
+          weeklyFreq: freq
         })
       });
       if (!res.ok) { toast('プラン生成に失敗'); return; }
@@ -87,6 +106,14 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
     } finally {
       setLoading(false);
     }
+  };
+
+  const goToReview = () => {
+    if (useExercise === null) {
+      toast('運動を組み合わせるか選択してください');
+      return;
+    }
+    generatePlan(useExercise, weeklyFreq);
   };
 
   const approve = async () => {
@@ -101,16 +128,17 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
     }
   };
 
+  const stepIdx = isLogMode
+    ? ['type', 'period', 'review'].indexOf(step)
+    : ['type', 'period', 'exercise', 'review'].indexOf(step);
+  const totalSteps = isLogMode ? 3 : 4;
+
   return (
     <Modal open={open} onClose={onClose} title="目標を設定">
-      {/* Steps indicator */}
       <div className="flex gap-1 mb-4">
-        {(['type', 'period', 'review'] as Step[]).map((s, i) => {
-          const stepIdx = ['type', 'period', 'review'].indexOf(step);
-          return (
-            <div key={s} className={`flex-1 h-1.5 rounded-full ${i <= stepIdx ? 'bg-brand-500' : 'bg-ink-line'}`} />
-          );
-        })}
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <div key={i} className={`flex-1 h-1.5 rounded-full ${i <= stepIdx ? 'bg-brand-500' : 'bg-ink-line'}`} />
+        ))}
       </div>
 
       {step === 'type' && (
@@ -137,7 +165,7 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
           </div>
           <div className="flex gap-2 mt-4">
             <button className="btn-secondary flex-1" onClick={onClose}>キャンセル</button>
-            <button className="btn-primary flex-1" onClick={() => setStep('period')}>次へ</button>
+            <button className="btn-primary flex-1" onClick={nextFromType}>次へ</button>
           </div>
         </div>
       )}
@@ -147,7 +175,7 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
           <h3 className="font-bold text-base mb-1">いつまでに？</h3>
           <p className="text-xs text-ink-dim">期間に応じて1日の目標カロリーが変わります。</p>
 
-          {goalType !== 'log' && (
+          {!isLogMode && (
             <div className="mt-3">
               <label className="label">目標体重 (kg)</label>
               <input
@@ -195,8 +223,66 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
 
           <div className="flex gap-2 mt-4">
             <button className="btn-secondary flex-1" onClick={() => setStep('type')}>戻る</button>
-            <button className="btn-primary flex-1" onClick={goToReview} disabled={loading}>
-              {loading ? <><span className="spinner" /> プラン作成中...</> : 'プランを見る'}
+            <button className="btn-primary flex-1" onClick={nextFromPeriod} disabled={loading}>
+              {loading ? <><span className="spinner" /> 計算中...</> : '次へ'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {step === 'exercise' && (
+        <div className="space-y-3">
+          <h3 className="font-bold text-base mb-1">運動を組み合わせる？</h3>
+          <p className="text-xs text-ink-dim">運動を加えると、その分多く食べられる計画になります。</p>
+
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <button
+              onClick={() => setUseExercise(false)}
+              className={`p-4 rounded-xl border text-left transition active:scale-[0.98] ${
+                useExercise === false ? 'bg-emerald-50 border-emerald-500 text-emerald-700' : 'bg-white border-ink-line'
+              }`}
+            >
+              <Apple className={`w-5 h-5 mb-2 ${useExercise === false ? '' : 'text-ink-mute'}`} />
+              <div className="font-bold text-sm">食事のみ</div>
+              <div className="text-[10px] text-ink-mute mt-0.5">食事管理だけで達成</div>
+            </button>
+            <button
+              onClick={() => setUseExercise(true)}
+              className={`p-4 rounded-xl border text-left transition active:scale-[0.98] ${
+                useExercise === true ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-ink-line'
+              }`}
+            >
+              <Dumbbell className={`w-5 h-5 mb-2 ${useExercise === true ? '' : 'text-ink-mute'}`} />
+              <div className="font-bold text-sm">運動も加える</div>
+              <div className="text-[10px] text-ink-mute mt-0.5">食事 + 週X回の運動</div>
+            </button>
+          </div>
+
+          {useExercise === true && (
+            <div className="mt-4">
+              <label className="label">週何回 運動しますか？</label>
+              <div className="grid grid-cols-7 gap-1.5">
+                {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setWeeklyFreq(n)}
+                    className={`py-3 rounded-xl border text-sm font-bold transition ${
+                      weeklyFreq === n ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink-line text-ink-dim'
+                    }`}
+                  >{n}</button>
+                ))}
+              </div>
+              <div className="mt-2 text-xs text-ink-dim flex items-center gap-1">
+                <Dumbbell className="w-3 h-3" />
+                1回あたり {EXERCISE_KCAL_PER_SESSION} kcal 消費 ×{weeklyFreq}回/週 = 日換算 +{Math.round((weeklyFreq * EXERCISE_KCAL_PER_SESSION) / 7)}kcal
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 mt-4">
+            <button className="btn-secondary flex-1" onClick={() => setStep('period')}>戻る</button>
+            <button className="btn-primary flex-1" onClick={goToReview} disabled={loading || useExercise === null}>
+              {loading ? <><span className="spinner" /> 計算中...</> : 'プランを見る'}
             </button>
           </div>
         </div>
@@ -209,7 +295,7 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
             <h3 className="font-bold text-base">こんな計画でどうですか？</h3>
           </div>
 
-          {/* Summary card */}
+          {/* Summary */}
           <div className="bg-gradient-to-br from-brand-50 to-white border border-brand-100 rounded-xl p-4">
             <div className="text-sm whitespace-pre-wrap leading-relaxed"
                  dangerouslySetInnerHTML={{ __html: formatSummary(summary) }} />
@@ -217,11 +303,22 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
 
           {/* Numbers */}
           <div className="grid grid-cols-2 gap-2">
-            <Stat label="1日 カロリー" value={`${plan.kcal}`} unit="kcal" highlight />
+            <Stat label="1日 摂取カロリー" value={`${plan.kcal}`} unit="kcal" highlight />
             <Stat label="週次ペース" value={`${plan.weeklyKg > 0 ? '+' : ''}${plan.weeklyKg}`} unit="kg/週" />
             <Stat label="期間" value={`${plan.weeksTotal}`} unit="週" />
             <Stat label="目標体重" value={`${plan.targetWeight}`} unit="kg" />
           </div>
+
+          {/* Exercise summary */}
+          {plan.useExercise && (
+            <div className="card !p-3 bg-brand-50/50">
+              <div className="flex items-center gap-2 text-sm">
+                <Dumbbell className="w-4 h-4 text-brand-600" />
+                <span className="font-bold text-brand-700">週{plan.weeklyFreq}回の運動を予定</span>
+                <span className="text-xs text-ink-dim ml-auto">+{plan.exerciseKcalPerDay} kcal/日</span>
+              </div>
+            </div>
+          )}
 
           {/* PFC */}
           <div className="card !p-3">
@@ -233,31 +330,8 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
             </div>
           </div>
 
-          {/* Recommendations */}
-          {plan.recommendedFoods.length > 0 && (
-            <div className="card !p-3">
-              <div className="text-[10px] font-bold text-ink-mute mb-2">おすすめ食品</div>
-              <div className="flex flex-wrap gap-1.5">
-                {plan.recommendedFoods.map((f, i) => (
-                  <span key={i} className="chip text-xs">{f}</span>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {plan.tips.length > 0 && (
-            <div className="card !p-3">
-              <div className="text-[10px] font-bold text-ink-mute mb-2">行動のヒント</div>
-              <ul className="space-y-1.5">
-                {plan.tips.map((t, i) => (
-                  <li key={i} className="text-xs flex gap-2"><span className="text-brand-500 font-bold">·</span><span>{t}</span></li>
-                ))}
-              </ul>
-            </div>
-          )}
-
           <div className="flex gap-2 pt-2">
-            <button className="btn-secondary flex-1" onClick={() => setStep('period')}>見直す</button>
+            <button className="btn-secondary flex-1" onClick={() => setStep(isLogMode ? 'period' : 'exercise')}>見直す</button>
             <button className="btn-primary flex-1" onClick={approve} disabled={saving}>
               {saving ? <span className="spinner" /> : 'この計画で進める'}
             </button>

@@ -48,6 +48,11 @@ export interface StrengthSetRow {
   reps?: number | null;
 }
 
+export interface StepsRow {
+  date: string;
+  count: number;
+}
+
 export interface WorkoutRow {
   id: string;
   date: string;
@@ -62,7 +67,7 @@ export interface WorkoutRow {
 }
 
 const DB_NAME = 'ones-meal-v2';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbp: Promise<IDBDatabase> | null = null;
 function openDB(): Promise<IDBDatabase> {
@@ -80,6 +85,9 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains('workouts')) {
         const s = db.createObjectStore('workouts', { keyPath: 'id' });
         s.createIndex('date', 'date');
+      }
+      if (!db.objectStoreNames.contains('steps')) {
+        db.createObjectStore('steps', { keyPath: 'date' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -273,6 +281,41 @@ export async function deleteWorkout(id: string): Promise<void> {
   }
   const db = await openDB();
   await reqP(db.transaction('workouts', 'readwrite').objectStore('workouts').delete(id));
+}
+
+// ---- Steps ----
+export async function getStepsByDate(date: string): Promise<StepsRow | null> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/steps?date=${date}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    return res.json();
+  }
+  const db = await openDB();
+  return reqP<StepsRow | null>(db.transaction('steps').objectStore('steps').get(date));
+}
+
+export async function getStepsRange(from: string, to: string): Promise<StepsRow[]> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/steps?from=${from}&to=${to}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  }
+  const db = await openDB();
+  const all = await reqP<StepsRow[]>(db.transaction('steps').objectStore('steps').getAll());
+  return all.filter((s) => s.date >= from && s.date <= to).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+export async function setStepsCount(date: string, count: number): Promise<void> {
+  if (isLoggedIn()) {
+    await fetch('/api/steps', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, count })
+    });
+    return;
+  }
+  const db = await openDB();
+  await reqP(db.transaction('steps', 'readwrite').objectStore('steps').put({ date, count }));
 }
 
 // ---- Sync (local → server on first login) ----
