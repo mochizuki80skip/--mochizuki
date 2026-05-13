@@ -128,9 +128,11 @@ function uid() {
 }
 
 // ---- Mode detection ----
+// om_session は非httpOnly Cookie で、サーバー側で setUserCookie() と一緒に発行される
+// （om_user は httpOnly なので JS から読めない）
 function isLoggedIn(): boolean {
   if (typeof document === 'undefined') return false;
-  return document.cookie.split(';').some((c) => c.trim().startsWith('om_user='));
+  return document.cookie.split(';').some((c) => c.trim().startsWith('om_session='));
 }
 
 // ---- Profile ----

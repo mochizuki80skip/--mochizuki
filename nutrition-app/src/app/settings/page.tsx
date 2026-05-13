@@ -30,7 +30,7 @@ function SettingsView() {
 
   useEffect(() => {
     (async () => {
-      setLoggedIn(typeof document !== 'undefined' && document.cookie.includes('om_user='));
+      setLoggedIn(typeof document !== 'undefined' && document.cookie.includes('om_session='));
       const p = await storage.getProfile();
       if (p) { setProfile(p); setEdit(p); }
     })();

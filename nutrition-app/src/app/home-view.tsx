@@ -93,7 +93,7 @@ export function HomeView(props: Props) {
 
   const onGoalApproved = async (plan: GoalPlan, summary: string) => {
     // ゲスト時はローカル保存、ログイン時はサーバー保存
-    const isLoggedIn = typeof document !== 'undefined' && document.cookie.includes('om_user=');
+    const isLoggedIn = typeof document !== 'undefined' && document.cookie.includes('om_session=');
     if (isLoggedIn) {
       await fetch('/api/goal', {
         method: 'PUT',

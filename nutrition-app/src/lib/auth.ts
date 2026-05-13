@@ -5,8 +5,10 @@ import { verifyLineIdToken } from './line-auth';
 import { randomBytes } from 'crypto';
 
 const USER_COOKIE = 'om_user';
+const USER_FLAG_COOKIE = 'om_session';        // JS用フラグ（非httpOnly）
 const TRAINER_COOKIE = 'om_trainer';
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 30; // 30 days
+const TRAINER_FLAG_COOKIE = 'om_trainer_session';  // JS用フラグ
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 90; // 90 days
 
 // ---- エンドユーザーセッション (LIFF idToken -> User row) ----
 
@@ -35,8 +37,17 @@ export async function exchangeIdTokenForUser(idToken: string) {
 
 export async function setUserCookie(userId: string) {
   const c = await cookies();
+  // 認証用（httpOnly、サーバー専用）
   c.set(USER_COOKIE, userId, {
     httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: COOKIE_MAX_AGE,
+    path: '/'
+  });
+  // JS用フラグ（クライアントがログイン状態を確認できる）
+  c.set(USER_FLAG_COOKIE, '1', {
+    httpOnly: false,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     maxAge: COOKIE_MAX_AGE,
@@ -54,6 +65,7 @@ export async function getCurrentUser() {
 export async function clearUserCookie() {
   const c = await cookies();
   c.delete(USER_COOKIE);
+  c.delete(USER_FLAG_COOKIE);
 }
 
 // ---- トレーナーセッション ----
@@ -127,6 +139,13 @@ export async function setTrainerCookie(token: string) {
     maxAge: COOKIE_MAX_AGE,
     path: '/'
   });
+  c.set(TRAINER_FLAG_COOKIE, '1', {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: COOKIE_MAX_AGE,
+    path: '/'
+  });
 }
 
 export async function getCurrentTrainer() {
@@ -149,4 +168,5 @@ export async function clearTrainerCookie() {
   const token = c.get(TRAINER_COOKIE)?.value;
   if (token) await prisma.trainerSession.delete({ where: { token } }).catch(() => {});
   c.delete(TRAINER_COOKIE);
+  c.delete(TRAINER_FLAG_COOKIE);
 }
