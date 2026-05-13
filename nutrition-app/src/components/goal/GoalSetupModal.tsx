@@ -1,8 +1,8 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Modal } from '@/components/ui/Modal';
-import { TrendingDown, TrendingUp, Activity, Edit3, Sparkles, Calendar, Dumbbell, Apple } from 'lucide-react';
-import { addDays, periodToDays, EXERCISE_KCAL_PER_SESSION } from '@/lib/goal';
+import { TrendingDown, TrendingUp, Activity, Edit3, Sparkles, Calendar, Dumbbell, Apple, Settings2 } from 'lucide-react';
+import { addDays, periodToDays, light30MinKcal } from '@/lib/goal';
 import type { GoalPlan } from '@/lib/goal';
 import { useToast } from '@/components/ui/Toast';
 
@@ -45,6 +45,9 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // 30分の軽い運動の消費kcal（プロフィール体重から算出）
+  const kcalPerSession = light30MinKcal(profile?.weightKg || 70);
+
   useEffect(() => {
     if (!open) return;
     setStep('type');
@@ -65,7 +68,6 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
     return d.toISOString().slice(0, 10);
   };
 
-  // 「記録のみ」は運動選択スキップ
   const isLogMode = goalType === 'log';
 
   const nextFromType = () => setStep('period');
@@ -75,17 +77,16 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
       return;
     }
     if (isLogMode) {
-      // log mode skips exercise step and goes straight to review
       generatePlan(false, 0);
     } else {
       setStep('exercise');
     }
   };
 
-  const generatePlan = async (uex: boolean, freq: number) => {
+  const generatePlan = async (uex: boolean, freq: number, opts?: { deadline?: string }) => {
     setLoading(true);
     try {
-      const deadline = computedDeadline();
+      const deadline = opts?.deadline || computedDeadline();
       const res = await fetch('/api/goal/plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -114,6 +115,25 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
       return;
     }
     generatePlan(useExercise, weeklyFreq);
+  };
+
+  // レビュー画面でのインライン変更
+  const reviewUpdate = async (newPeriod?: string, newFreq?: number, newUseEx?: boolean) => {
+    if (newPeriod !== undefined) {
+      const p = PERIOD_OPTIONS.find((x) => x.key === newPeriod);
+      if (p) {
+        setPeriod(newPeriod);
+        setCustomDeadline('');
+        const dl = addDays(new Date(), p.days).toISOString().slice(0, 10);
+        await generatePlan(useExercise || false, weeklyFreq, { deadline: dl });
+      }
+    } else if (newFreq !== undefined) {
+      setWeeklyFreq(newFreq);
+      await generatePlan(useExercise || false, newFreq);
+    } else if (newUseEx !== undefined) {
+      setUseExercise(newUseEx);
+      await generatePlan(newUseEx, newUseEx ? weeklyFreq : 0);
+    }
   };
 
   const approve = async () => {
@@ -232,7 +252,7 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
 
       {step === 'exercise' && (
         <div className="space-y-3">
-          <h3 className="font-bold text-base mb-1">運動を組み合わせる？</h3>
+          <h3 className="font-bold text-base mb-1">1回30分の運動をベースに、<br />週何回していますか？</h3>
           <p className="text-xs text-ink-dim">運動を加えると、その分多く食べられる計画になります。</p>
 
           <div className="grid grid-cols-2 gap-2 mt-3">
@@ -244,7 +264,7 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
             >
               <Apple className={`w-5 h-5 mb-2 ${useExercise === false ? '' : 'text-ink-mute'}`} />
               <div className="font-bold text-sm">食事のみ</div>
-              <div className="text-[10px] text-ink-mute mt-0.5">食事管理だけで達成</div>
+              <div className="text-[10px] text-ink-mute mt-0.5">運動なしで達成</div>
             </button>
             <button
               onClick={() => setUseExercise(true)}
@@ -260,7 +280,7 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
 
           {useExercise === true && (
             <div className="mt-4">
-              <label className="label">週何回 運動しますか？</label>
+              <label className="label">週何回？　<span className="text-ink-mute font-normal">30分の運動（約 {kcalPerSession} kcal）</span></label>
               <div className="grid grid-cols-7 gap-1.5">
                 {[1, 2, 3, 4, 5, 6, 7].map((n) => (
                   <button
@@ -274,7 +294,7 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
               </div>
               <div className="mt-2 text-xs text-ink-dim flex items-center gap-1">
                 <Dumbbell className="w-3 h-3" />
-                1回あたり {EXERCISE_KCAL_PER_SESSION} kcal 消費 ×{weeklyFreq}回/週 = 日換算 +{Math.round((weeklyFreq * EXERCISE_KCAL_PER_SESSION) / 7)}kcal
+                30分 × {weeklyFreq}回/週 ≒ 1日 +{Math.round((weeklyFreq * kcalPerSession) / 7)} kcal を補正
               </div>
             </div>
           )}
@@ -301,38 +321,83 @@ export function GoalSetupModal({ open, onClose, profile, initialPlan, onApproved
                  dangerouslySetInnerHTML={{ __html: formatSummary(summary) }} />
           </div>
 
-          {/* Numbers */}
+          {/* メイン数値（PFCバランスは削除） */}
           <div className="grid grid-cols-2 gap-2">
             <Stat label="1日 摂取カロリー" value={`${plan.kcal}`} unit="kcal" highlight />
-            <Stat label="週次ペース" value={`${plan.weeklyKg > 0 ? '+' : ''}${plan.weeklyKg}`} unit="kg/週" />
-            <Stat label="期間" value={`${plan.weeksTotal}`} unit="週" />
             <Stat label="目標体重" value={`${plan.targetWeight}`} unit="kg" />
           </div>
 
-          {/* Exercise summary */}
-          {plan.useExercise && (
-            <div className="card !p-3 bg-brand-50/50">
-              <div className="flex items-center gap-2 text-sm">
-                <Dumbbell className="w-4 h-4 text-brand-600" />
-                <span className="font-bold text-brand-700">週{plan.weeklyFreq}回の運動を予定</span>
-                <span className="text-xs text-ink-dim ml-auto">+{plan.exerciseKcalPerDay} kcal/日</span>
-              </div>
-            </div>
-          )}
-
-          {/* PFC */}
+          {/* インライン編集：期間 */}
           <div className="card !p-3">
-            <div className="text-[10px] font-bold text-ink-mute mb-2">PFC配分</div>
-            <div className="grid grid-cols-3 gap-2 text-center">
-              <PfcMini label="P" value={plan.protein} color="text-blue-600 bg-blue-50" />
-              <PfcMini label="F" value={plan.fat} color="text-amber-600 bg-amber-50" />
-              <PfcMini label="C" value={plan.carbs} color="text-rose-600 bg-rose-50" />
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1 text-xs font-bold text-ink-dim">
+                <Settings2 className="w-3 h-3" /> 期間を変更
+              </div>
+              <span className="text-[10px] text-ink-mute">目標日 {plan.deadline}</span>
+            </div>
+            <div className="grid grid-cols-4 gap-1.5">
+              {PERIOD_OPTIONS.map((o) => (
+                <button
+                  key={o.key}
+                  onClick={() => reviewUpdate(o.key)}
+                  disabled={loading}
+                  className={`py-2 rounded-lg border text-xs font-bold transition disabled:opacity-50 ${
+                    period === o.key && !customDeadline
+                      ? 'bg-brand-500 text-white border-brand-500'
+                      : 'bg-white border-ink-line text-ink-dim hover:bg-surface-alt'
+                  }`}
+                >{o.label}</button>
+              ))}
             </div>
           </div>
 
+          {/* インライン編集：運動 */}
+          {!isLogMode && (
+            <div className="card !p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-1 text-xs font-bold text-ink-dim">
+                  <Dumbbell className="w-3 h-3" /> 運動頻度を変更
+                </div>
+                {plan.useExercise && (
+                  <span className="text-[10px] text-ink-mute">+{plan.exerciseKcalPerDay} kcal/日</span>
+                )}
+              </div>
+              <div className="flex gap-1 mb-2">
+                <button
+                  onClick={() => reviewUpdate(undefined, undefined, false)}
+                  disabled={loading}
+                  className={`flex-1 py-2 rounded-lg border text-xs font-bold disabled:opacity-50 ${
+                    plan.useExercise === false ? 'bg-emerald-100 border-emerald-400 text-emerald-700' : 'bg-white border-ink-line text-ink-dim'
+                  }`}
+                >食事のみ</button>
+                <button
+                  onClick={() => reviewUpdate(undefined, undefined, true)}
+                  disabled={loading}
+                  className={`flex-1 py-2 rounded-lg border text-xs font-bold disabled:opacity-50 ${
+                    plan.useExercise === true ? 'bg-brand-100 border-brand-400 text-brand-700' : 'bg-white border-ink-line text-ink-dim'
+                  }`}
+                >運動あり</button>
+              </div>
+              {plan.useExercise && (
+                <div className="grid grid-cols-7 gap-1">
+                  {[1, 2, 3, 4, 5, 6, 7].map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => reviewUpdate(undefined, n)}
+                      disabled={loading}
+                      className={`py-2 rounded-lg border text-xs font-bold disabled:opacity-50 ${
+                        plan.weeklyFreq === n ? 'bg-brand-500 text-white border-brand-500' : 'bg-white border-ink-line text-ink-dim'
+                      }`}
+                    >{n}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <div className="flex gap-2 pt-2">
-            <button className="btn-secondary flex-1" onClick={() => setStep(isLogMode ? 'period' : 'exercise')}>見直す</button>
-            <button className="btn-primary flex-1" onClick={approve} disabled={saving}>
+            <button className="btn-secondary flex-1" onClick={() => setStep(isLogMode ? 'period' : 'exercise')}>戻る</button>
+            <button className="btn-primary flex-1" onClick={approve} disabled={saving || loading}>
               {saving ? <span className="spinner" /> : 'この計画で進める'}
             </button>
           </div>
@@ -349,15 +414,6 @@ function Stat({ label, value, unit, highlight }: { label: string; value: string;
       <div className={`text-xl font-bold ${highlight ? '' : 'text-ink'}`}>
         {value}<span className={`text-[10px] font-normal ml-1 ${highlight ? 'opacity-80' : 'text-ink-dim'}`}>{unit}</span>
       </div>
-    </div>
-  );
-}
-
-function PfcMini({ label, value, color }: { label: string; value: number; color: string }) {
-  return (
-    <div className={`rounded-lg p-2 ${color}`}>
-      <div className="text-[10px] font-bold">{label}</div>
-      <div className="text-sm font-bold mt-0.5">{value}<span className="text-[9px] font-normal opacity-60">g</span></div>
     </div>
   );
 }

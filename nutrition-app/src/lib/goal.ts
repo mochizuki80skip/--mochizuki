@@ -74,8 +74,21 @@ export function diffDays(from: Date | string, to: Date | string): number {
   return Math.round((t.getTime() - f.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-// 1回あたりの運動消費kcal（一律）
-export const EXERCISE_KCAL_PER_SESSION = 250;
+// 1回あたりの運動消費kcal（30分・軽い運動 MET 3.0 換算）
+// 軽い運動 = ウォーキング・軽い体操レベル
+export const LIGHT_EXERCISE_MET = 3.0;
+export const EXERCISE_DURATION_MIN = 30;
+
+/**
+ * 体重から「30分の軽い運動」での消費kcalを算出
+ * kcal = MET × 体重 × 時間(h)
+ */
+export function light30MinKcal(weightKg: number): number {
+  return Math.round(LIGHT_EXERCISE_MET * weightKg * (EXERCISE_DURATION_MIN / 60));
+}
+
+// 後方互換: デフォルト体重70kgでの値
+export const EXERCISE_KCAL_PER_SESSION = light30MinKcal(70); // ≒ 105 kcal
 
 /**
  * 目標と期間 + 運動有無から計画を計算
@@ -109,10 +122,11 @@ export function calculateBasePlan(opts: {
     weightKg: opts.weightKg, activity: opts.activity, goal: opts.goalType
   });
 
-  // 運動消費を日割りで加算
+  // 運動消費を日割りで加算（30分軽い運動 × 週X回）
   const useExercise = !!opts.useExercise && opts.goalType !== 'log';
   const weeklyFreq = useExercise ? Math.max(1, Math.min(7, opts.weeklyFreq || 3)) : 0;
-  const exerciseKcalPerDay = useExercise ? Math.round((weeklyFreq * EXERCISE_KCAL_PER_SESSION) / 7) : 0;
+  const kcalPerSession = light30MinKcal(opts.weightKg);
+  const exerciseKcalPerDay = useExercise ? Math.round((weeklyFreq * kcalPerSession) / 7) : 0;
 
   // 目標期間からの基本カロリー
   let kcal = Math.max(1200, targets.tdee + dailyAdjust + exerciseKcalPerDay);
