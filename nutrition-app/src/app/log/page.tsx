@@ -4,7 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Search, Camera, Pencil, Trash2, Plus, Minus, Sun, Moon, UtensilsCrossed, Cookie } from 'lucide-react';
+import { Search, Camera, Pencil, Trash2, Plus, Minus, Sun, Moon, UtensilsCrossed, Cookie, Clock, ChevronLeft, Sparkles } from 'lucide-react';
 import * as storage from '@/lib/storage';
 import { searchFoods, getFood, scaleFood, FOOD_CATEGORIES, type Food } from '@/lib/foods';
 import { calcTargets, sumByMeal, sumDay, type Targets } from '@/lib/nutrition';
@@ -183,7 +183,7 @@ function PfcMini({ label, value, target }: { label: string; value: number; targe
 
 function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClose: () => void; onAdded: () => void }) {
   const { toast } = useToast();
-  const [tab, setTab] = useState<'search' | 'photo' | 'manual'>('search');
+  const [tab, setTab] = useState<'home' | 'search' | 'photo' | 'manual'>('home');
   const [cat, setCat] = useState('すべて');
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Food[]>([]);
@@ -196,10 +196,10 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
 
   useEffect(() => {
     if (slot) {
-      setTab('search');
+      setTab('home');
       setQuery(''); setCat('すべて'); setSelected(null); setQty(1);
       setManual({ name: '', kcal: '', protein: '', fat: '', carbs: '' });
-      (async () => setHistory((await storage.getRecentMeals(8)).slice(0, 8)))();
+      (async () => setHistory((await storage.getRecentMeals(20)).slice(0, 20)))();
     }
   }, [slot]);
 
@@ -276,12 +276,69 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
 
   return (
     <Modal open={!!slot} onClose={onClose} title={`${MEAL_LABELS[slot]}に追加`}>
-      {/* 食品選択モード切替 */}
-      {!selected && (
-        <div className="bg-surface-alt rounded-lg p-1 grid grid-cols-3 mb-3">
-          <TabBtn active={tab === 'search'} onClick={() => setTab('search')}>検索</TabBtn>
-          <TabBtn active={tab === 'photo'} onClick={() => setTab('photo')}>写真AI</TabBtn>
-          <TabBtn active={tab === 'manual'} onClick={() => setTab('manual')}>手入力</TabBtn>
+      {/* 戻るボタン（home以外） */}
+      {!selected && tab !== 'home' && (
+        <button
+          onClick={() => setTab('home')}
+          className="text-xs text-ink-dim hover:text-ink flex items-center gap-1 mb-3"
+        >
+          <ChevronLeft className="w-4 h-4" /> 戻る
+        </button>
+      )}
+
+      {/* 🏠 ホーム：ボタン中心レイアウト */}
+      {!selected && tab === 'home' && (
+        <div className="space-y-3">
+          {/* 主要操作：写真AI + 履歴 */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setTab('photo')}
+              className="bg-gradient-to-br from-brand-500 to-brand-600 text-white rounded-2xl p-4 flex flex-col items-center gap-2 active:scale-95 transition shadow-card"
+            >
+              <Camera className="w-8 h-8" />
+              <div className="text-sm font-bold">写真AI</div>
+              <div className="text-[10px] opacity-90 text-center leading-tight">撮影 or<br/>アルバムから</div>
+            </button>
+            <button
+              onClick={() => setTab('search')}
+              className="bg-white border-2 border-brand-200 rounded-2xl p-4 flex flex-col items-center gap-2 active:scale-95 active:bg-brand-50 transition"
+            >
+              <Search className="w-8 h-8 text-brand-500" />
+              <div className="text-sm font-bold">検索</div>
+              <div className="text-[10px] text-ink-mute text-center leading-tight">食品DBから<br/>検索</div>
+            </button>
+          </div>
+
+          {/* 履歴：直近20件をワンタップで追加 */}
+          {history.length > 0 && (
+            <div>
+              <div className="flex items-center gap-1.5 mb-2">
+                <Clock className="w-4 h-4 text-ink-mute" />
+                <h3 className="text-xs font-bold text-ink-dim">最近食べたもの</h3>
+                <div className="text-[10px] text-ink-mute">タップで追加</div>
+              </div>
+              <div className="grid grid-cols-2 gap-1.5 max-h-[42vh] overflow-y-auto -mx-1 px-1">
+                {history.map((h, i) => (
+                  <button
+                    key={i}
+                    onClick={() => addFromHistory(h)}
+                    className="bg-surface-alt active:bg-ink-line/40 hover:bg-ink-line/30 rounded-xl p-2.5 text-left transition"
+                  >
+                    <div className="text-xs font-bold truncate">{h.name}</div>
+                    <div className="text-[10px] text-ink-mute mt-0.5">{h.kcal}kcal</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 手入力（下部に控えめに） */}
+          <button
+            onClick={() => setTab('manual')}
+            className="w-full text-xs text-ink-mute hover:text-ink-dim flex items-center justify-center gap-1.5 py-2"
+          >
+            <Pencil className="w-3.5 h-3.5" /> 手動で栄養素を入力
+          </button>
         </div>
       )}
 
@@ -296,7 +353,6 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="食品を検索"
-              autoFocus
             />
           </div>
           <div className="flex gap-1 overflow-x-auto -mx-1 px-1 pb-1 mb-2 [scrollbar-width:none]">
@@ -358,7 +414,7 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
         <div className="space-y-3">
           <div>
             <label className="label">食品名</label>
-            <input className="input" type="text" value={manual.name} onChange={(e) => setManual({ ...manual, name: e.target.value })} placeholder="例: 自家製サラダ" autoFocus />
+            <input className="input" type="text" value={manual.name} onChange={(e) => setManual({ ...manual, name: e.target.value })} placeholder="例: 自家製サラダ" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>

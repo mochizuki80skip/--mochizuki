@@ -7,6 +7,13 @@ import * as storage from '@/lib/storage';
 import { todayStr } from '@/lib/utils';
 import { useToast } from '@/components/ui/Toast';
 
+interface ExistingSet {
+  id?: string;
+  workoutId: string;
+  weight: number | null;
+  reps: number | null;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -16,6 +23,7 @@ interface Props {
   allWorkouts: any[];
   onSaved: () => void;
   targetDate?: string;
+  existingSets?: ExistingSet[];   // 既存セット編集モード
 }
 
 interface LocalSet {
@@ -25,7 +33,7 @@ interface LocalSet {
   assisted: boolean;
 }
 
-export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, allWorkouts, onSaved, targetDate }: Props) {
+export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, allWorkouts, onSaved, targetDate, existingSets }: Props) {
   const { toast } = useToast();
   const [unit, setUnit] = useState<'kg' | 'lbs'>('kg');
   const [sets, setSets] = useState<LocalSet[]>([]);
@@ -43,13 +51,23 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
 
   useEffect(() => {
     if (!open) return;
-    // 初期セットは前回の値を引き継いだ1セットから始める
-    setSets([{
-      weight: lastRecord?.[0]?.weight ?? null,
-      reps: lastRecord?.[0]?.reps ?? null,
-      memo: '',
-      assisted: false
-    }]);
+    if (existingSets && existingSets.length > 0) {
+      // 編集モード：既存セットの値で初期化
+      setSets(existingSets.map((s) => ({
+        weight: s.weight,
+        reps: s.reps,
+        memo: '',
+        assisted: false
+      })));
+    } else {
+      // 新規モード：前回の値を引き継いだ1セットから始める
+      setSets([{
+        weight: lastRecord?.[0]?.weight ?? null,
+        reps: lastRecord?.[0]?.reps ?? null,
+        memo: '',
+        assisted: false
+      }]);
+    }
     setMemo('');
     setIntervalSec(60);
     setTimerLeft(0);
@@ -142,6 +160,14 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
         reps: s.reps
       };
     });
+    // 編集モード：先に既存セットを個別に削除してから新規に追加
+    // （workout単位ではなくset単位で削除して、他種目を巻き込まない）
+    if (existingSets && existingSets.length > 0) {
+      for (const ex of existingSets) {
+        if (!ex.workoutId) continue;
+        try { await storage.deleteStrengthSet(ex.id || '', ex.workoutId); } catch {}
+      }
+    }
     await storage.addWorkout({
       date,
       type: 'strength',

@@ -35,7 +35,7 @@ function TrainingContent() {
 
   const [showExerciseSelect, setShowExerciseSelect] = useState(false);
   const [showCardio, setShowCardio] = useState(false);
-  const [pickedExercise, setPickedExercise] = useState<{ bodyPart: string; exercise: string } | null>(null);
+  const [pickedExercise, setPickedExercise] = useState<{ bodyPart: string; exercise: string; existingSets?: any[] } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -87,7 +87,9 @@ function TrainingContent() {
           onBack={() => setSelectedDate(null)}
           onPickExercise={() => setShowExerciseSelect(true)}
           onPickCardio={() => setShowCardio(true)}
+          onChangeDate={(d: string) => setSelectedDate(d)}
           onAddSetToExercise={(bodyPart: string, exercise: string) => setPickedExercise({ bodyPart, exercise })}
+          onEditExercise={(bodyPart: string, exercise: string, existingSets: any[]) => setPickedExercise({ bodyPart, exercise, existingSets })}
           onDeleteSet={async (setId: string | undefined, workoutId: string) => {
             if (setId) {
               await storage.deleteStrengthSet(setId, workoutId);
@@ -118,6 +120,7 @@ function TrainingContent() {
           bodyWeight={profile.weightKg}
           targetDate={selectedDate}
           allWorkouts={allWorkouts}
+          existingSets={pickedExercise?.existingSets}
           onSaved={async () => { setPickedExercise(null); await refresh(); toast('記録しました'); }}
         />
         <CardioInputModal
@@ -303,22 +306,50 @@ function volumeSumForRange(all: any[], days: number) {
 }
 
 /* ---------- 日付詳細画面（添付1枚目風） ---------- */
-function DayDetailView({ date, workouts, allWorkouts, bodyWeight, onBack, onPickExercise, onPickCardio, onAddSetToExercise, onDeleteSet, onDeleteCardio }: any) {
+function DayDetailView({ date, workouts, allWorkouts, bodyWeight, onBack, onPickExercise, onPickCardio, onAddSetToExercise, onEditExercise, onDeleteSet, onDeleteCardio, onChangeDate }: any) {
   const groups = groupDayWorkouts(workouts);
 
   // 自己ベストを過去全データから取得
   const bestRMByExercise = computeBestRMs(allWorkouts);
 
+  // 前日/翌日の日付計算
+  const shiftDate = (delta: number) => {
+    const d = new Date(date);
+    d.setDate(d.getDate() + delta);
+    const s = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    onChangeDate?.(s);
+  };
+
   return (
     <>
-      {/* ヘッダー */}
+      {/* ヘッダー：カレンダー戻る + 前日/翌日ナビ */}
       <div className="bg-brand-500 -mx-4 md:-mx-8 px-4 md:px-8 pt-2 pb-4 mb-4">
-        <div className="flex items-center justify-between mb-3 text-white">
-          <button onClick={onBack} className="text-white flex items-center gap-1 text-sm">
-            <ArrowLeft className="w-5 h-5" />
+        <div className="flex items-center justify-between mb-3 text-white gap-2">
+          <button
+            onClick={onBack}
+            className="text-white flex items-center gap-1 text-xs font-bold bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-full pl-2 pr-3 py-1.5 transition"
+            aria-label="カレンダーへ戻る"
+          >
+            <ArrowLeft className="w-4 h-4" /> カレンダー
           </button>
-          <div className="text-base font-bold">{date}</div>
-          <div className="w-5" />
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => shiftDate(-1)}
+              className="text-white p-1.5 hover:bg-white/20 active:bg-white/30 rounded-full transition"
+              aria-label="前日"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+            <div className="text-base font-bold tabular-nums px-2">{date}</div>
+            <button
+              onClick={() => shiftDate(1)}
+              className="text-white p-1.5 hover:bg-white/20 active:bg-white/30 rounded-full transition"
+              aria-label="翌日"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="w-[88px]" />
         </div>
 
         <div className="grid grid-cols-4 gap-1.5">
@@ -352,6 +383,7 @@ function DayDetailView({ date, workouts, allWorkouts, bodyWeight, onBack, onPick
                 group={g}
                 bestRM={bestRMByExercise.get(`${g.bodyPart}-${g.exercise}`) || 0}
                 onAddSet={() => onAddSetToExercise(g.bodyPart, g.exercise)}
+                onEdit={() => onEditExercise(g.bodyPart, g.exercise, g.sets)}
                 onDeleteSet={(setId, workoutId) => onDeleteSet(setId, workoutId)}
               />
             ))}
