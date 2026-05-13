@@ -273,12 +273,14 @@ function Welcome() {
                     <span className="font-bold">詳細:</span> {lineError.detail}
                   </div>
                 )}
-                {lineError.channelIdHint && (
-                  <div className="mt-2 pt-2 border-t border-rose-200 text-rose-600">
-                    <div>JS側 Channel ID（LIFF ID 前半）: <code className="bg-rose-100 px-1 rounded">{lineError.channelIdHint}</code></div>
-                    <div className="mt-1 text-rose-500">
-                      ↑ この値が Vercel の <code>LINE_LOGIN_CHANNEL_ID</code> と一致してるか確認してください。
-                    </div>
+                {lineError.detail && lineError.detail.includes('Audience') && (
+                  <div className="mt-2 pt-2 border-t border-rose-200 text-rose-600 space-y-1">
+                    <div className="font-bold">▼ 確認手順</div>
+                    <div>① LINE Developers Console を開く</div>
+                    <div>② プロバイダー → LINE Login チャネル（緑アイコン）</div>
+                    <div>③ 「チャネル基本設定」タブの「チャネルID」（10桁の数字）</div>
+                    <div>④ その値を Vercel の <code className="bg-rose-100 px-1 rounded">LINE_LOGIN_CHANNEL_ID</code> に設定</div>
+                    <div className="text-rose-500 mt-1">※ LIFF ID の前半（{lineError.channelIdHint}）は Channel ID と<strong>別物</strong>です。</div>
                   </div>
                 )}
               </div>

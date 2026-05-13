@@ -30,11 +30,18 @@ function normalizeChannelId(raw: string): string {
 }
 
 export async function verifyLineIdTokenDetailed(idToken: string, channelId?: string): Promise<VerifyResult | VerifyError> {
-  const rawCid = channelId || process.env.LINE_LOGIN_CHANNEL_ID || process.env.NEXT_PUBLIC_LIFF_ID || '';
+  // LIFF ID の前半は LINE Login チャネルの Channel ID とは別物のため、
+  // LINE_LOGIN_CHANNEL_ID は必ず明示的に設定されている必要がある
+  const rawCid = channelId || process.env.LINE_LOGIN_CHANNEL_ID || '';
   if (!rawCid) {
-    return { ok: false, reason: 'no_channel_id', detail: 'LINE_LOGIN_CHANNEL_ID 環境変数が未設定' };
+    return {
+      ok: false,
+      reason: 'no_channel_id',
+      detail: 'LINE_LOGIN_CHANNEL_ID 環境変数を設定してください（LINE Developers の LINE Login チャネル基本設定にある「チャネルID」）'
+    };
   }
-  const cid = normalizeChannelId(rawCid);
+  // 念のため空白除去のみ（"-"分割はしない。aud は親チャネルIDで、LIFF ID 前半とは別）
+  const cid = rawCid.trim();
   try {
     const res = await fetch(LINE_VERIFY_URL, {
       method: 'POST',
