@@ -322,34 +322,34 @@ function DayDetailView({ date, workouts, allWorkouts, bodyWeight, onBack, onPick
 
   return (
     <>
-      {/* ヘッダー：カレンダー戻る + 前日/翌日ナビ */}
-      <div className="bg-brand-500 -mx-4 md:-mx-8 px-4 md:px-8 pt-2 pb-4 mb-4">
-        <div className="flex items-center justify-between mb-3 text-white gap-2">
+      {/* ヘッダー：1行コンパクトナビ（戻る・前日/日付/翌日） */}
+      <div className="bg-brand-500 -mx-4 md:-mx-8 px-3 md:px-8 pt-2 pb-3 mb-4">
+        <div className="flex items-center mb-3 text-white gap-1">
           <button
             onClick={onBack}
-            className="text-white flex items-center gap-1 text-xs font-bold bg-white/15 hover:bg-white/25 active:bg-white/30 rounded-full pl-2 pr-3 py-1.5 transition"
+            className="text-white flex items-center gap-0.5 text-[11px] font-medium hover:bg-white/15 active:bg-white/25 rounded px-1.5 py-1 transition shrink-0"
             aria-label="カレンダーへ戻る"
           >
-            <ArrowLeft className="w-4 h-4" /> カレンダー
+            <ArrowLeft className="w-3.5 h-3.5" />カレンダー
           </button>
-          <div className="flex items-center gap-1">
+          <div className="flex-1 flex items-center justify-center gap-0.5 min-w-0">
             <button
               onClick={() => shiftDate(-1)}
-              className="text-white p-1.5 hover:bg-white/20 active:bg-white/30 rounded-full transition"
+              className="text-white p-1 hover:bg-white/15 active:bg-white/25 rounded transition"
               aria-label="前日"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
-            <div className="text-base font-bold tabular-nums px-2">{date}</div>
+            <div className="text-sm font-bold tabular-nums px-1">{date}</div>
             <button
               onClick={() => shiftDate(1)}
-              className="text-white p-1.5 hover:bg-white/20 active:bg-white/30 rounded-full transition"
+              className="text-white p-1 hover:bg-white/15 active:bg-white/25 rounded transition"
               aria-label="翌日"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
-          <div className="w-[88px]" />
+          <div className="w-[68px] shrink-0" />
         </div>
 
         <div className="grid grid-cols-4 gap-1.5">

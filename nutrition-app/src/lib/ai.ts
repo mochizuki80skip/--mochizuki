@@ -131,12 +131,30 @@ const PHOTO_USER = `この食事写真の食品を識別し、以下のJSON配�
 [{ "name": "食品名", "qty": 数量, "unit": "単位", "kcal": 整数, "protein": 小数1桁g, "fat": g, "carbs": g }]
 最大8品目。識別不能なら []。`;
 
-export async function analyzePhoto(imageBase64: string): Promise<PhotoItem[]> {
+export interface PhotoAnalysisResult {
+  items: PhotoItem[];
+  diagnostic?: {
+    stage: 'no_key' | 'bad_image' | 'api_http' | 'api_exception' | 'parse_empty' | 'parse_fail';
+    detail: string;
+  };
+}
+
+export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysisResult> {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return [];
+  if (!apiKey) {
+    return {
+      items: [],
+      diagnostic: { stage: 'no_key', detail: 'サーバーに GEMINI_API_KEY が設定されていません。Vercelの環境変数を確認してください。' }
+    };
+  }
 
   const m = imageBase64.match(/^data:(image\/[a-zA-Z+]+);base64,(.+)$/);
-  if (!m) return [];
+  if (!m) {
+    return {
+      items: [],
+      diagnostic: { stage: 'bad_image', detail: '画像データの形式が正しくありません（data URL ではありません）。' }
+    };
+  }
   const mimeType = m[1];
   const data = m[2];
 
@@ -161,15 +179,35 @@ export async function analyzePhoto(imageBase64: string): Promise<PhotoItem[]> {
       })
     });
     if (!res.ok) {
-      console.error('Gemini Vision failed:', res.status);
-      return [];
+      const errText = await res.text().catch(() => '');
+      console.error('Gemini Vision failed:', res.status, errText);
+      return {
+        items: [],
+        diagnostic: { stage: 'api_http', detail: `Gemini APIエラー (${res.status}): ${errText.slice(0, 200)}` }
+      };
     }
     const result = await res.json();
     const text = result.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
-    return parseItems(text || '');
-  } catch (e) {
+    if (!text) {
+      return {
+        items: [],
+        diagnostic: { stage: 'parse_empty', detail: 'AIが空の応答を返しました。画像が認識できなかった可能性があります。' }
+      };
+    }
+    const items = parseItems(text);
+    if (items.length === 0) {
+      return {
+        items: [],
+        diagnostic: { stage: 'parse_fail', detail: `AIの応答を解析できませんでした: ${text.slice(0, 150)}` }
+      };
+    }
+    return { items };
+  } catch (e: any) {
     console.error('photo analysis error:', e);
-    return [];
+    return {
+      items: [],
+      diagnostic: { stage: 'api_exception', detail: `通信エラー: ${e?.message || String(e)}` }
+    };
   }
 }
 

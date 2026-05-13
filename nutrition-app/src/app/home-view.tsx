@@ -180,8 +180,9 @@ export function HomeView(props: Props) {
       </div>
 
       <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-4">
-        {/* 🎯 セクション1: 目標（独立カード） */}
-        <div className="card md:col-span-2">
+        {/* 🎯 セクション1: 目標 + 体重予測 + AIアドバイス（統合カード／入れ子版） */}
+        <div className="card md:col-span-2 bg-gradient-to-br from-brand-50/40 to-white border border-brand-100">
+          {/* 目標カード */}
           <GoalCard
             plan={goalPlan}
             progress={goalProgress}
@@ -189,48 +190,36 @@ export function HomeView(props: Props) {
             onOpen={() => setShowGoalSetup(true)}
             onSetup={() => setShowGoalSetup(true)}
           />
-        </div>
 
-        {/* 📈 体重の推移と予測（独立カード） */}
-        {weights.length > 0 && (
-          <div className="card md:col-span-2">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold">体重の推移と予測</h2>
-              <Link href="/weight" className="text-xs text-brand-600 font-bold flex items-center hover:underline">
-                詳細 <ChevronRight className="w-3 h-3" />
-              </Link>
-            </div>
-            <div className="flex items-baseline justify-between mb-3 gap-4">
-              <div>
-                <div className="text-[10px] text-ink-mute font-bold">現在</div>
-                <div className="text-2xl md:text-3xl font-bold">{lastWeight ?? '—'}<span className="text-sm font-normal text-ink-dim ml-1">kg</span></div>
+          {/* 体重と予測 */}
+          {weights.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-brand-100">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xs font-bold text-ink-dim">体重の推移と予測</h3>
+                <Link href="/weight" className="text-[10px] text-brand-600 font-bold flex items-center hover:underline">
+                  詳細 <ChevronRight className="w-3 h-3" />
+                </Link>
               </div>
-              {goalPlan && (
-                <div className="text-right">
-                  <div className="text-[10px] text-ink-mute font-bold">目標</div>
-                  <div className="text-base md:text-lg font-semibold text-brand-600">{goalPlan.targetWeight} kg</div>
-                </div>
+              {weights.length > 1 ? (
+                <WeightPredictionChart actual={actualPoints} predict={predictPoints} target={goalPlan?.targetWeight} height={140} />
+              ) : (
+                <div className="text-center text-xs text-ink-mute py-4">記録を続けると推移と予測が表示されます</div>
               )}
             </div>
-            {weights.length > 1 ? (
-              <WeightPredictionChart actual={actualPoints} predict={predictPoints} target={goalPlan?.targetWeight} height={160} />
-            ) : (
-              <div className="text-center text-xs text-ink-mute py-4">記録を続けると推移と予測が表示されます</div>
-            )}
-          </div>
-        )}
+          )}
 
-        {/* 💬 AIアドバイス（独立カード） */}
-        <div className="card md:col-span-2 bg-gradient-to-br from-brand-50 to-white border border-brand-100">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-7 h-7 rounded-full bg-brand-500 flex items-center justify-center shrink-0">
-              <Sparkles className="w-4 h-4 text-white" />
+          {/* AIアドバイス：目標達成のため */}
+          <div className="mt-4 pt-4 border-t border-brand-100">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-6 h-6 rounded-full bg-brand-500 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-white" />
+              </div>
+              <div className="font-bold text-xs">
+                {goalPlan ? '目標達成のためのアドバイス' : 'AIトレーナーから'}
+              </div>
             </div>
-            <div className="font-bold text-sm">
-              {goalPlan ? '目標達成のためのアドバイス' : 'AIトレーナーから'}
-            </div>
+            <div className="text-xs leading-relaxed whitespace-pre-wrap text-ink-dim" dangerouslySetInnerHTML={{ __html: formatAdvice(advice) }} />
           </div>
-          <div className="text-sm leading-relaxed whitespace-pre-wrap text-ink" dangerouslySetInnerHTML={{ __html: formatAdvice(advice) }} />
         </div>
 
         {/* 🍽 セクション2: 本日のカロリー + PFC + 説明（統合） */}

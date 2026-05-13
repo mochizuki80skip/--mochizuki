@@ -160,14 +160,40 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
         reps: s.reps
       };
     });
-    // 編集モード：先に既存セットを個別に削除してから新規に追加
-    // （workout単位ではなくset単位で削除して、他種目を巻き込まない）
+
+    // 編集モード：サーバー側のアトミックな置換APIを使用（既存削除+新規追加を1トランザクションで実行）
     if (existingSets && existingSets.length > 0) {
-      for (const ex of existingSets) {
-        if (!ex.workoutId) continue;
-        try { await storage.deleteStrengthSet(ex.id || '', ex.workoutId); } catch {}
+      try {
+        const res = await fetch('/api/strength-sets/replace', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            date,
+            bodyPart,
+            exercise,
+            sets: finalSets.map((s, i) => ({
+              weight: s.weight,
+              reps: s.reps,
+              setNumber: i + 1
+            })),
+            kcal: estimateStrengthKcal(sets.length * 3, bodyWeight),
+            memo: memo || null
+          })
+        });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          toast(`更新失敗: ${errBody.error || res.status}`);
+          return;
+        }
+        onSaved();
+        return;
+      } catch (e: any) {
+        toast(`更新失敗: ${e?.message || 'ネットワークエラー'}`);
+        return;
       }
     }
+
+    // 新規モード
     await storage.addWorkout({
       date,
       type: 'strength',

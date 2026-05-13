@@ -4,7 +4,7 @@ import { AppShell } from '@/components/layout/AppShell';
 import { Modal } from '@/components/ui/Modal';
 import { useToast } from '@/components/ui/Toast';
 import { ProgressBar } from '@/components/ui/ProgressBar';
-import { Search, Camera, Pencil, Trash2, Plus, Minus, Sun, Moon, UtensilsCrossed, Cookie, Clock, ChevronLeft, Sparkles } from 'lucide-react';
+import { Search, Camera, Pencil, Trash2, Plus, Minus, Sun, Moon, UtensilsCrossed, Cookie, Clock, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
 import * as storage from '@/lib/storage';
 import { searchFoods, getFood, scaleFood, FOOD_CATEGORIES, type Food } from '@/lib/foods';
 import { calcTargets, sumByMeal, sumDay, type Targets } from '@/lib/nutrition';
@@ -29,6 +29,8 @@ function LogContent() {
   const [features, setFeatures] = useState<UserFeatures>({ featExercise: false, featSleep: false, featWater: false, featSteps: false });
   const [targets, setTargets] = useState<Targets | null>(null);
   const [todayMeals, setTodayMeals] = useState<any[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string>(todayStr());
+  const [weekMeals, setWeekMeals] = useState<Map<string, { kcal: number; count: number }>>(new Map());
 
   // 食品追加モーダル状態
   const [addSlot, setAddSlot] = useState<MealSlot | null>(null);
@@ -45,11 +47,47 @@ function LogContent() {
         featWater: !!(p as any).featWater,
         featSteps: !!(p as any).featSteps
       });
-      setTodayMeals(await storage.getMealsByDate(todayStr()));
     })();
   }, []);
 
-  const refresh = async () => setTodayMeals(await storage.getMealsByDate(todayStr()));
+  // 選択日が変わったらその日の食事を取得
+  useEffect(() => {
+    if (!profile) return;
+    (async () => {
+      setTodayMeals(await storage.getMealsByDate(selectedDate));
+      // 週カレンダーの達成率用に直近14日のサマリーも取得
+      const from = shiftDateStr(selectedDate, -7);
+      const to = shiftDateStr(selectedDate, 7);
+      try {
+        const range = await storage.getMealsRange(from, to);
+        const map = new Map<string, { kcal: number; count: number }>();
+        for (const m of range) {
+          const cur = map.get(m.date) || { kcal: 0, count: 0 };
+          cur.kcal += m.kcal || 0;
+          cur.count += 1;
+          map.set(m.date, cur);
+        }
+        setWeekMeals(map);
+      } catch {}
+    })();
+  }, [selectedDate, profile]);
+
+  const refresh = async () => {
+    setTodayMeals(await storage.getMealsByDate(selectedDate));
+    const from = shiftDateStr(selectedDate, -7);
+    const to = shiftDateStr(selectedDate, 7);
+    try {
+      const range = await storage.getMealsRange(from, to);
+      const map = new Map<string, { kcal: number; count: number }>();
+      for (const m of range) {
+        const cur = map.get(m.date) || { kcal: 0, count: 0 };
+        cur.kcal += m.kcal || 0;
+        cur.count += 1;
+        map.set(m.date, cur);
+      }
+      setWeekMeals(map);
+    } catch {}
+  };
 
   if (!profile || !targets) {
     return (
@@ -65,10 +103,18 @@ function LogContent() {
 
   return (
     <AppShell user={null} features={features}>
+      {/* 上部の週カレンダー（月+週+達成リング） */}
+      <WeekCalendar
+        selectedDate={selectedDate}
+        onSelectDate={setSelectedDate}
+        weekMeals={weekMeals}
+        kcalTarget={targets.kcal}
+      />
+
       {/* 日付ヘッダー */}
       <div className="mb-4 flex items-baseline justify-between">
         <h1 className="text-xl md:text-2xl font-bold">食事記録</h1>
-        <div className="text-sm text-ink-mute">{fmtDateJp(todayStr())}</div>
+        <div className="text-sm text-ink-mute">{fmtDateJp(selectedDate)}{selectedDate !== todayStr() && <button onClick={() => setSelectedDate(todayStr())} className="ml-2 text-[10px] text-brand-600 font-bold underline">今日へ</button>}</div>
       </div>
 
       {/* メーター */}
@@ -157,6 +203,7 @@ function LogContent() {
       {/* 食品追加モーダル */}
       <AddFoodModal
         slot={addSlot}
+        date={selectedDate}
         onClose={() => setAddSlot(null)}
         onAdded={refresh}
       />
@@ -181,7 +228,7 @@ function PfcMini({ label, value, target }: { label: string; value: number; targe
 
 /* ---------- AddFoodModal: 検索/写真/手入力 統合 ---------- */
 
-function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClose: () => void; onAdded: () => void }) {
+function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null; date: string; onClose: () => void; onAdded: () => void }) {
   const { toast } = useToast();
   const [tab, setTab] = useState<'home' | 'search' | 'photo' | 'manual'>('home');
   const [cat, setCat] = useState('すべて');
@@ -192,6 +239,7 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
   const [qty, setQty] = useState(1);
   const [manual, setManual] = useState({ name: '', kcal: '', protein: '', fat: '', carbs: '' });
   const [photoLoading, setPhotoLoading] = useState(false);
+  const [photoError, setPhotoError] = useState<{ stage: string; detail: string } | null>(null);
   const photoRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -213,7 +261,7 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
     if (!selected) return;
     const s = scaleFood(selected, qty);
     await storage.addMeal({
-      date: todayStr(), meal: slot,
+      date: date, meal: slot,
       name: s.name, qty: s.qty, unit: s.unit,
       kcal: s.kcal, protein: s.protein, fat: s.fat, carbs: s.carbs, source: 'db'
     });
@@ -224,7 +272,7 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
 
   const addFromHistory = async (h: any) => {
     await storage.addMeal({
-      date: todayStr(), meal: slot,
+      date: date, meal: slot,
       name: h.name, qty: h.qty || 1, unit: h.unit || '1人前',
       kcal: h.kcal, protein: h.protein, fat: h.fat, carbs: h.carbs, source: 'manual'
     });
@@ -236,7 +284,7 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
   const saveManual = async () => {
     if (!manual.name.trim()) return toast('食品名を入力してください');
     await storage.addMeal({
-      date: todayStr(), meal: slot,
+      date: date, meal: slot,
       name: manual.name.trim(), qty: 1, unit: '1人前',
       kcal: +manual.kcal || 0, protein: +manual.protein || 0,
       fat: +manual.fat || 0, carbs: +manual.carbs || 0, source: 'manual'
@@ -248,6 +296,7 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
 
   const onPhoto = async (file: File) => {
     setPhotoLoading(true);
+    setPhotoError(null);
     try {
       const dataUrl = await compress(file, 1024);
       const res = await fetch('/api/photo', {
@@ -256,10 +305,19 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
         body: JSON.stringify({ image: dataUrl })
       });
       const data = await res.json();
-      if (!data.items?.length) { toast('検出できませんでした'); setTab('manual'); return; }
+      if (!data.items?.length) {
+        // 診断情報があれば詳細表示、なければ汎用メッセージ
+        if (data.diagnostic) {
+          setPhotoError(data.diagnostic);
+          toast(`解析失敗: ${data.diagnostic.detail.slice(0, 40)}…`);
+        } else {
+          toast('検出できませんでした');
+        }
+        return;
+      }
       for (const it of data.items) {
         await storage.addMeal({
-          date: todayStr(), meal: slot,
+          date: date, meal: slot,
           name: it.name, qty: it.qty || 1, unit: it.unit || '1人前',
           kcal: it.kcal || 0, protein: it.protein || 0, fat: it.fat || 0, carbs: it.carbs || 0, source: 'photo'
         });
@@ -267,7 +325,8 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
       toast(`${data.items.length}件を追加`);
       onAdded();
       onClose();
-    } catch {
+    } catch (e: any) {
+      setPhotoError({ stage: 'client', detail: `クライアントエラー: ${e?.message || String(e)}` });
       toast('AI解析に失敗');
     } finally {
       setPhotoLoading(false);
@@ -406,6 +465,20 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
           <button onClick={() => photoRef.current?.click()} disabled={photoLoading} className="btn-primary w-full">
             {photoLoading ? <><span className="spinner" /> 解析中...</> : <><Camera className="w-4 h-4" /> 写真を選択</>}
           </button>
+
+          {photoError && (
+            <div className="mt-4 text-left bg-rose-50 border border-rose-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-rose-700 mb-1">解析できませんでした</div>
+              <div className="text-[11px] text-rose-600 leading-relaxed">{photoError.detail}</div>
+              <div className="text-[10px] text-rose-400 mt-1">原因コード: {photoError.stage}</div>
+              <button
+                onClick={() => { setPhotoError(null); setTab('manual'); }}
+                className="text-[11px] text-rose-700 underline mt-2"
+              >
+                手入力に切り替える
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -441,35 +514,192 @@ function AddFoodModal({ slot, onClose, onAdded }: { slot: MealSlot | null; onClo
       )}
 
       {/* 選択された食品の量調整 */}
-      {selected && scaled && (
-        <div>
-          <div className="font-bold mb-1">{selected.name}</div>
-          <div className="text-xs text-ink-dim mb-3">
-            {selected.unit} あたり: {selected.kcal}kcal · P{selected.protein} F{selected.fat} C{selected.carbs}
+      {selected && scaled && (() => {
+        // 個数が自然な単位（個・枚・杯・玉・切れ・本・串・尾）かを判定
+        const isPieceUnit = /(?:個|枚|杯|玉|切れ|本|串|尾)/.test(selected.unit);
+        const grams = +(qty * selected.unitG).toFixed(0);
+        const setGrams = (g: number) => setQty(+((Math.max(0, g)) / selected.unitG).toFixed(2));
+
+        return (
+          <div>
+            <div className="font-bold mb-1">{selected.name}</div>
+            <div className="text-xs text-ink-dim mb-3">
+              {selected.unit} あたり: {selected.kcal}kcal · P{selected.protein} F{selected.fat} C{selected.carbs}
+            </div>
+
+            {isPieceUnit ? (
+              // 個数入力モード
+              <>
+                <label className="label">個数（{selected.unit}）</label>
+                <div className="flex items-center gap-2 mb-2">
+                  <button className="btn-secondary !min-h-[44px] !px-3" onClick={() => setQty(Math.max(0.5, +(qty - 0.5).toFixed(1)))}>
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <input className="input text-center text-lg font-bold" type="number" inputMode="decimal" step="0.5" value={qty} onChange={(e) => setQty(+e.target.value || 0)} />
+                  <button className="btn-secondary !min-h-[44px] !px-3" onClick={() => setQty(+(qty + 0.5).toFixed(1))}>
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="text-[10px] text-ink-mute text-right mb-4">= {grams}g 相当</div>
+              </>
+            ) : (
+              // グラム入力モード（基本）
+              <>
+                <label className="label">量（グラム）</label>
+                <div className="flex items-center gap-2 mb-2">
+                  <button className="btn-secondary !min-h-[44px] !px-3" onClick={() => setGrams(grams - 10)}>
+                    <Minus className="w-4 h-4" />
+                  </button>
+                  <div className="flex-1 relative">
+                    <input
+                      className="input text-center text-lg font-bold pr-8"
+                      type="number"
+                      inputMode="numeric"
+                      step="1"
+                      value={grams}
+                      onChange={(e) => setGrams(+e.target.value || 0)}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-ink-mute font-bold pointer-events-none">g</span>
+                  </div>
+                  <button className="btn-secondary !min-h-[44px] !px-3" onClick={() => setGrams(grams + 10)}>
+                    <Plus className="w-4 h-4" />
+                  </button>
+                </div>
+                {/* よく使う g クイック追加 */}
+                <div className="grid grid-cols-4 gap-1.5 mb-3">
+                  {[50, 100, 150, 200].map((g) => (
+                    <button
+                      key={g}
+                      onClick={() => setGrams(g)}
+                      className="text-[11px] py-1.5 rounded-md bg-surface-alt hover:bg-ink-line/30 active:bg-ink-line/50 font-bold text-ink-dim transition"
+                    >{g}g</button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="bg-surface-alt rounded-xl p-3 mb-4 grid grid-cols-4 gap-2 text-center">
+              <Stat label="kcal" value={scaled.kcal} />
+              <Stat label="P" value={scaled.protein} />
+              <Stat label="F" value={scaled.fat} />
+              <Stat label="C" value={scaled.carbs} />
+            </div>
+            <div className="flex gap-2">
+              <button className="btn-secondary flex-1" onClick={() => setSelected(null)}>戻る</button>
+              <button className="btn-primary flex-1" onClick={addFood}>追加する</button>
+            </div>
           </div>
-          <label className="label">量（{selected.unit} の倍数）</label>
-          <div className="flex items-center gap-2 mb-4">
-            <button className="btn-secondary !min-h-[40px] !px-3" onClick={() => setQty(Math.max(0.1, +(qty - 0.5).toFixed(1)))}>
-              <Minus className="w-4 h-4" />
-            </button>
-            <input className="input text-center" type="number" step="0.1" value={qty} onChange={(e) => setQty(+e.target.value || 0)} />
-            <button className="btn-secondary !min-h-[40px] !px-3" onClick={() => setQty(+(qty + 0.5).toFixed(1))}>
-              <Plus className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="bg-surface-alt rounded-xl p-3 mb-4 grid grid-cols-4 gap-2 text-center">
-            <Stat label="kcal" value={scaled.kcal} />
-            <Stat label="P" value={scaled.protein} />
-            <Stat label="F" value={scaled.fat} />
-            <Stat label="C" value={scaled.carbs} />
-          </div>
-          <div className="flex gap-2">
-            <button className="btn-secondary flex-1" onClick={() => setSelected(null)}>戻る</button>
-            <button className="btn-primary flex-1" onClick={addFood}>追加する</button>
-          </div>
-        </div>
-      )}
+        );
+      })()}
     </Modal>
+  );
+}
+
+/* ---------- 上部の週カレンダー（添付画像風：月名+前後週ナビ+達成リング） ---------- */
+function shiftDateStr(date: string, days: number): string {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const WEEKDAY_LABELS = ['日', '月', '火', '水', '木', '金', '土'];
+
+function WeekCalendar({
+  selectedDate,
+  onSelectDate,
+  weekMeals,
+  kcalTarget
+}: {
+  selectedDate: string;
+  onSelectDate: (d: string) => void;
+  weekMeals: Map<string, { kcal: number; count: number }>;
+  kcalTarget: number;
+}) {
+  // 選択日を含む週（日曜始まり）の日付配列
+  const sel = new Date(selectedDate);
+  const dow = sel.getDay();
+  const sunday = new Date(sel);
+  sunday.setDate(sel.getDate() - dow);
+  const days: string[] = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(sunday);
+    d.setDate(sunday.getDate() + i);
+    days.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+  }
+
+  const monthLabel = `${sel.getFullYear()}年${sel.getMonth() + 1}月`;
+  const today = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
+
+  return (
+    <div className="bg-gradient-to-b from-brand-50 to-white -mx-4 md:-mx-8 px-4 md:px-8 pt-3 pb-3 mb-3 border-b border-brand-100">
+      {/* 月名 + 週ナビ */}
+      <div className="flex items-center justify-between mb-2">
+        <button
+          onClick={() => onSelectDate(shiftDateStr(selectedDate, -7))}
+          className="p-1 text-ink-dim hover:text-ink rounded-full hover:bg-white/60 active:bg-white transition"
+          aria-label="前週"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="text-sm font-bold tracking-tight">{monthLabel}</div>
+        <button
+          onClick={() => onSelectDate(shiftDateStr(selectedDate, 7))}
+          className="p-1 text-ink-dim hover:text-ink rounded-full hover:bg-white/60 active:bg-white transition"
+          aria-label="翌週"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* 7日カレンダー：曜日 + 日付ボタン + 達成リング */}
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((d, i) => {
+          const dayNum = Number(d.slice(8, 10));
+          const isToday = d === today;
+          const isSelected = d === selectedDate;
+          const summary = weekMeals.get(d);
+          const pct = kcalTarget > 0 && summary ? Math.min(summary.kcal / kcalTarget, 1) : 0;
+          const hasRecord = (summary?.count ?? 0) > 0;
+          const isOver = summary && summary.kcal > kcalTarget * 1.1;
+          const ringColor = isOver ? '#ef4444' : '#f97316'; // 超過は赤、それ以外はブランド色
+          return (
+            <button
+              key={d}
+              onClick={() => onSelectDate(d)}
+              className="flex flex-col items-center py-1.5 gap-0.5 rounded-lg hover:bg-white/60 active:bg-white transition"
+            >
+              <div className={`text-[9px] font-bold ${i === 0 ? 'text-rose-500' : i === 6 ? 'text-blue-500' : 'text-ink-mute'}`}>
+                {WEEKDAY_LABELS[i]}
+              </div>
+              <div className="relative w-9 h-9">
+                {/* 達成リング（SVG） */}
+                {hasRecord && (
+                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
+                    <circle cx="18" cy="18" r="15" fill="none" stroke="#e5e7eb" strokeWidth="2.5" />
+                    <circle
+                      cx="18" cy="18" r="15"
+                      fill="none"
+                      stroke={ringColor}
+                      strokeWidth="2.5"
+                      strokeDasharray={`${pct * 94.25} 94.25`}
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                )}
+                {/* 日付テキスト */}
+                <div className={`absolute inset-0 flex items-center justify-center text-sm font-bold rounded-full ${
+                  isSelected ? 'bg-brand-500 text-white' :
+                  isToday ? 'text-brand-600 ring-1 ring-brand-300' :
+                  'text-ink'
+                }`}>
+                  {dayNum}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
