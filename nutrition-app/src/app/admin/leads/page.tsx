@@ -49,7 +49,7 @@ export default async function LeadsPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell text-[10px] text-ink-mute font-mono">
-                    {u.lineUserId.slice(0, 12)}...
+                    {u.lineUserId ? `${u.lineUserId.slice(0, 12)}...` : (u.email || 'メアド登録')}
                   </td>
                   <td className="px-4 py-3 text-xs">{new Date(u.createdAt).toLocaleDateString('ja-JP')}</td>
                   <td className="px-4 py-3 text-xs text-ink-dim">{new Date(u.lastSeenAt).toLocaleDateString('ja-JP')}</td>

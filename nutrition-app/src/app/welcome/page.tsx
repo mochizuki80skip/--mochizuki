@@ -1,10 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ToastProvider, useToast } from '@/components/ui/Toast';
 import { getLiff, liffIdToken, liffLogin } from '@/lib/liff';
 import * as storage from '@/lib/storage';
-import { Utensils, BarChart3, Sparkles, Dumbbell, ChevronRight, LogIn, ArrowRight } from 'lucide-react';
+import { Utensils, BarChart3, Sparkles, Dumbbell, ChevronRight, LogIn, ArrowRight, Mail, Lock, User } from 'lucide-react';
 
 export default function WelcomePage() {
   return (
@@ -18,6 +18,35 @@ function Welcome() {
   const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [displayName, setDisplayName] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // LIFF 自動完了処理：戻ってきたときにログイン済みなら自動でAPI叩く
+  useEffect(() => {
+    (async () => {
+      try {
+        const liff = await getLiff();
+        if (!liff || !liff.isLoggedIn()) return;
+        const token = await liffIdToken();
+        if (!token) return;
+        const res = await fetch('/api/auth/line', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ idToken: token })
+        });
+        if (res.ok) {
+          await storage.syncLocalToServer().catch(() => {});
+          document.cookie = 'om_intro=1; path=/';
+          const p = await storage.getProfile();
+          if (!p || !p.sex) router.replace('/onboarding');
+          else router.replace('/');
+        }
+      } catch {}
+    })();
+  }, [router]);
 
   const startAsGuest = async () => {
     document.cookie = 'om_intro=1; path=/';
@@ -31,11 +60,12 @@ function Welcome() {
     try {
       const liff = await getLiff();
       if (!liff) {
-        toast('LIFF未設定。一旦ゲストで開始してください。');
+        toast('LIFF未設定。メアド or ゲストで開始してください。');
         return;
       }
       const ok = await liffLogin();
-      if (!ok) return;
+      if (!ok) return; // ここでLIFFがリダイレクトする
+      // 同一セッションでログイン成功した場合はここに到達
       const token = await liffIdToken();
       if (!token) { toast('IDトークン取得失敗'); return; }
       const res = await fetch('/api/auth/line', {
@@ -54,11 +84,42 @@ function Welcome() {
     }
   };
 
+  const submitEmail = async () => {
+    if (!email || !password) {
+      toast('メールアドレスとパスワードを入力してください');
+      return;
+    }
+    if (authMode === 'register' && !displayName.trim()) {
+      toast('お名前を入力してください');
+      return;
+    }
+    setBusy(true);
+    try {
+      const url = authMode === 'login' ? '/api/auth/email/login' : '/api/auth/email/register';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, displayName })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast(data.error || '失敗しました');
+        return;
+      }
+      await storage.syncLocalToServer().catch(() => {});
+      document.cookie = 'om_intro=1; path=/';
+      const p = await storage.getProfile();
+      if (!p || !p.sex) router.replace('/onboarding');
+      else router.replace('/');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-white" style={{ paddingTop: 'var(--safe-top)' }}>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-brand-50 via-white to-brand-50/30 pt-10 pb-12 md:pt-20 md:pb-20">
-        {/* Decorative blobs */}
+      <section className="relative overflow-hidden bg-gradient-to-br from-brand-50 via-white to-brand-50/30 pt-8 pb-10 md:pt-16 md:pb-16">
         <div className="absolute -top-20 -right-20 w-80 h-80 rounded-full bg-brand-200/30 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full bg-amber-200/30 blur-3xl pointer-events-none" />
 
@@ -79,37 +140,107 @@ function Welcome() {
             ジムのトレーナーと二人三脚で、ダイエットもバルクも。
           </p>
 
-          {/* Hero illustration (SVG only) */}
           <div className="mt-8 md:mt-10 max-w-md mx-auto">
             <HeroIllustration />
           </div>
+        </div>
+      </section>
 
-          {/* CTA buttons */}
-          <div className="mt-8 md:mt-10 max-w-sm mx-auto space-y-3">
+      {/* ログイン/新規登録セクション */}
+      <section className="max-w-md mx-auto px-5 md:px-8 py-8">
+        <div className="bg-white border border-ink-line rounded-2xl shadow-card p-5">
+          {/* タブ: ログイン / 新規登録 */}
+          <div className="bg-surface-alt rounded-xl p-1 grid grid-cols-2 mb-4">
+            <button
+              onClick={() => setAuthMode('login')}
+              className={`py-2 text-sm font-bold rounded-md transition ${authMode === 'login' ? 'bg-white text-brand-600 shadow-sm' : 'text-ink-mute'}`}
+            >ログイン</button>
+            <button
+              onClick={() => setAuthMode('register')}
+              className={`py-2 text-sm font-bold rounded-md transition ${authMode === 'register' ? 'bg-white text-brand-600 shadow-sm' : 'text-ink-mute'}`}
+            >新規登録</button>
+          </div>
+
+          {/* メアド入力 */}
+          <div className="space-y-3 mb-4">
+            {authMode === 'register' && (
+              <div>
+                <label className="label flex items-center gap-1"><User className="w-3 h-3" /> お名前</label>
+                <input
+                  className="input"
+                  type="text"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="例: 田中太郎"
+                  autoComplete="name"
+                />
+              </div>
+            )}
+            <div>
+              <label className="label flex items-center gap-1"><Mail className="w-3 h-3" /> メールアドレス</label>
+              <input
+                className="input"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="example@example.com"
+                autoComplete="email"
+                inputMode="email"
+              />
+            </div>
+            <div>
+              <label className="label flex items-center gap-1"><Lock className="w-3 h-3" /> パスワード <span className="text-ink-mute font-normal">（8文字以上）</span></label>
+              <input
+                className="input"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                autoComplete={authMode === 'login' ? 'current-password' : 'new-password'}
+              />
+            </div>
+            <button onClick={submitEmail} disabled={busy} className="btn-primary w-full disabled:opacity-50">
+              {busy ? <span className="spinner" /> : (authMode === 'login' ? 'ログイン' : 'アカウント作成')}
+            </button>
+            {authMode === 'login' && (
+              <p className="text-[10px] text-ink-mute text-center">
+                パスワードを忘れた場合は、管理者にご連絡ください
+              </p>
+            )}
+          </div>
+
+          {/* 区切り */}
+          <div className="flex items-center gap-3 my-4">
+            <div className="flex-1 h-px bg-ink-line" />
+            <span className="text-[10px] text-ink-mute">または</span>
+            <div className="flex-1 h-px bg-ink-line" />
+          </div>
+
+          {/* LINE / ゲスト */}
+          <div className="space-y-2">
             <button
               onClick={startWithLine}
               disabled={loading}
-              className="w-full bg-[#06C755] text-white font-bold rounded-2xl py-4 flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-50 shadow-soft"
+              className="w-full bg-[#06C755] text-white font-bold rounded-xl py-3 flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98] transition"
             >
-              {loading ? <span className="spinner" /> : <LogIn className="w-5 h-5" />}
+              {loading ? <span className="spinner" /> : <LogIn className="w-4 h-4" />}
               LINEでログイン
             </button>
             <button
               onClick={startAsGuest}
-              className="w-full bg-white border border-ink-line text-ink font-bold rounded-2xl py-4 flex items-center justify-center gap-2 active:scale-[0.98] transition hover:bg-surface-alt"
+              className="w-full bg-white border border-ink-line text-ink-dim font-bold rounded-xl py-2.5 text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition hover:bg-surface-alt"
             >
-              ゲストとして始める
-              <ArrowRight className="w-5 h-5" />
+              ゲストとして始める <ArrowRight className="w-4 h-4" />
             </button>
-            <p className="text-[11px] text-ink-mute mt-2">
-              ゲストはこの端末のみで使用 · LINEログインでデータをサーバーに保存
+            <p className="text-[10px] text-ink-mute text-center mt-2">
+              ゲストはこの端末のみで使用 · LINE/メアドでデータをサーバーに保存
             </p>
           </div>
         </div>
       </section>
 
       {/* Features */}
-      <section className="max-w-3xl mx-auto px-5 md:px-8 py-10 md:py-16">
+      <section className="max-w-3xl mx-auto px-5 md:px-8 py-8 md:py-12">
         <h2 className="text-xl md:text-2xl font-bold text-center mb-2">できること</h2>
         <p className="text-center text-sm text-ink-dim mb-8">機能はあとから自由にON/OFFできます</p>
 
@@ -126,7 +257,7 @@ function Welcome() {
             color="bg-blue-50 text-blue-600"
             badge="標準"
             title="体組成を見える化"
-            desc="体重と体脂肪率の推移をグラフで確認。目標体重までの距離が一目でわかります。"
+            desc="体重と体脂肪率の推移をグラフで確認。摂取カロリーから予測ペースも表示。"
           />
           <FeatureCard
             icon={<Sparkles className="w-6 h-6" />}
@@ -159,29 +290,9 @@ function Welcome() {
         </div>
       </section>
 
-      {/* Closing CTA */}
-      <section className="max-w-3xl mx-auto px-5 md:px-8 py-10 md:py-14 text-center">
-        <h2 className="text-lg md:text-xl font-bold mb-4">今すぐ始めましょう</h2>
-        <div className="max-w-sm mx-auto space-y-3">
-          <button
-            onClick={startAsGuest}
-            className="w-full bg-brand-500 text-white font-bold rounded-2xl py-4 flex items-center justify-center gap-2 active:scale-[0.98] transition shadow-soft"
-          >
-            ゲストとして始める
-            <ChevronRight className="w-5 h-5" />
-          </button>
-          <button
-            onClick={startWithLine}
-            disabled={loading}
-            className="w-full bg-white border border-ink-line text-ink font-bold rounded-2xl py-3 text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-50"
-          >
-            <LogIn className="w-4 h-4" /> LINEでログイン
-          </button>
-        </div>
-        <p className="text-[11px] text-ink-mute mt-6">
-          ONE'S BODY · 食事管理サポート
-        </p>
-      </section>
+      <div className="text-center py-6 text-[11px] text-ink-mute">
+        ONE'S BODY · 食事管理サポート
+      </div>
     </div>
   );
 }
@@ -214,12 +325,9 @@ function HeroIllustration() {
           <stop offset="1" stopColor="#FF5F3D" stopOpacity="0" />
         </linearGradient>
       </defs>
-
-      {/* Plate left */}
       <g transform="translate(40, 30)">
         <circle cx="55" cy="70" r="60" fill="url(#plateBg)" stroke="#FFC4AF" strokeWidth="2" />
         <circle cx="55" cy="70" r="48" fill="#FFFFFF" stroke="#FFC4AF" strokeWidth="1" />
-        {/* food sections */}
         <path d="M 55 70 L 55 22 A 48 48 0 0 1 96 60 Z" fill="#4C8BF5" opacity="0.85" />
         <path d="M 55 70 L 96 60 A 48 48 0 0 1 87 105 Z" fill="#F59E0B" opacity="0.9" />
         <path d="M 55 70 L 87 105 A 48 48 0 0 1 23 105 Z" fill="#EF4444" opacity="0.85" />
@@ -227,28 +335,16 @@ function HeroIllustration() {
         <circle cx="55" cy="70" r="8" fill="#FFFFFF" />
         <text x="55" y="74" textAnchor="middle" fontSize="9" fontWeight="700" fill="#FF5F3D">PFC</text>
       </g>
-
-      {/* Chart right */}
       <g transform="translate(180, 50)">
         <rect x="0" y="0" width="110" height="90" rx="14" fill="#FFFFFF" stroke="#E5E7EB" strokeWidth="1" />
         <text x="10" y="18" fontSize="9" fontWeight="700" fill="#5C6470">体重推移</text>
         <text x="100" y="18" textAnchor="end" fontSize="9" fontWeight="700" fill="#FF5F3D">-2.4kg</text>
-        {/* chart line */}
         <path d="M 10 75 L 25 70 L 40 62 L 55 58 L 70 50 L 85 45 L 100 38" stroke="#FF5F3D" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         <path d="M 10 75 L 25 70 L 40 62 L 55 58 L 70 50 L 85 45 L 100 38 L 100 85 L 10 85 Z" fill="url(#chartGrad)" />
-        {/* dots */}
         {[[10,75],[25,70],[40,62],[55,58],[70,50],[85,45],[100,38]].map(([x,y],i) => (
           <circle key={i} cx={x} cy={y} r="2.2" fill="#FF5F3D" />
         ))}
-        {/* target line */}
         <line x1="10" y1="42" x2="100" y2="42" stroke="#FFA284" strokeWidth="1" strokeDasharray="3,2" />
-      </g>
-
-      {/* Sparkle decorations */}
-      <g opacity="0.6">
-        <circle cx="160" cy="25" r="3" fill="#FF5F3D" />
-        <circle cx="290" cy="160" r="4" fill="#F59E0B" />
-        <circle cx="20" cy="170" r="3" fill="#4C8BF5" />
       </g>
     </svg>
   );

@@ -9,13 +9,14 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// エンドユーザー（LINE LIFF ログインで作成される）
+// エンドユーザー（LINE LIFF or メアド でログイン）
 model User {
   id            String    @id @default(cuid())
-  lineUserId    String    @unique
+  lineUserId    String?   @unique  // LINE 連携時のみ
   displayName   String
   pictureUrl    String?
-  email         String?
+  email         String?   @unique  // メアドログイン時に必須
+  passwordHash  String?   // メアドログイン時にハッシュ保存
 
   // ONE'S BODY 会員フラグ
   isMember      Boolean   @default(false)
