@@ -261,15 +261,7 @@ export function HomeView(props: Props) {
 
         {/* オプション機能のサマリー */}
         {features.featExercise && (
-          <div className="card">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-bold">今日のトレーニング</h2>
-              <Link href="/training" className="text-xs text-brand-600 font-bold flex items-center hover:underline">
-                <Plus className="w-3 h-3" /> 記録
-              </Link>
-            </div>
-            <div className="text-center py-3 text-xs text-ink-mute">トレーニング画面で記録できます</div>
-          </div>
+          <TrainingWidget />
         )}
         {features.featSleep && (
           <div className="card">
@@ -311,6 +303,47 @@ export function HomeView(props: Props) {
         onApproved={onGoalApproved}
       />
     </AppShell>
+  );
+}
+
+function TrainingWidget() {
+  const [todayWorkouts, setTodayWorkouts] = useState<any[]>([]);
+  useEffect(() => {
+    (async () => {
+      const ws = await storage.getWorkoutsByDate(todayStr());
+      setTodayWorkouts(ws);
+    })();
+  }, []);
+  const totalKcal = todayWorkouts.reduce((s, w) => s + (w.kcal || 0), 0);
+  const totalMin = todayWorkouts.reduce((s, w) => s + (w.durationMin || 0), 0);
+  const volume = todayWorkouts.filter((w) => w.type === 'strength').flatMap((w) => w.sets || []).reduce((s, st) => s + (st.weight || 0) * (st.reps || 0), 0);
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-sm font-bold">今日のトレーニング</h2>
+        <Link href="/training" className="text-xs text-brand-600 font-bold flex items-center hover:underline">
+          <Plus className="w-3 h-3" /> 記録
+        </Link>
+      </div>
+      {todayWorkouts.length === 0 ? (
+        <div className="text-center py-3 text-xs text-ink-mute">未記録</div>
+      ) : (
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="bg-surface-alt rounded-lg p-2">
+            <div className="text-[10px] text-ink-mute font-bold">時間</div>
+            <div className="text-sm font-bold">{totalMin}<span className="text-[10px] font-normal text-ink-mute ml-0.5">分</span></div>
+          </div>
+          <div className="bg-surface-alt rounded-lg p-2">
+            <div className="text-[10px] text-ink-mute font-bold">消費</div>
+            <div className="text-sm font-bold">{totalKcal}<span className="text-[10px] font-normal text-ink-mute ml-0.5">kcal</span></div>
+          </div>
+          <div className="bg-surface-alt rounded-lg p-2">
+            <div className="text-[10px] text-ink-mute font-bold">総負荷</div>
+            <div className="text-sm font-bold">{volume}<span className="text-[10px] font-normal text-ink-mute ml-0.5">kg</span></div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

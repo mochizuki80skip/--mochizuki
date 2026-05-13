@@ -40,8 +40,29 @@ export interface WeightRow {
   bodyFat?: number | null;
 }
 
+export interface StrengthSetRow {
+  bodyPart: string;
+  exercise: string;
+  setNumber: number;
+  weight?: number | null;
+  reps?: number | null;
+}
+
+export interface WorkoutRow {
+  id: string;
+  date: string;
+  type: 'cardio' | 'strength';
+  cardioName?: string | null;
+  durationMin?: number | null;
+  distanceKm?: number | null;
+  kcal?: number | null;
+  memo?: string | null;
+  sets: StrengthSetRow[];
+  createdAt?: string;
+}
+
 const DB_NAME = 'ones-meal-v2';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 let dbp: Promise<IDBDatabase> | null = null;
 function openDB(): Promise<IDBDatabase> {
@@ -56,6 +77,10 @@ function openDB(): Promise<IDBDatabase> {
         s.createIndex('date', 'date');
       }
       if (!db.objectStoreNames.contains('weights')) db.createObjectStore('weights', { keyPath: 'date' });
+      if (!db.objectStoreNames.contains('workouts')) {
+        const s = db.createObjectStore('workouts', { keyPath: 'id' });
+        s.createIndex('date', 'date');
+      }
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -190,6 +215,64 @@ export async function setWeight(date: string, weight: number, bodyFat?: number |
   }
   const db = await openDB();
   await reqP(db.transaction('weights', 'readwrite').objectStore('weights').put({ date, weight, bodyFat: bodyFat ?? null }));
+}
+
+// ---- Workouts ----
+export async function getWorkoutsByDate(date: string): Promise<WorkoutRow[]> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/workouts?date=${date}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  }
+  const db = await openDB();
+  const idx = db.transaction('workouts').objectStore('workouts').index('date');
+  return reqP<WorkoutRow[]>(idx.getAll(IDBKeyRange.only(date)));
+}
+
+export async function getWorkoutsRange(from: string, to: string): Promise<WorkoutRow[]> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/workouts?from=${from}&to=${to}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  }
+  const db = await openDB();
+  const idx = db.transaction('workouts').objectStore('workouts').index('date');
+  return reqP<WorkoutRow[]>(idx.getAll(IDBKeyRange.bound(from, to)));
+}
+
+export async function getRecentWorkouts(limit = 30): Promise<WorkoutRow[]> {
+  if (isLoggedIn()) {
+    const res = await fetch(`/api/workouts?recent=${limit}`, { cache: 'no-store' });
+    if (!res.ok) return [];
+    return res.json();
+  }
+  const db = await openDB();
+  const all = await reqP<WorkoutRow[]>(db.transaction('workouts').objectStore('workouts').getAll());
+  return all.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).slice(0, limit);
+}
+
+export async function addWorkout(w: Omit<WorkoutRow, 'id' | 'createdAt'>): Promise<WorkoutRow> {
+  if (isLoggedIn()) {
+    const res = await fetch('/api/workouts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(w)
+    });
+    return res.json();
+  }
+  const db = await openDB();
+  const row: WorkoutRow = { id: uid(), createdAt: new Date().toISOString(), ...w };
+  await reqP(db.transaction('workouts', 'readwrite').objectStore('workouts').add(row));
+  return row;
+}
+
+export async function deleteWorkout(id: string): Promise<void> {
+  if (isLoggedIn()) {
+    await fetch(`/api/workouts/${id}`, { method: 'DELETE' });
+    return;
+  }
+  const db = await openDB();
+  await reqP(db.transaction('workouts', 'readwrite').objectStore('workouts').delete(id));
 }
 
 // ---- Sync (local → server on first login) ----
