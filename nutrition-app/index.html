@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0a0d12" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="ONE'S MEAL" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <link rel="stylesheet" href="style.css" />
+  <title>ONE'S MEAL | ONE'S BODY 食事管理</title>
+</head>
+<body>
+  <div id="app">
+    <!-- Onboarding -->
+    <section id="page-onboard" class="page">
+      <main>
+        <div class="onboard">
+          <h1>ONE'S MEAL</h1>
+          <p class="lead">ONE'S BODY の食事・体組成パートナー。プロフィールを設定して始めましょう。</p>
+          <div class="step-dots" id="ob-dots"></div>
+
+          <div id="ob-step-0" class="ob-step">
+            <div class="field">
+              <label>性別</label>
+              <div class="chip-group" data-chip="sex">
+                <button class="chip" data-val="male">男性</button>
+                <button class="chip" data-val="female">女性</button>
+              </div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>年齢</label><input type="number" id="ob-age" min="14" max="90" placeholder="例: 30" inputmode="numeric"/></div>
+              <div class="field"><label>身長 (cm)</label><input type="number" id="ob-height" min="120" max="220" step="0.1" placeholder="例: 170" inputmode="decimal"/></div>
+            </div>
+            <div class="field-row">
+              <div class="field"><label>体重 (kg)</label><input type="number" id="ob-weight" min="30" max="200" step="0.1" placeholder="例: 65" inputmode="decimal"/></div>
+              <div class="field"><label>目標体重 (kg)</label><input type="number" id="ob-target" min="30" max="200" step="0.1" placeholder="例: 60" inputmode="decimal"/></div>
+            </div>
+            <button class="btn block" id="ob-next-0">次へ</button>
+          </div>
+
+          <div id="ob-step-1" class="ob-step hidden">
+            <div class="field">
+              <label>活動量</label>
+              <div class="chip-group" data-chip="activity">
+                <button class="chip" data-val="low">低（座位中心）</button>
+                <button class="chip" data-val="mid">中（週2-3回運動）</button>
+                <button class="chip" data-val="high">高（週4回以上）</button>
+              </div>
+              <p class="hint">ジムでのトレーニング頻度を含めて選んでください。</p>
+            </div>
+            <div class="field">
+              <label>目標</label>
+              <div class="chip-group" data-chip="goal">
+                <button class="chip" data-val="diet">ダイエット</button>
+                <button class="chip" data-val="bodymake">体型維持</button>
+                <button class="chip" data-val="bulk">バルクアップ</button>
+              </div>
+            </div>
+            <div class="btn-row">
+              <button class="btn secondary" id="ob-back-1">戻る</button>
+              <button class="btn" id="ob-next-1">次へ</button>
+            </div>
+          </div>
+
+          <div id="ob-step-2" class="ob-step hidden">
+            <h3 style="color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;font-size:12px;margin:0 0 12px;">あなたの目標カロリーとPFC</h3>
+            <div class="card" id="ob-summary"></div>
+            <div class="field">
+              <label>会員コード（任意）</label>
+              <input type="text" id="ob-code" placeholder="ONE'S BODY 会員の方のみ"/>
+              <p class="hint">会員になるとトレーナーへの食事ログ共有が有効になります。</p>
+            </div>
+            <div class="btn-row">
+              <button class="btn secondary" id="ob-back-2">戻る</button>
+              <button class="btn" id="ob-finish">はじめる</button>
+            </div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- App pages -->
+    <header class="appbar" id="appbar" style="display:none">
+      <div class="brand">
+        <span class="brand-dot"></span>
+        <h1>ONE'S MEAL</h1>
+      </div>
+      <div class="right">
+        <span class="badge" id="mode-badge">ゲスト</span>
+      </div>
+    </header>
+
+    <!-- Dashboard -->
+    <section id="page-home" class="page">
+      <main>
+        <div class="hero">
+          <div class="card calorie-card" id="calorie-card">
+            <div class="muted" style="font-size:12px;text-transform:uppercase;letter-spacing:0.6px;" id="today-label"></div>
+            <div class="big" id="kcal-eaten">0<small>/0 kcal</small></div>
+            <div class="sub" id="kcal-remaining">残り —</div>
+            <div class="pill" id="kcal-pill"></div>
+          </div>
+          <div class="pfc-grid">
+            <div class="pfc-cell">
+              <canvas class="ring" id="ring-p"></canvas>
+              <div class="name" style="color:var(--p)">P タンパク質</div>
+              <div class="val" id="val-p">0g</div>
+              <div class="target" id="tgt-p">/ 0g</div>
+            </div>
+            <div class="pfc-cell">
+              <canvas class="ring" id="ring-f"></canvas>
+              <div class="name" style="color:var(--f)">F 脂質</div>
+              <div class="val" id="val-f">0g</div>
+              <div class="target" id="tgt-f">/ 0g</div>
+            </div>
+            <div class="pfc-cell">
+              <canvas class="ring" id="ring-c"></canvas>
+              <div class="name" style="color:var(--c)">C 炭水化物</div>
+              <div class="val" id="val-c">0g</div>
+              <div class="target" id="tgt-c">/ 0g</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>今日の食事</h2>
+          <div id="home-meals"></div>
+          <button class="btn block mt-1" id="btn-quick-add">＋ 食事を追加</button>
+        </div>
+
+        <div class="card">
+          <h2>体重</h2>
+          <div class="row">
+            <div class="label">最新</div>
+            <div class="value" id="home-weight">— kg</div>
+          </div>
+          <div class="row">
+            <div class="label">目標まで</div>
+            <div class="value" id="home-weight-diff">—</div>
+          </div>
+          <div class="chart-wrap mt-1"><canvas class="chart" id="weight-chart-mini"></canvas></div>
+        </div>
+
+        <div class="advice" id="home-advice">
+          <div class="head">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L13.5 8.5 L20 10 L13.5 11.5 L12 18 L10.5 11.5 L4 10 L10.5 8.5 Z"/></svg>
+            <span class="title">AI トレーナーから</span>
+          </div>
+          <div class="body" id="advice-body">食事を記録するとアドバイスが表示されます。</div>
+        </div>
+      </main>
+    </section>
+
+    <!-- Log -->
+    <section id="page-log" class="page">
+      <main>
+        <div class="seg" id="meal-seg">
+          <button data-meal="breakfast" class="active">朝</button>
+          <button data-meal="lunch">昼</button>
+          <button data-meal="dinner">夕</button>
+          <button data-meal="snack">間食</button>
+        </div>
+
+        <div class="card">
+          <div class="search-box">
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M21 21 L17 17"/></svg>
+            <input type="search" id="food-search" placeholder="食品を検索（例：鶏むね、ご飯、サラダチキン）"/>
+          </div>
+          <div class="chip-group" id="cat-chips" style="margin-bottom:12px"></div>
+          <div class="history" id="history-row" style="display:none">
+            <h3>最近の記録</h3>
+            <div class="chips" id="history-chips"></div>
+          </div>
+          <div class="btn-row" style="margin-bottom:12px">
+            <button class="btn ghost" id="btn-photo">📷 写真でAI解析</button>
+            <button class="btn ghost" id="btn-manual">手入力</button>
+          </div>
+          <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none"/>
+          <div class="search-results" id="search-results"></div>
+        </div>
+
+        <div class="card">
+          <h2>今日のログ</h2>
+          <div id="log-list"></div>
+        </div>
+      </main>
+    </section>
+
+    <!-- Weight -->
+    <section id="page-weight" class="page">
+      <main>
+        <div class="card">
+          <h2>体重の記録</h2>
+          <div class="field-row">
+            <div class="field"><label>日付</label><input type="date" id="weight-date"/></div>
+            <div class="field"><label>体重 (kg)</label><input type="number" id="weight-input" step="0.1" inputmode="decimal" placeholder="例: 65.2"/></div>
+          </div>
+          <div class="field"><label>体脂肪率 (%) <span class="muted">任意</span></label><input type="number" id="bodyfat-input" step="0.1" inputmode="decimal"/></div>
+          <button class="btn block" id="btn-save-weight">記録する</button>
+        </div>
+        <div class="card">
+          <h2>推移</h2>
+          <div class="seg" id="weight-range-seg">
+            <button data-range="7" class="active">7日</button>
+            <button data-range="30">30日</button>
+            <button data-range="90">3ヶ月</button>
+          </div>
+          <div class="chart-wrap"><canvas class="chart" id="weight-chart" style="height:240px"></canvas></div>
+          <div class="row mt-1">
+            <div class="label">期間内の変化</div>
+            <div class="value" id="weight-change">—</div>
+          </div>
+          <div class="row">
+            <div class="label">目標体重</div>
+            <div class="value" id="weight-target-disp">—</div>
+          </div>
+        </div>
+      </main>
+    </section>
+
+    <!-- Advice -->
+    <section id="page-advice" class="page">
+      <main>
+        <div class="seg" id="advice-seg">
+          <button data-mode="daily" class="active">今日のアドバイス</button>
+          <button data-mode="weekly">週次レポート</button>
+        </div>
+        <div id="advice-content">
+          <div class="loading"><span class="spinner"></span> 分析中...</div>
+        </div>
+        <button class="btn block ghost" id="btn-refresh-advice">最新の状況で再生成</button>
+      </main>
+    </section>
+
+    <!-- Settings -->
+    <section id="page-settings" class="page">
+      <main>
+        <div class="card">
+          <h2>プロフィール</h2>
+          <div id="settings-profile"></div>
+          <button class="btn block ghost mt-1" id="btn-edit-profile">プロフィールを編集</button>
+        </div>
+        <div class="card">
+          <h2>目標カロリーとPFC</h2>
+          <div id="settings-targets"></div>
+        </div>
+        <div class="card">
+          <h2>会員モード</h2>
+          <div id="settings-member"></div>
+          <div class="btn-row mt-1">
+            <button class="btn" id="btn-member-activate">会員コードで認証</button>
+            <button class="btn secondary hidden" id="btn-member-logout">解除</button>
+          </div>
+        </div>
+        <div class="card">
+          <h2>データ</h2>
+          <div class="btn-row">
+            <button class="btn ghost" id="btn-export">JSONエクスポート</button>
+            <button class="btn ghost" id="btn-import">インポート</button>
+          </div>
+          <input type="file" id="import-input" accept="application/json" style="display:none"/>
+          <button class="btn danger block mt-1" id="btn-reset">全データを初期化</button>
+        </div>
+        <div class="card center">
+          <div class="muted" style="font-size:11px">ONE'S MEAL · ONE'S BODY パーソナルジム</div>
+        </div>
+      </main>
+    </section>
+
+    <nav class="tabbar" id="tabbar" style="display:none">
+      <button data-page="home" class="active">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12 L12 3 L21 12"/><path d="M5 10 L5 21 L19 21 L19 10"/></svg>
+        ホーム
+      </button>
+      <button data-page="log">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4 H20 V20 H4 Z"/><path d="M8 9 H16"/><path d="M8 13 H16"/><path d="M8 17 H12"/></svg>
+        食事
+      </button>
+      <button data-page="weight">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 18 L9 13 L13 17 L20 8"/><path d="M14 8 L20 8 L20 14"/></svg>
+        体重
+      </button>
+      <button data-page="advice">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 L14 9 L21 11 L14 13 L12 20 L10 13 L3 11 L10 9 Z"/></svg>
+        AI
+      </button>
+      <button data-page="settings">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15 A1.65 1.65 0 0 0 19.7 16.8 L19.8 16.9 A2 2 0 1 1 16.9 19.8 L16.8 19.7 A1.65 1.65 0 0 0 15 19.4 A1.65 1.65 0 0 0 14 20.9 V21 A2 2 0 1 1 10 21 V20.9 A1.65 1.65 0 0 0 9 19.4 A1.65 1.65 0 0 0 7.2 19.7 L7.1 19.8 A2 2 0 1 1 4.2 16.9 L4.3 16.8 A1.65 1.65 0 0 0 4.6 15 A1.65 1.65 0 0 0 3.1 14 H3 A2 2 0 1 1 3 10 H3.1 A1.65 1.65 0 0 0 4.6 9 A1.65 1.65 0 0 0 4.3 7.2 L4.2 7.1 A2 2 0 1 1 7.1 4.2 L7.2 4.3 A1.65 1.65 0 0 0 9 4.6 A1.65 1.65 0 0 0 10 3.1 V3 A2 2 0 1 1 14 3 V3.1 A1.65 1.65 0 0 0 15 4.6 A1.65 1.65 0 0 0 16.8 4.3 L16.9 4.2 A2 2 0 1 1 19.8 7.1 L19.7 7.2 A1.65 1.65 0 0 0 19.4 9 A1.65 1.65 0 0 0 20.9 10 H21 A2 2 0 1 1 21 14 H20.9 A1.65 1.65 0 0 0 19.4 15 Z"/></svg>
+        設定
+      </button>
+    </nav>
+
+    <!-- Add-meal modal -->
+    <div class="modal-backdrop" id="modal-add">
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <h2 id="modal-title">食品を追加</h2>
+        <div id="modal-body"></div>
+      </div>
+    </div>
+
+    <!-- Manual entry modal -->
+    <div class="modal-backdrop" id="modal-manual">
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <h2>手入力で追加</h2>
+        <div class="field"><label>食品名</label><input type="text" id="man-name" placeholder="例: 自家製サラダ"/></div>
+        <div class="field-row">
+          <div class="field"><label>カロリー (kcal)</label><input type="number" id="man-kcal" inputmode="numeric"/></div>
+          <div class="field"><label>タンパク質 (g)</label><input type="number" id="man-p" step="0.1" inputmode="decimal"/></div>
+        </div>
+        <div class="field-row">
+          <div class="field"><label>脂質 (g)</label><input type="number" id="man-f" step="0.1" inputmode="decimal"/></div>
+          <div class="field"><label>炭水化物 (g)</label><input type="number" id="man-c" step="0.1" inputmode="decimal"/></div>
+        </div>
+        <div class="btn-row">
+          <button class="btn secondary flex-1" id="man-cancel">キャンセル</button>
+          <button class="btn flex-1" id="man-save">追加</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profile edit modal -->
+    <div class="modal-backdrop" id="modal-profile">
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <h2>プロフィール編集</h2>
+        <div id="modal-profile-body"></div>
+      </div>
+    </div>
+
+    <!-- Member modal -->
+    <div class="modal-backdrop" id="modal-member">
+      <div class="modal">
+        <div class="modal-handle"></div>
+        <h2>会員認証</h2>
+        <p class="dim" style="font-size:13px">ONE'S BODY の会員コード、またはLINEログインで認証します。</p>
+        <div class="field"><label>会員コード</label><input type="text" id="member-code" placeholder="例: ONES2026"/></div>
+        <div class="btn-row">
+          <button class="btn secondary flex-1" id="member-cancel">キャンセル</button>
+          <button class="btn flex-1" id="member-submit">認証する</button>
+        </div>
+        <div class="mt-2 center">
+          <button class="btn ghost block" id="member-line">LINEでログイン</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+  </div>
+
+  <script src="js/db.js"></script>
+  <script src="js/foods.js"></script>
+  <script src="js/nutrition.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/liff.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+    }
+  </script>
+</body>
+</html>

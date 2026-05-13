@@ -1,0 +1,20 @@
+{
+  "name": "ONE'S MEAL - 食事管理アプリ",
+  "short_name": "ONE'S MEAL",
+  "description": "ONE'S BODYパーソナルジムの食事・体組成管理アプリ",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0d12",
+  "theme_color": "#0a0d12",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
