@@ -9,12 +9,15 @@ import { calcTargets, GOAL_PRESETS, ACTIVITY_FACTORS, bmi } from '@/lib/nutritio
 import { getLiff, liffIdToken, liffLogin, liffLogout, liffProfile } from '@/lib/liff';
 
 export default function SettingsPage() {
-  return (
-    <AppShell user={null}>
-      <SettingsView />
-    </AppShell>
-  );
+  return <SettingsView />;
 }
+
+const FEATURE_DEFS = [
+  { key: 'featExercise', label: '運動メニュー', desc: '有酸素＋筋トレ、部位別総負荷管理' },
+  { key: 'featSleep',    label: '睡眠時間',     desc: '起床/就寝・睡眠時間と質を記録' },
+  { key: 'featWater',    label: '水分摂取',     desc: '1日の水分量を簡単記録' },
+  { key: 'featSteps',    label: '歩数',         desc: '歩数で消費カロリーを補正' }
+];
 
 function SettingsView() {
   const { toast } = useToast();
@@ -32,6 +35,21 @@ function SettingsView() {
       if (p) { setProfile(p); setEdit(p); }
     })();
   }, []);
+
+  const features = profile ? {
+    featExercise: !!profile.featExercise,
+    featSleep: !!profile.featSleep,
+    featWater: !!profile.featWater,
+    featSteps: !!profile.featSteps
+  } : { featExercise: false, featSleep: false, featWater: false, featSteps: false };
+
+  const toggleFeature = async (k: string) => {
+    const next = { ...profile, [k]: !profile[k] };
+    await storage.saveProfile(next);
+    const p = await storage.getProfile();
+    setProfile(p);
+    toast(p && (p as any)[k] ? `${FEATURE_DEFS.find(f => f.key === k)?.label} を有効化` : `${FEATURE_DEFS.find(f => f.key === k)?.label} を無効化`);
+  };
 
   const targets = profile ? calcTargets(profile) : null;
 
@@ -117,10 +135,15 @@ function SettingsView() {
     }
   };
 
-  if (!profile) return <div className="flex justify-center py-20"><span className="spinner" /></div>;
+  if (!profile) return (
+    <AppShell features={features}>
+      <div className="flex justify-center py-20"><span className="spinner" /></div>
+    </AppShell>
+  );
 
   return (
-    <>
+    <AppShell features={features}>
+      <h1 className="text-xl md:text-2xl font-bold mb-4">設定</h1>
       {/* Profile header */}
       <div className="card mb-3 flex items-center gap-3">
         <div className="w-14 h-14 rounded-full bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center text-white font-bold text-xl">
@@ -194,8 +217,26 @@ function SettingsView() {
         <Row label="BMI" value={String(bmi(profile.weightKg, profile.heightCm))} />
       </div>
 
+      {/* 機能モジュール切替 */}
+      <div className="card mb-3">
+        <h2 className="font-bold text-base mb-1">管理する項目</h2>
+        <p className="text-xs text-ink-mute mb-3">使う機能だけONにすると、ホーム画面がシンプルになります。</p>
+        <div className="space-y-2">
+          <FeatureRow label="食事" desc="毎日の食事記録（常時ON）" enabled disabled />
+          {FEATURE_DEFS.map((f) => (
+            <FeatureRow
+              key={f.key}
+              label={f.label}
+              desc={f.desc}
+              enabled={!!profile[f.key]}
+              onToggle={() => toggleFeature(f.key)}
+            />
+          ))}
+        </div>
+      </div>
+
       <div className="text-center text-[10px] text-ink-mute py-4">
-        ONE'S MEAL · ONE'S BODY パーソナルジム
+        ONE'S BODY 食事管理サポート
       </div>
 
       {/* Edit modal */}
@@ -252,7 +293,28 @@ function SettingsView() {
           <button className="btn-primary flex-1" onClick={applyCode}>適用する</button>
         </div>
       </Modal>
-    </>
+    </AppShell>
+  );
+}
+
+function FeatureRow({ label, desc, enabled, onToggle, disabled }: { label: string; desc: string; enabled: boolean; onToggle?: () => void; disabled?: boolean }) {
+  return (
+    <div className={`flex items-center justify-between p-3 rounded-xl border ${enabled ? 'border-brand-200 bg-brand-50/50' : 'border-ink-line'}`}>
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-bold">{label}</div>
+        <div className="text-[11px] text-ink-mute">{desc}</div>
+      </div>
+      <button
+        onClick={disabled ? undefined : onToggle}
+        disabled={disabled}
+        className={`relative w-11 h-6 rounded-full transition shrink-0 ml-3 ${
+          enabled ? 'bg-brand-500' : 'bg-ink-line'
+        } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+        aria-label={`${label} の切替`}
+      >
+        <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${enabled ? 'left-5' : 'left-0.5'}`} />
+      </button>
+    </div>
   );
 }
 

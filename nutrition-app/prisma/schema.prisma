@@ -32,6 +32,12 @@ model User {
   goal          String?   // diet / bodymake / bulk
   onboardedAt   DateTime?
 
+  // 機能モジュール（選択制）
+  featExercise  Boolean   @default(false)
+  featSleep     Boolean   @default(false)
+  featWater     Boolean   @default(false)
+  featSteps     Boolean   @default(false)
+
   // メタ
   lastSeenAt    DateTime  @default(now())
   createdAt     DateTime  @default(now())

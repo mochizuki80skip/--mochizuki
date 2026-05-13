@@ -7,14 +7,11 @@ import { calcTargets, sumDay } from '@/lib/nutrition';
 import { todayStr, daysAgo } from '@/lib/utils';
 
 export default function AdvicePage() {
-  return (
-    <AppShell user={null}>
-      <AdviceView />
-    </AppShell>
-  );
+  return <AdviceView />;
 }
 
 function AdviceView() {
+  const [features, setFeatures] = useState<any>({ featExercise: false, featSleep: false, featWater: false, featSteps: false });
   const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
   const [advice, setAdvice] = useState('');
   const [loading, setLoading] = useState(true);
@@ -31,6 +28,12 @@ function AdviceView() {
     const p = await storage.getProfile();
     if (!p || !p.sex) { window.location.href = '/onboarding'; return; }
     setProfile(p);
+    setFeatures({
+      featExercise: !!(p as any).featExercise,
+      featSleep: !!(p as any).featSleep,
+      featWater: !!(p as any).featWater,
+      featSteps: !!(p as any).featSteps
+    });
     const t = calcTargets(p);
     setTargets(t);
 
@@ -68,7 +71,8 @@ function AdviceView() {
   };
 
   return (
-    <>
+    <AppShell features={features}>
+      <h1 className="text-xl md:text-2xl font-bold mb-4">AIアドバイス</h1>
       <div className="bg-surface-alt rounded-xl p-1 grid grid-cols-2 mb-3">
         {(['daily', 'weekly'] as const).map((m) => (
           <button
@@ -108,7 +112,7 @@ function AdviceView() {
       <button onClick={fetchAdvice} className="btn-ghost w-full">
         <RefreshCw className="w-4 h-4" /> 再生成
       </button>
-    </>
+    </AppShell>
   );
 }
 

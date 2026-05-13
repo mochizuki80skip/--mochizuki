@@ -2,23 +2,31 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+function shapeUser(u: any) {
+  return {
+    sex: u.sex,
+    age: u.age,
+    heightCm: u.heightCm,
+    weightKg: u.weightKg,
+    targetWeight: u.targetWeight,
+    activity: u.activity,
+    goal: u.goal,
+    isMember: u.isMember,
+    memberCode: u.memberCode,
+    displayName: u.displayName,
+    pictureUrl: u.pictureUrl,
+    onboardedAt: u.onboardedAt,
+    featExercise: u.featExercise,
+    featSleep: u.featSleep,
+    featWater: u.featWater,
+    featSteps: u.featSteps
+  };
+}
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
-  return NextResponse.json({
-    sex: user.sex,
-    age: user.age,
-    heightCm: user.heightCm,
-    weightKg: user.weightKg,
-    targetWeight: user.targetWeight,
-    activity: user.activity,
-    goal: user.goal,
-    isMember: user.isMember,
-    memberCode: user.memberCode,
-    displayName: user.displayName,
-    pictureUrl: user.pictureUrl,
-    onboardedAt: user.onboardedAt
-  });
+  return NextResponse.json(shapeUser(user));
 }
 
 export async function PUT(req: NextRequest) {
@@ -54,21 +62,12 @@ export async function PUT(req: NextRequest) {
       activity: body.activity ?? undefined,
       goal: body.goal ?? undefined,
       onboardedAt: body.onboardedAt ? new Date(body.onboardedAt) : (user.onboardedAt ?? new Date()),
+      featExercise: typeof body.featExercise === 'boolean' ? body.featExercise : undefined,
+      featSleep:    typeof body.featSleep === 'boolean' ? body.featSleep : undefined,
+      featWater:    typeof body.featWater === 'boolean' ? body.featWater : undefined,
+      featSteps:    typeof body.featSteps === 'boolean' ? body.featSteps : undefined,
       ...memberFields
     }
   });
-  return NextResponse.json({
-    sex: updated.sex,
-    age: updated.age,
-    heightCm: updated.heightCm,
-    weightKg: updated.weightKg,
-    targetWeight: updated.targetWeight,
-    activity: updated.activity,
-    goal: updated.goal,
-    isMember: updated.isMember,
-    memberCode: updated.memberCode,
-    displayName: updated.displayName,
-    pictureUrl: updated.pictureUrl,
-    onboardedAt: updated.onboardedAt
-  });
+  return NextResponse.json(shapeUser(updated));
 }

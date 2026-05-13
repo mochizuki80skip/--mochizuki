@@ -2,13 +2,13 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: "ONE'S MEAL | ONE'S BODY 食事管理",
-  description: "ONE'S BODYパーソナルジムの食事・体組成管理アプリ",
+  title: "ONE'S BODY 食事管理サポート",
+  description: "ONE'S BODYパーソナルジム会員向け食事・体組成サポートアプリ",
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: "ONE'S MEAL"
+    title: "食事管理サポート"
   }
 };
 

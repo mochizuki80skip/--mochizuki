@@ -1,7 +1,7 @@
 {
-  "name": "ONE'S MEAL",
-  "short_name": "ONE'S MEAL",
-  "description": "ONE'S BODYパーソナルジムの食事・体組成管理アプリ",
+  "name": "ONE'S BODY 食事管理サポート",
+  "short_name": "食事管理サポート",
+  "description": "ONE'S BODYパーソナルジム会員向け食事・体組成サポートアプリ",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

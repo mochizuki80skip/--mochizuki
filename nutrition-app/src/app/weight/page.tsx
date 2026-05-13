@@ -9,16 +9,13 @@ import { todayStr, fmtShortDate } from '@/lib/utils';
 import { bmi } from '@/lib/nutrition';
 
 export default function WeightPage() {
-  return (
-    <AppShell user={null}>
-      <WeightView />
-    </AppShell>
-  );
+  return <WeightView />;
 }
 
 function WeightView() {
-  const { toast } = useToast();
+  const { toast } = useToast?.() || { toast: () => {} };
   const [profile, setProfile] = useState<any>(null);
+  const [features, setFeatures] = useState({ featExercise: false, featSleep: false, featWater: false, featSteps: false });
   const [weights, setWeights] = useState<any[]>([]);
   const [date, setDate] = useState(todayStr());
   const [weight, setWeight] = useState('');
@@ -30,6 +27,12 @@ function WeightView() {
       const p = await storage.getProfile();
       if (!p || !p.sex) { window.location.href = '/onboarding'; return; }
       setProfile(p);
+      setFeatures({
+        featExercise: !!(p as any).featExercise,
+        featSleep: !!(p as any).featSleep,
+        featWater: !!(p as any).featWater,
+        featSteps: !!(p as any).featSteps
+      });
       setWeights(await storage.getAllWeights());
     })();
   }, []);
@@ -42,7 +45,11 @@ function WeightView() {
     setWeights(await storage.getAllWeights());
   };
 
-  if (!profile) return <div className="flex justify-center py-20"><span className="spinner" /></div>;
+  if (!profile) return (
+    <AppShell features={features}>
+      <div className="flex justify-center py-20"><span className="spinner" /></div>
+    </AppShell>
+  );
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - range);
@@ -56,8 +63,8 @@ function WeightView() {
   const totalChange = last && initial ? +(last.weight - initial.weight).toFixed(1) : null;
 
   return (
-    <>
-      {/* Hero summary like kaloko's "85.1 → 72.3" */}
+    <AppShell features={features}>
+      <h1 className="text-xl md:text-2xl font-bold mb-4">体組成</h1>
       {initial && last && initial.date !== last.date && (
         <div className="card mb-3 bg-gradient-to-br from-brand-500 to-brand-600 text-white">
           <div className="text-xs opacity-90 mb-2">体重の推移</div>
@@ -182,6 +189,6 @@ function WeightView() {
           </div>
         )}
       </div>
-    </>
+    </AppShell>
   );
 }

@@ -14,6 +14,10 @@ export interface ProfileData {
   displayName?: string;
   pictureUrl?: string | null;
   onboardedAt?: string | null;
+  featExercise?: boolean;
+  featSleep?: boolean;
+  featWater?: boolean;
+  featSteps?: boolean;
 }
 
 export interface MealRow {
