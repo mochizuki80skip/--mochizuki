@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
+// v: 全機能反映トリガー（アイコン+チラつき修正+写真ヒント+parse_fail修正+高速化）
+
 export const metadata: Metadata = {
   title: "ONE'S BODY 食事管理サポート",
   description: "ONE'S BODYパーソナルジム会員向け食事・体組成サポートアプリ",
