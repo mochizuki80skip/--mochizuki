@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "claude/nutrition-fitness-tracker-Mvt0M": true
+    }
+  },
+  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- nutrition-app/"
+}
