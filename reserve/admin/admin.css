@@ -437,6 +437,34 @@
 .stats-value.stats-warn { color: #c89400; }
 .stats-value.stats-bad  { color: var(--error-ink); }
 
+.admin-bottom-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+.admin-bottom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid var(--gold);
+  background: var(--gold-bg);
+  color: var(--gold-deep);
+  padding: 11px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  font-family: inherit;
+  transition: background .12s, box-shadow .12s, transform .12s;
+}
+.admin-bottom-btn:hover {
+  background: #f5e8c8;
+  box-shadow: 0 2px 8px rgba(156, 135, 83, 0.15);
+}
+.admin-bottom-btn:active { transform: scale(0.99); }
+
 .admin-logout {
   appearance: none;
   border: 1px solid var(--line);
