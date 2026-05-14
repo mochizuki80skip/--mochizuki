@@ -9,6 +9,7 @@ const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
  * GET /api/ai/diag
  * 各 Gemini モデルに対して軽量なテキストリクエスト（画像なし）を投げ、
  * どのモデルが使えてどれが 429 でブロックされているか診断する。
+ * v2: deploy trigger
  */
 export async function GET() {
   const apiKey = process.env.GEMINI_API_KEY;
