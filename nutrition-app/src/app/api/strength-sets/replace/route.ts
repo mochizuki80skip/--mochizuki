@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
+
 /**
  * POST /api/strength-sets/replace
  * 指定日・部位・種目のセットを全て削除して、新しいセット群で置換する。
@@ -9,58 +12,75 @@ import { prisma } from '@/lib/prisma';
  *         sets: [{ weight, reps, setNumber }], kcal?: number, memo?: string }
  */
 export async function POST(req: NextRequest) {
-  const user = await getCurrentUser();
-  if (!user) return NextResponse.json({ error: 'unauthorized' }, { status: 401 });
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: 'unauthorized', detail: 'ログインセッションが見つかりません' }, { status: 401 });
 
-  const body = await req.json().catch(() => ({}));
-  const { date, bodyPart, exercise, sets, kcal, memo } = body || {};
-  if (!date || !bodyPart || !exercise || !Array.isArray(sets)) {
-    return NextResponse.json({ error: 'invalid body' }, { status: 400 });
-  }
+    const body = await req.json().catch(() => ({}));
+    const { date, bodyPart, exercise, sets, kcal, memo } = body || {};
+    if (!date || !bodyPart || !exercise || !Array.isArray(sets)) {
+      return NextResponse.json({
+        error: 'invalid body',
+        detail: `必須パラメータ不足: date=${date}, bodyPart=${bodyPart}, exercise=${exercise}, sets=${Array.isArray(sets) ? 'ok' : typeof sets}`
+      }, { status: 400 });
+    }
 
-  await prisma.$transaction(async (tx) => {
-    // 1) 該当日の strength workout のうち、対象の (bodyPart, exercise) を含む set を全削除
-    const targetWorkouts = await tx.workout.findMany({
+    // 1) 該当日の対象 (bodyPart, exercise) のセットIDを取得
+    const targetWorkouts = await prisma.workout.findMany({
       where: { userId: user.id, date, type: 'strength' },
       include: { sets: true }
     });
 
+    const allTargetSetIds: string[] = [];
+    const workoutsToCheck = new Set<string>();
     for (const w of targetWorkouts) {
-      const targetSetIds = w.sets
-        .filter((s) => s.bodyPart === bodyPart && s.exercise === exercise)
-        .map((s) => s.id);
-      if (targetSetIds.length === 0) continue;
-      await tx.strengthSet.deleteMany({ where: { id: { in: targetSetIds } } });
-      // 親 workout から全 set が消えたら workout も削除
-      const remain = await tx.strengthSet.count({ where: { workoutId: w.id } });
-      if (remain === 0) {
-        await tx.workout.delete({ where: { id: w.id } });
+      for (const s of w.sets) {
+        if (s.bodyPart === bodyPart && s.exercise === exercise) {
+          allTargetSetIds.push(s.id);
+          workoutsToCheck.add(w.id);
+        }
       }
     }
 
-    // 2) sets が空なら（=全削除のみ）終了
-    if (sets.length === 0) return;
-
-    // 3) 新規 workout を作成して全セット投入
-    await tx.workout.create({
-      data: {
-        userId: user.id,
-        date,
-        type: 'strength',
-        kcal: typeof kcal === 'number' ? kcal : null,
-        memo: typeof memo === 'string' && memo.length > 0 ? memo : null,
-        sets: {
-          create: sets.map((s: any, i: number) => ({
-            bodyPart,
-            exercise,
-            setNumber: typeof s.setNumber === 'number' ? s.setNumber : i + 1,
-            weight: s.weight != null ? Number(s.weight) : null,
-            reps: s.reps != null ? Number(s.reps) : null
-          }))
+    // 2) セット削除 + 空になった workout を削除 + 新規 workout 作成 を順次実行
+    if (allTargetSetIds.length > 0) {
+      await prisma.strengthSet.deleteMany({ where: { id: { in: allTargetSetIds } } });
+      for (const wid of workoutsToCheck) {
+        const remain = await prisma.strengthSet.count({ where: { workoutId: wid } });
+        if (remain === 0) {
+          await prisma.workout.delete({ where: { id: wid } }).catch(() => {});
         }
       }
-    });
-  });
+    }
 
-  return NextResponse.json({ ok: true });
+    if (sets.length > 0) {
+      await prisma.workout.create({
+        data: {
+          userId: user.id,
+          date,
+          type: 'strength',
+          kcal: typeof kcal === 'number' ? Math.round(kcal) : null,
+          memo: typeof memo === 'string' && memo.length > 0 ? memo : null,
+          sets: {
+            create: sets.map((s: any, i: number) => ({
+              bodyPart,
+              exercise,
+              setNumber: typeof s.setNumber === 'number' ? s.setNumber : i + 1,
+              weight: s.weight != null ? Number(s.weight) : null,
+              reps: s.reps != null ? Math.round(Number(s.reps)) : null
+            }))
+          }
+        }
+      });
+    }
+
+    return NextResponse.json({ ok: true, removed: allTargetSetIds.length, added: sets.length });
+  } catch (e: any) {
+    console.error('replace error:', e);
+    return NextResponse.json({
+      error: 'server',
+      detail: e?.message || String(e),
+      code: e?.code || null
+    }, { status: 500 });
+  }
 }

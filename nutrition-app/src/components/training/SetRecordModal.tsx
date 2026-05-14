@@ -43,6 +43,7 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
   const [timerRunning, setTimerRunning] = useState(false);
   const [timerOpen, setTimerOpen] = useState(false);
   const [showRM, setShowRM] = useState<{ rm: number; weight: number; reps: number } | null>(null);
+  const [saveError, setSaveError] = useState<{ stage: string; detail: string; code?: string | null; status?: number } | null>(null);
   const timerRef = useRef<any>(null);
 
   const lastRecord = findLastRecord(allWorkouts, bodyPart, exercise);
@@ -163,32 +164,41 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
 
     // 編集モード：サーバー側のアトミックな置換APIを使用（既存削除+新規追加を1トランザクションで実行）
     if (existingSets && existingSets.length > 0) {
+      setSaveError(null);
       try {
+        const payload = {
+          date,
+          bodyPart,
+          exercise,
+          sets: finalSets.map((s, i) => ({
+            weight: s.weight,
+            reps: s.reps,
+            setNumber: i + 1
+          })),
+          kcal: estimateStrengthKcal(sets.length * 3, bodyWeight),
+          memo: memo || null
+        };
         const res = await fetch('/api/strength-sets/replace', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            date,
-            bodyPart,
-            exercise,
-            sets: finalSets.map((s, i) => ({
-              weight: s.weight,
-              reps: s.reps,
-              setNumber: i + 1
-            })),
-            kcal: estimateStrengthKcal(sets.length * 3, bodyWeight),
-            memo: memo || null
-          })
+          body: JSON.stringify(payload)
         });
+        const errText = !res.ok ? await res.text() : null;
         if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          toast(`更新失敗: ${errBody.error || res.status}`);
+          let errBody: any = {};
+          try { errBody = JSON.parse(errText || '{}'); } catch {}
+          setSaveError({
+            stage: 'api',
+            detail: errBody.detail || errBody.error || errText || `HTTP ${res.status}`,
+            code: errBody.code || null,
+            status: res.status
+          });
           return;
         }
         onSaved();
         return;
       } catch (e: any) {
-        toast(`更新失敗: ${e?.message || 'ネットワークエラー'}`);
+        setSaveError({ stage: 'network', detail: e?.message || String(e) });
         return;
       }
     }
@@ -318,6 +328,25 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
         onChange={(e) => setMemo(e.target.value)}
         placeholder="メモ（フォーム改善点・感触など）"
       />
+
+      {/* エラー詳細表示（編集モードで保存失敗時） */}
+      {saveError && (
+        <div className="bg-rose-50 border border-rose-300 rounded-lg p-3 mb-2 mt-2">
+          <div className="text-xs font-bold text-rose-700 mb-1">
+            更新失敗{saveError.status ? ` (HTTP ${saveError.status})` : ''}
+          </div>
+          <div className="text-[11px] text-rose-700 leading-relaxed whitespace-pre-wrap break-all">
+            {saveError.detail}
+          </div>
+          {saveError.code && (
+            <div className="text-[10px] text-rose-500 mt-1">エラーコード: {saveError.code}</div>
+          )}
+          <button
+            onClick={() => setSaveError(null)}
+            className="text-[11px] text-rose-700 underline mt-2"
+          >閉じる</button>
+        </div>
+      )}
 
       {/* 下部固定ボタン */}
       <div className="flex gap-2 sticky bottom-0 bg-white pt-2 -mx-1 px-1 pb-1">
