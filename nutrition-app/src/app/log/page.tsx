@@ -10,6 +10,7 @@ import { searchFoods, getFood, scaleFood, FOOD_CATEGORIES, type Food } from '@/l
 import { calcTargets, sumByMeal, sumDay, type Targets } from '@/lib/nutrition';
 import { todayStr, fmtDateJp } from '@/lib/utils';
 import type { UserFeatures } from '@/components/layout/Navigation';
+import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
 
 const MEAL_LABELS = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: '間食' } as const;
 const MEAL_ICONS = {
@@ -26,7 +27,7 @@ export default function LogPage() {
 
 function LogContent() {
   const [profile, setProfile] = useState<any>(null);
-  const [features, setFeatures] = useState<UserFeatures>({ featExercise: false, featSleep: false, featWater: false, featSteps: false });
+  const [features, setFeatures] = useState<UserFeatures>(getInitialFeatures());
   const [targets, setTargets] = useState<Targets | null>(null);
   const [todayMeals, setTodayMeals] = useState<any[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>(todayStr());
@@ -41,12 +42,14 @@ function LogContent() {
       if (!p || !p.sex) { window.location.href = '/onboarding'; return; }
       setProfile(p);
       setTargets(calcTargets(p));
-      setFeatures({
+      const nf = {
         featExercise: !!(p as any).featExercise,
         featSleep: !!(p as any).featSleep,
         featWater: !!(p as any).featWater,
         featSteps: !!(p as any).featSteps
-      });
+      };
+      setFeatures(nf);
+      saveFeatures(nf);
     })();
   }, []);
 
@@ -258,6 +261,7 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
   const [aiTextError, setAiTextError] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<{ stage: string; detail: string } | null>(null);
+  const [photoHint, setPhotoHint] = useState('');
   const [aiDiag, setAiDiag] = useState<any>(null);
   const [diagLoading, setDiagLoading] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -383,7 +387,7 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
       const res = await fetch('/api/photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: dataUrl })
+        body: JSON.stringify({ image: dataUrl, hint: photoHint.trim() || undefined })
       });
       const data = await res.json();
       if (!data.items?.length) {
@@ -539,9 +543,26 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
 
       {/* 写真 */}
       {!selected && tab === 'photo' && (
-        <div className="text-center py-6">
-          <Camera className="w-12 h-12 text-brand-500 mx-auto mb-3" />
-          <p className="text-sm text-ink-dim mb-4">食事の写真を撮影 or 選択すると、AIが食品とカロリーを推定します。</p>
+        <div className="py-6">
+          <div className="text-center">
+            <Camera className="w-12 h-12 text-brand-500 mx-auto mb-3" />
+            <p className="text-sm text-ink-dim mb-4">食事の写真を撮影 or 選択すると、AIが食品とカロリーを推定します。</p>
+          </div>
+
+          {/* 写真+文字のハイブリッドヒント（精度向上、任意） */}
+          <div className="mb-3">
+            <label className="label text-[11px]">料理名のヒント（任意・精度UP）</label>
+            <input
+              className="input"
+              type="text"
+              value={photoHint}
+              onChange={(e) => setPhotoHint(e.target.value)}
+              placeholder="例: ラーメン二郎系、コンビニ唐揚げ弁当"
+              disabled={photoLoading}
+            />
+            <p className="text-[10px] text-ink-mute mt-1">写真だけより、商品名や料理名を一緒に伝えると精度が上がります</p>
+          </div>
+
           <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = ''; }} />
           <button onClick={() => photoRef.current?.click()} disabled={photoLoading} className="btn-primary w-full">
             {photoLoading ? <><span className="spinner" /> 解析中...</> : <><Camera className="w-4 h-4" /> 写真を選択</>}

@@ -7,6 +7,7 @@ import { TrendingUp, TrendingDown, Minus, Sparkles, RefreshCw } from 'lucide-rea
 import * as storage from '@/lib/storage';
 import { todayStr, fmtShortDate, daysAgo } from '@/lib/utils';
 import { bmi, calcTargets, sumDay } from '@/lib/nutrition';
+import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
 
 export default function WeightPage() {
   return <WeightView />;
@@ -15,7 +16,7 @@ export default function WeightPage() {
 function WeightView() {
   const { toast } = useToast?.() || { toast: () => {} };
   const [profile, setProfile] = useState<any>(null);
-  const [features, setFeatures] = useState({ featExercise: false, featSleep: false, featWater: false, featSteps: false });
+  const [features, setFeatures] = useState(getInitialFeatures());
   const [weights, setWeights] = useState<any[]>([]);
   const [date, setDate] = useState(todayStr());
   const [weight, setWeight] = useState('');
@@ -55,12 +56,14 @@ function WeightView() {
       const p = await storage.getProfile();
       if (!p || !p.sex) { window.location.href = '/onboarding'; return; }
       setProfile(p);
-      setFeatures({
+      const nf = {
         featExercise: !!(p as any).featExercise,
         featSleep: !!(p as any).featSleep,
         featWater: !!(p as any).featWater,
         featSteps: !!(p as any).featSteps
-      });
+      };
+      setFeatures(nf);
+      saveFeatures(nf);
       setWeights(await storage.getAllWeights());
       fetchWeeklyAdvice(p);
     })();

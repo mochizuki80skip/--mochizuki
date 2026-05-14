@@ -9,6 +9,7 @@ import { BODY_PARTS, setVolume, maxRMFromSets } from '@/lib/training';
 import { todayStr, daysAgo, fmtShortDate } from '@/lib/utils';
 import { LineChart } from '@/components/ui/LineChart';
 import type { UserFeatures } from '@/components/layout/Navigation';
+import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
 import { ExerciseSelectModal } from '@/components/training/ExerciseSelectModal';
 import { SetRecordModal } from '@/components/training/SetRecordModal';
 import { CardioInputModal } from '@/components/training/CardioInputModal';
@@ -26,7 +27,7 @@ function TrainingContent() {
   const router = useRouter();
   const { toast } = useToast?.() || ({ toast: () => {} } as any);
   const [profile, setProfile] = useState<any>(null);
-  const [features, setFeatures] = useState<UserFeatures>({ featExercise: false, featSleep: false, featWater: false, featSteps: false });
+  const [features, setFeatures] = useState<UserFeatures>(getInitialFeatures());
   const [tab, setTab] = useState<TabKey>('record');
   const [allWorkouts, setAllWorkouts] = useState<any[]>([]);
   const [bodyPartFilter, setBodyPartFilter] = useState<string>('all');
@@ -42,12 +43,14 @@ function TrainingContent() {
       const p = await storage.getProfile();
       if (!p || !p.sex) { router.replace('/onboarding'); return; }
       setProfile(p);
-      setFeatures({
+      const nf = {
         featExercise: !!(p as any).featExercise,
         featSleep: !!(p as any).featSleep,
         featWater: !!(p as any).featWater,
         featSteps: !!(p as any).featSteps
-      });
+      };
+      setFeatures(nf);
+      saveFeatures(nf);
       await refresh();
     })();
   }, [router]);

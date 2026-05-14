@@ -267,7 +267,7 @@ export interface PhotoAnalysisResult {
   };
 }
 
-export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysisResult> {
+export async function analyzePhoto(imageBase64: string, hint?: string): Promise<PhotoAnalysisResult> {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return {
@@ -301,7 +301,11 @@ export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysisRe
             role: 'user',
             parts: [
               { inline_data: { mime_type: mimeType, data } },
-              { text: PHOTO_USER }
+              {
+                text: hint && hint.trim()
+                  ? `${PHOTO_USER}\n\nユーザーからの補足情報（参考にして精度向上に活用）: 「${hint.trim().slice(0, 100)}」`
+                  : PHOTO_USER
+              }
             ]
           }],
           generationConfig: {

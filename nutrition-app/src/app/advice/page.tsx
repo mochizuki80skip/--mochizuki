@@ -5,13 +5,14 @@ import { Sparkles, RefreshCw } from 'lucide-react';
 import * as storage from '@/lib/storage';
 import { calcTargets, sumDay } from '@/lib/nutrition';
 import { todayStr, daysAgo } from '@/lib/utils';
+import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
 
 export default function AdvicePage() {
   return <AdviceView />;
 }
 
 function AdviceView() {
-  const [features, setFeatures] = useState<any>({ featExercise: false, featSleep: false, featWater: false, featSteps: false });
+  const [features, setFeatures] = useState<any>(getInitialFeatures());
   const [mode, setMode] = useState<'daily' | 'weekly'>('daily');
   const [advice, setAdvice] = useState('');
   const [loading, setLoading] = useState(true);
@@ -28,12 +29,14 @@ function AdviceView() {
     const p = await storage.getProfile();
     if (!p || !p.sex) { window.location.href = '/onboarding'; return; }
     setProfile(p);
-    setFeatures({
+    const nf = {
       featExercise: !!(p as any).featExercise,
       featSleep: !!(p as any).featSleep,
       featWater: !!(p as any).featWater,
       featSteps: !!(p as any).featSteps
-    });
+    };
+    setFeatures(nf);
+    saveFeatures(nf);
     const t = calcTargets(p);
     setTargets(t);
 

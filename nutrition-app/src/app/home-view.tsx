@@ -9,6 +9,7 @@ import Link from 'next/link';
 import { calcTargets, sumDay, sumByMeal, type Targets } from '@/lib/nutrition';
 import { fmtDateJp, fmtShortDate, todayStr } from '@/lib/utils';
 import * as storage from '@/lib/storage';
+import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
 import type { UserFeatures } from '@/components/layout/Navigation';
 import { GoalCard } from '@/components/goal/GoalCard';
 import { GoalSetupModal } from '@/components/goal/GoalSetupModal';
@@ -33,7 +34,7 @@ const DEFAULT_FEATURES: UserFeatures = { featExercise: false, featSleep: false, 
 export function HomeView(props: Props) {
   const router = useRouter();
   const [profile, setProfile] = useState(props.profile);
-  const [features, setFeatures] = useState<UserFeatures>(props.features || DEFAULT_FEATURES);
+  const [features, setFeatures] = useState<UserFeatures>(props.features || getInitialFeatures());
   const [targets, setTargets] = useState<Targets | null>(props.targets);
   const [meals, setMeals] = useState<any[]>(props.meals || []);
   const [weights, setWeights] = useState<any[]>(props.weights || []);
@@ -56,12 +57,14 @@ export function HomeView(props: Props) {
       setMeals(m);
       setWeights(w);
       setToday(sumDay(m as any));
-      setFeatures({
+      const nf = {
         featExercise: !!(p as any).featExercise,
         featSleep: !!(p as any).featSleep,
         featWater: !!(p as any).featWater,
         featSteps: !!(p as any).featSteps
-      });
+      };
+      setFeatures(nf);
+      saveFeatures(nf);
       // ゲスト時のローカル目標プラン
       const localPlan = (p as any).goalPlanJson;
       if (localPlan && (p as any).goalApproved) {
