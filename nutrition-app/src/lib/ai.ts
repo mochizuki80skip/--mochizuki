@@ -131,9 +131,15 @@ const PHOTO_SYSTEM = `あなたは日本の食事写真を分析し、食品ご�
 日本食品標準成分表を基礎知識として、写真の料理を識別し現実的な量を推定します。
 不確実な場合は料理単位で返します（例: 親子丼1人前）。`;
 
-const PHOTO_USER = `この食事写真の食品を識別し、以下のJSON配列のみで返してください（コードブロック・説明文なし）:
-[{ "name": "食品名", "qty": 数量, "unit": "単位", "kcal": 整数, "protein": 小数1桁g, "fat": g, "carbs": g }]
-最大8品目。識別不能なら []。`;
+const PHOTO_USER = `この食事写真の食品を識別し、以下のJSON配列のみで返してください（コードブロック・説明文・前置き禁止）:
+[{ "name": "食品名", "qty": 数量, "unit": "単位", "kcal": 整数, "protein": 小数1桁, "fat": 小数1桁, "carbs": 小数1桁 }]
+
+ルール:
+- 最大6品目。応答の途中で切らない、必ず最後の ] まで返す
+- 各品目は1人前の値（個数は qty に）
+- 識別不能なら []
+- 「ラーメン（二郎系）」のような括弧付き正式名も OK
+- JSONとして必ず valid（カンマや閉じカッコ漏れ禁止）`;
 
 /* ---- テキストから食品栄養を推定 ---- */
 
@@ -256,7 +262,7 @@ export async function analyzeFoodText(input: string): Promise<FoodTextAnalysisRe
 export interface PhotoAnalysisResult {
   items: PhotoItem[];
   diagnostic?: {
-    stage: 'no_key' | 'bad_image' | 'api_http' | 'api_exception' | 'parse_empty' | 'parse_fail';
+    stage: 'no_key' | 'bad_image' | 'api_http' | 'api_exception' | 'parse_empty' | 'parse_fail' | 'no_food_detected';
     detail: string;
   };
 }
@@ -299,7 +305,7 @@ export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysisRe
             ]
           }],
           generationConfig: {
-            maxOutputTokens: 1000,
+            maxOutputTokens: 2000,
             temperature: 0.4,
             responseMimeType: 'application/json'
           }
@@ -330,9 +336,23 @@ export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysisRe
       }
       const items = parseItems(text);
       if (items.length === 0) {
+        // AIが空配列 [] を返した = 食品を識別できなかった（プロンプト指示通り）
+        const isEmptyArray = text.trim().replace(/\s/g, '') === '[]';
+        if (isEmptyArray) {
+          return {
+            items: [],
+            diagnostic: {
+              stage: 'no_food_detected',
+              detail: '写真から食品を識別できませんでした。料理がはっきり写った写真で再撮影するか、AIテキスト入力で食品名を入れてみてください。'
+            }
+          };
+        }
         return {
           items: [],
-          diagnostic: { stage: 'parse_fail', detail: `AIの応答を解析できませんでした [model=${model}]: ${text.slice(0, 150)}` }
+          diagnostic: {
+            stage: 'parse_fail',
+            detail: `AIの応答を解析できませんでした [model=${model}]: ${text.slice(0, 200)}`
+          }
         };
       }
       return { items };
@@ -459,13 +479,45 @@ export async function generatePlan(input: PlanAiInput): Promise<PlanAiOutput | n
 function parseItems(text: string): PhotoItem[] {
   if (!text) return [];
   let parsed: any = null;
-  try { parsed = JSON.parse(text); } catch {
-    const mat = text.match(/\[[\s\S]*?\]/);
+
+  // 1) そのまま JSON.parse
+  try { parsed = JSON.parse(text); } catch {}
+
+  // 2) コードブロック除去後に再試行
+  if (!parsed) {
+    const cleaned = text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+    try { parsed = JSON.parse(cleaned); } catch {}
+  }
+
+  // 3) 最初の [...] 部分を抽出
+  if (!parsed) {
+    const mat = text.match(/\[[\s\S]*\]/);
     if (mat) try { parsed = JSON.parse(mat[0]); } catch {}
   }
+
+  // 4) 途中で切れた応答を修復：最後の完全な } までで切って ] で閉じる
+  if (!parsed) {
+    let s = text.trim();
+    const startIdx = s.indexOf('[');
+    if (startIdx >= 0) {
+      s = s.slice(startIdx);
+      const lastBrace = s.lastIndexOf('}');
+      if (lastBrace > 0) {
+        const candidate = s.slice(0, lastBrace + 1).replace(/,\s*$/, '') + ']';
+        try { parsed = JSON.parse(candidate); } catch {}
+      }
+    }
+  }
+
+  // 5) 単一オブジェクトを返したケースは配列にラップ
+  if (parsed && !Array.isArray(parsed) && typeof parsed === 'object' && parsed.name) {
+    parsed = [parsed];
+  }
+
   if (!Array.isArray(parsed)) return [];
+
   return parsed
-    .filter((x: any) => x && typeof x.name === 'string')
+    .filter((x: any) => x && typeof x.name === 'string' && x.name.length > 0)
     .map((x: any) => ({
       name: String(x.name).slice(0, 60),
       qty: Number(x.qty) || 1,

@@ -549,7 +549,9 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
 
           {photoError && (
             <div className="mt-4 text-left bg-rose-50 border border-rose-200 rounded-lg p-3">
-              <div className="text-xs font-bold text-rose-700 mb-1">解析できませんでした</div>
+              <div className="text-xs font-bold text-rose-700 mb-1">
+                {photoError.stage === 'no_food_detected' ? '食品が見つかりませんでした' : '解析できませんでした'}
+              </div>
               <div className="text-[11px] text-rose-600 leading-relaxed whitespace-pre-wrap break-all">{photoError.detail}</div>
               <div className="text-[10px] text-rose-400 mt-1">原因コード: {photoError.stage}</div>
               <div className="flex gap-2 mt-2">
