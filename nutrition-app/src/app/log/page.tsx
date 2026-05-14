@@ -50,16 +50,32 @@ function LogContent() {
     })();
   }, []);
 
-  // 選択日が変わったらその日の食事を取得
+  // 選択日が変わったら、まず当日の食事だけを優先的に取得（速い）
   useEffect(() => {
     if (!profile) return;
+    let cancelled = false;
     (async () => {
-      setTodayMeals(await storage.getMealsByDate(selectedDate));
-      // 週カレンダーの達成率用に直近14日のサマリーも取得
-      const from = shiftDateStr(selectedDate, -7);
-      const to = shiftDateStr(selectedDate, 7);
+      const meals = await storage.getMealsByDate(selectedDate);
+      if (!cancelled) setTodayMeals(meals);
+    })();
+    return () => { cancelled = true; };
+  }, [selectedDate, profile]);
+
+  // 週カレンダーの達成リング用データは背景で遅延取得（メイン描画をブロックしない）
+  useEffect(() => {
+    if (!profile) return;
+    let cancelled = false;
+    // 1週間内であれば既存データを流用、それを超えたら再取得
+    const t = setTimeout(async () => {
+      const sel = new Date(selectedDate);
+      const dow = sel.getDay();
+      const sunday = new Date(sel); sunday.setDate(sel.getDate() - dow);
+      const sat = new Date(sunday); sat.setDate(sunday.getDate() + 6);
+      const from = `${sunday.getFullYear()}-${String(sunday.getMonth() + 1).padStart(2, '0')}-${String(sunday.getDate()).padStart(2, '0')}`;
+      const to = `${sat.getFullYear()}-${String(sat.getMonth() + 1).padStart(2, '0')}-${String(sat.getDate()).padStart(2, '0')}`;
       try {
         const range = await storage.getMealsRange(from, to);
+        if (cancelled) return;
         const map = new Map<string, { kcal: number; count: number }>();
         for (const m of range) {
           const cur = map.get(m.date) || { kcal: 0, count: 0 };
@@ -69,24 +85,20 @@ function LogContent() {
         }
         setWeekMeals(map);
       } catch {}
-    })();
+    }, 200);
+    return () => { cancelled = true; clearTimeout(t); };
   }, [selectedDate, profile]);
 
   const refresh = async () => {
-    setTodayMeals(await storage.getMealsByDate(selectedDate));
-    const from = shiftDateStr(selectedDate, -7);
-    const to = shiftDateStr(selectedDate, 7);
-    try {
-      const range = await storage.getMealsRange(from, to);
-      const map = new Map<string, { kcal: number; count: number }>();
-      for (const m of range) {
-        const cur = map.get(m.date) || { kcal: 0, count: 0 };
-        cur.kcal += m.kcal || 0;
-        cur.count += 1;
-        map.set(m.date, cur);
-      }
-      setWeekMeals(map);
-    } catch {}
+    const meals = await storage.getMealsByDate(selectedDate);
+    setTodayMeals(meals);
+    // 当日分の weekMeals を即座にローカル更新（リング即反映、再取得不要）
+    const totalKcal = meals.reduce((s: number, m: any) => s + (m.kcal || 0), 0);
+    setWeekMeals((prev) => {
+      const next = new Map(prev);
+      next.set(selectedDate, { kcal: totalKcal, count: meals.length });
+      return next;
+    });
   };
 
   if (!profile || !targets) {
