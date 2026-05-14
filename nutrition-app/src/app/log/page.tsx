@@ -238,6 +238,12 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
   const [selected, setSelected] = useState<Food | null>(null);
   const [qty, setQty] = useState(1);
   const [manual, setManual] = useState({ name: '', kcal: '', protein: '', fat: '', carbs: '' });
+  // AI テキスト入力モード
+  const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<{ name: string; unitDesc: string; unitG: number; kcal: number; protein: number; fat: number; carbs: number } | null>(null);
+  const [aiQty, setAiQty] = useState(1);
+  const [aiTextError, setAiTextError] = useState<string | null>(null);
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<{ stage: string; detail: string } | null>(null);
   const [aiDiag, setAiDiag] = useState<any>(null);
@@ -292,6 +298,54 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
       kcal: h.kcal, protein: h.protein, fat: h.fat, carbs: h.carbs, source: 'manual'
     });
     toast('再追加しました');
+    onAdded();
+    onClose();
+  };
+
+  // AI テキスト推定
+  const runAiText = async () => {
+    if (!aiInput.trim()) { toast('食品名を入力してください'); return; }
+    setAiLoading(true);
+    setAiTextError(null);
+    try {
+      const res = await fetch('/api/ai/food-text', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: aiInput.trim() })
+      });
+      const data = await res.json();
+      if (data.food) {
+        setAiResult(data.food);
+        setAiQty(1);
+      } else {
+        setAiTextError(data.diagnostic?.detail || 'AI推定に失敗しました');
+      }
+    } catch (e: any) {
+      setAiTextError(`通信エラー: ${e?.message || String(e)}`);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const saveAiResult = async () => {
+    if (!aiResult) return;
+    const q = aiQty || 1;
+    await storage.addMeal({
+      date: date, meal: slot,
+      name: aiResult.name,
+      qty: q,
+      unit: aiResult.unitDesc,
+      kcal: Math.round(aiResult.kcal * q),
+      protein: +(aiResult.protein * q).toFixed(1),
+      fat: +(aiResult.fat * q).toFixed(1),
+      carbs: +(aiResult.carbs * q).toFixed(1),
+      source: 'ai-text'
+    });
+    toast(`${aiResult.name} を追加しました`);
+    setAiInput('');
+    setAiResult(null);
+    setAiQty(1);
     onAdded();
     onClose();
   };
@@ -406,12 +460,12 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
             </div>
           )}
 
-          {/* 手入力（下部に控えめに） */}
+          {/* AI入力（下部） */}
           <button
             onClick={() => setTab('manual')}
-            className="w-full text-xs text-ink-mute hover:text-ink-dim flex items-center justify-center gap-1.5 py-2"
+            className="w-full text-xs text-brand-600 hover:text-brand-700 flex items-center justify-center gap-1.5 py-2 font-bold"
           >
-            <Pencil className="w-3.5 h-3.5" /> 手動で栄養素を入力
+            <Sparkles className="w-3.5 h-3.5" /> 食品名を入力してAI推定
           </button>
         </div>
       )}
@@ -490,7 +544,7 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
                 <button
                   onClick={() => { setPhotoError(null); setTab('manual'); }}
                   className="text-[11px] text-rose-700 underline"
-                >手入力に切り替える</button>
+                >AIテキスト入力に切り替える</button>
                 <button
                   onClick={runAiDiag}
                   className="text-[11px] text-brand-700 underline"
@@ -547,36 +601,114 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
         </div>
       )}
 
-      {/* 手入力 */}
-      {!selected && tab === 'manual' && (
+      {/* AI テキスト入力 */}
+      {!selected && tab === 'manual' && !aiResult && (
         <div className="space-y-3">
+          <div className="text-center py-2">
+            <Sparkles className="w-8 h-8 text-brand-500 mx-auto mb-2" />
+            <p className="text-sm font-bold mb-1">食品名から栄養を推定</p>
+            <p className="text-[11px] text-ink-mute">
+              「ごつ盛りのカップ焼きそば」「鶏むね肉100g」など、<br />
+              自由なテキストで入力してください
+            </p>
+          </div>
           <div>
             <label className="label">食品名</label>
-            <input className="input" type="text" value={manual.name} onChange={(e) => setManual({ ...manual, name: e.target.value })} placeholder="例: 自家製サラダ" />
+            <input
+              className="input"
+              type="text"
+              value={aiInput}
+              onChange={(e) => setAiInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !aiLoading) runAiText(); }}
+              placeholder="例: ごつ盛りのカップ焼きそば"
+              autoFocus
+            />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">カロリー (kcal)</label>
-              <input className="input" type="number" inputMode="numeric" value={manual.kcal} onChange={(e) => setManual({ ...manual, kcal: e.target.value })} />
+          <button
+            onClick={runAiText}
+            disabled={aiLoading || !aiInput.trim()}
+            className="btn-primary w-full"
+          >
+            {aiLoading ? <><span className="spinner" /> AIに問い合わせ中...</> : <><Sparkles className="w-4 h-4" /> AIで栄養を推定</>}
+          </button>
+
+          {aiTextError && (
+            <div className="bg-rose-50 border border-rose-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-rose-700 mb-1">推定できませんでした</div>
+              <div className="text-[11px] text-rose-600 whitespace-pre-wrap break-all">{aiTextError}</div>
+              <button onClick={() => setAiTextError(null)} className="text-[11px] text-rose-700 underline mt-2">閉じる</button>
             </div>
-            <div>
-              <label className="label">タンパク質 (g)</label>
-              <input className="input" type="number" step="0.1" value={manual.protein} onChange={(e) => setManual({ ...manual, protein: e.target.value })} />
-            </div>
+          )}
+
+          <div className="text-[10px] text-ink-mute text-center">
+            ヒント: 商品名・料理名・量を含めるほど正確に推定されます
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">脂質 (g)</label>
-              <input className="input" type="number" step="0.1" value={manual.fat} onChange={(e) => setManual({ ...manual, fat: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">炭水化物 (g)</label>
-              <input className="input" type="number" step="0.1" value={manual.carbs} onChange={(e) => setManual({ ...manual, carbs: e.target.value })} />
-            </div>
-          </div>
-          <button onClick={saveManual} className="btn-primary w-full">追加する</button>
         </div>
       )}
+
+      {/* AI 推定結果の確認・調整 */}
+      {!selected && tab === 'manual' && aiResult && (() => {
+        const q = aiQty || 1;
+        const totalKcal = Math.round(aiResult.kcal * q);
+        const totalP = +(aiResult.protein * q).toFixed(1);
+        const totalF = +(aiResult.fat * q).toFixed(1);
+        const totalC = +(aiResult.carbs * q).toFixed(1);
+        return (
+          <div className="space-y-3">
+            {/* 推定結果ヘッダー */}
+            <div className="bg-brand-50 border border-brand-100 rounded-lg p-3">
+              <div className="flex items-center gap-1.5 text-[10px] text-brand-700 font-bold mb-1">
+                <Sparkles className="w-3 h-3" /> AI推定結果
+              </div>
+              <div className="text-base font-bold">{aiResult.name}</div>
+              <div className="text-[11px] text-ink-mute mt-0.5">{aiResult.unitDesc} あたり: {aiResult.kcal}kcal · P{aiResult.protein} F{aiResult.fat} C{aiResult.carbs}</div>
+            </div>
+
+            {/* 個数調整 */}
+            <div>
+              <label className="label">個数（{aiResult.unitDesc}）</label>
+              <div className="flex items-center gap-2 mb-2">
+                <button className="btn-secondary !min-h-[44px] !px-3" onClick={() => setAiQty(Math.max(0.5, +(q - 0.5).toFixed(1)))}>
+                  <Minus className="w-4 h-4" />
+                </button>
+                <input
+                  className="input text-center text-lg font-bold"
+                  type="number"
+                  inputMode="decimal"
+                  step="0.5"
+                  value={q}
+                  onChange={(e) => setAiQty(+e.target.value || 0)}
+                />
+                <button className="btn-secondary !min-h-[44px] !px-3" onClick={() => setAiQty(+(q + 0.5).toFixed(1))}>
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="text-[10px] text-ink-mute text-right">= {Math.round(aiResult.unitG * q)}g 相当</div>
+            </div>
+
+            {/* 合計栄養値 */}
+            <div className="bg-surface-alt rounded-xl p-3 grid grid-cols-4 gap-2 text-center">
+              <Stat label="kcal" value={totalKcal} />
+              <Stat label="P" value={totalP} />
+              <Stat label="F" value={totalF} />
+              <Stat label="C" value={totalC} />
+            </div>
+
+            <div className="text-[10px] text-ink-mute text-center">
+              数値はAI推定です。明らかに違う場合は別の食品名で再検索してください。
+            </div>
+
+            <div className="flex gap-2">
+              <button className="btn-secondary flex-1" onClick={() => { setAiResult(null); setAiQty(1); }}>
+                戻る
+              </button>
+              <button className="btn-primary flex-1" onClick={saveAiResult}>
+                追加する
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 選択された食品の量調整 */}
       {selected && scaled && (() => {

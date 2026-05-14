@@ -1,7 +1,10 @@
 'use client';
 import { ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { BottomNav, Sidebar, TopBar, NavUser, UserFeatures } from './Navigation';
 import { ToastProvider } from '@/components/ui/Toast';
+import { LoginRequiredModal } from '@/components/auth/LoginRequiredModal';
+import { useLoginCheck } from '@/lib/use-login-check';
 
 interface AppShellProps {
   children: ReactNode;
@@ -9,7 +12,12 @@ interface AppShellProps {
   features?: UserFeatures;
   isTrainer?: boolean;
   hideNav?: boolean;
+  /** 認証不要のページ（welcome等）で true にすると LoginRequiredModal を抑制 */
+  skipAuth?: boolean;
 }
+
+// 認証チェックを除外するパス
+const PUBLIC_PATHS = ['/welcome', '/onboarding', '/trainer'];
 
 const DEFAULT_FEATURES: UserFeatures = {
   featExercise: false,
@@ -18,8 +26,14 @@ const DEFAULT_FEATURES: UserFeatures = {
   featSteps: false
 };
 
-export function AppShell({ children, user, features, isTrainer, hideNav }: AppShellProps) {
+export function AppShell({ children, user, features, isTrainer, hideNav, skipAuth }: AppShellProps) {
   const f = features || DEFAULT_FEATURES;
+  const pathname = usePathname();
+  const loggedIn = useLoginCheck();
+  // 認証ゲート: public パスでも skipAuth でもなく、明確に未ログインなら表示
+  const isPublic = skipAuth || PUBLIC_PATHS.some((p) => pathname?.startsWith(p));
+  const showLoginModal = !isPublic && loggedIn === false && !user;
+
   return (
     <ToastProvider>
       <div className="min-h-screen md:flex">
@@ -35,6 +49,7 @@ export function AppShell({ children, user, features, isTrainer, hideNav }: AppSh
         </div>
         {!hideNav && <BottomNav features={f} />}
       </div>
+      <LoginRequiredModal visible={showLoginModal} />
     </ToastProvider>
   );
 }

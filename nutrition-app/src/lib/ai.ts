@@ -135,6 +135,124 @@ const PHOTO_USER = `この食事写真の食品を識別し、以下のJSON配�
 [{ "name": "食品名", "qty": 数量, "unit": "単位", "kcal": 整数, "protein": 小数1桁g, "fat": g, "carbs": g }]
 最大8品目。識別不能なら []。`;
 
+/* ---- テキストから食品栄養を推定 ---- */
+
+export interface FoodTextResult {
+  name: string;
+  unitDesc: string;   // 例: "1個(177g)", "茶碗1杯(150g)", "100g"
+  unitG: number;      // 1単位のグラム数
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+}
+
+export interface FoodTextAnalysisResult {
+  food?: FoodTextResult;
+  diagnostic?: { stage: string; detail: string };
+}
+
+const FOODTEXT_SYSTEM = `あなたは日本の食品栄養データベースです。
+ユーザーが入力した食品名から「最も一般的な1個分・1食分」の栄養値を返します。
+- 標準的なポーションサイズを採用（コンビニ商品はパッケージ実値、家庭料理は一般的な1人前）
+- 日本食品標準成分表・市販商品の公表値を参考に
+- 単位は自然な日本語で（1個/1食/1杯/100g/1本など）
+- 必ず JSON 単一オブジェクトのみで返す（配列・コードブロック・前置き禁止）`;
+
+const FOODTEXT_USER = (name: string) => `食品名: "${name}"
+
+以下のJSON形式で返してください:
+{ "name": "正式な食品名", "unitDesc": "1個(177g) など", "unitG": 数値, "kcal": 整数, "protein": 小数1桁, "fat": 小数1桁, "carbs": 小数1桁 }
+
+例:
+入力: "ごつ盛りのカップ焼きそば"
+出力: {"name":"日清ごつ盛りソース焼そば","unitDesc":"1個(177g)","unitG":177,"kcal":672,"protein":13.5,"fat":29.6,"carbs":86.0}
+
+入力: "鶏むね肉100g"
+出力: {"name":"鶏むね肉(皮なし)","unitDesc":"100g","unitG":100,"kcal":108,"protein":22.3,"fat":1.5,"carbs":0}
+
+入力: "ハンバーグ"
+出力: {"name":"ハンバーグ","unitDesc":"1個(150g)","unitG":150,"kcal":350,"protein":18.0,"fat":22.0,"carbs":18.0}
+
+該当食品が思い当たらない場合は { "name": "", "unitDesc": "", "unitG": 0, "kcal": 0, "protein": 0, "fat": 0, "carbs": 0 } を返してください。`;
+
+export async function analyzeFoodText(input: string): Promise<FoodTextAnalysisResult> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return { diagnostic: { stage: 'no_key', detail: 'サーバーに GEMINI_API_KEY が設定されていません。' } };
+  }
+  const name = (input || '').trim().slice(0, 100);
+  if (!name) {
+    return { diagnostic: { stage: 'empty', detail: '食品名を入力してください。' } };
+  }
+
+  const modelsToTry = [MODEL, ...FALLBACK_MODELS.filter((m) => m !== MODEL)];
+  const attempts: Array<{ model: string; status: number; snippet: string }> = [];
+
+  for (const model of modelsToTry) {
+    try {
+      const res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: FOODTEXT_SYSTEM }] },
+          contents: [{ role: 'user', parts: [{ text: FOODTEXT_USER(name) }] }],
+          generationConfig: {
+            maxOutputTokens: 300,
+            temperature: 0.3,
+            responseMimeType: 'application/json'
+          }
+        })
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        attempts.push({ model, status: res.status, snippet: errText.slice(0, 100) });
+        if (res.status === 429 || res.status === 503) continue;
+        return {
+          diagnostic: {
+            stage: 'api_http',
+            detail: `Gemini APIエラー (${res.status}) [model=${model}]: ${errText.slice(0, 200)}`
+          }
+        };
+      }
+      const result = await res.json();
+      const text = result.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
+      if (!text) {
+        return { diagnostic: { stage: 'parse_empty', detail: 'AIが空の応答を返しました。' } };
+      }
+      // 余分なコードブロック削除
+      const cleaned = text.replace(/^```json?\s*/i, '').replace(/```\s*$/i, '').trim();
+      let parsed: any;
+      try { parsed = JSON.parse(cleaned); } catch {
+        return { diagnostic: { stage: 'parse_fail', detail: `JSON解析失敗: ${cleaned.slice(0, 150)}` } };
+      }
+      if (!parsed?.name || !parsed?.kcal) {
+        return { diagnostic: { stage: 'not_found', detail: `「${name}」に該当する食品データが見つかりませんでした。別の表現で試してください。` } };
+      }
+      return {
+        food: {
+          name: String(parsed.name),
+          unitDesc: String(parsed.unitDesc || '1食'),
+          unitG: Number(parsed.unitG) || 100,
+          kcal: Math.round(Number(parsed.kcal) || 0),
+          protein: +(Number(parsed.protein) || 0).toFixed(1),
+          fat: +(Number(parsed.fat) || 0).toFixed(1),
+          carbs: +(Number(parsed.carbs) || 0).toFixed(1)
+        }
+      };
+    } catch (e: any) {
+      attempts.push({ model, status: 0, snippet: e?.message || String(e) });
+    }
+  }
+
+  return {
+    diagnostic: {
+      stage: 'api_http',
+      detail: `全モデル(${attempts.length}個)で失敗。クォータ超過の可能性が高いです。`
+    }
+  };
+}
+
 export interface PhotoAnalysisResult {
   items: PhotoItem[];
   diagnostic?: {
