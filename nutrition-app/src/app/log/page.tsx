@@ -240,7 +240,22 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
   const [manual, setManual] = useState({ name: '', kcal: '', protein: '', fat: '', carbs: '' });
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<{ stage: string; detail: string } | null>(null);
+  const [aiDiag, setAiDiag] = useState<any>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
+
+  const runAiDiag = async () => {
+    setDiagLoading(true);
+    setAiDiag(null);
+    try {
+      const res = await fetch('/api/ai/diag');
+      setAiDiag(await res.json());
+    } catch (e: any) {
+      setAiDiag({ ok: false, reason: e?.message || String(e) });
+    } finally {
+      setDiagLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (slot) {
@@ -469,14 +484,64 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
           {photoError && (
             <div className="mt-4 text-left bg-rose-50 border border-rose-200 rounded-lg p-3">
               <div className="text-xs font-bold text-rose-700 mb-1">解析できませんでした</div>
-              <div className="text-[11px] text-rose-600 leading-relaxed">{photoError.detail}</div>
+              <div className="text-[11px] text-rose-600 leading-relaxed whitespace-pre-wrap break-all">{photoError.detail}</div>
               <div className="text-[10px] text-rose-400 mt-1">原因コード: {photoError.stage}</div>
-              <button
-                onClick={() => { setPhotoError(null); setTab('manual'); }}
-                className="text-[11px] text-rose-700 underline mt-2"
-              >
-                手入力に切り替える
-              </button>
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => { setPhotoError(null); setTab('manual'); }}
+                  className="text-[11px] text-rose-700 underline"
+                >手入力に切り替える</button>
+                <button
+                  onClick={runAiDiag}
+                  className="text-[11px] text-brand-700 underline"
+                >AI診断を実行</button>
+              </div>
+            </div>
+          )}
+
+          {/* AI診断ボタン（常時表示） */}
+          <div className="mt-3">
+            <button
+              onClick={runAiDiag}
+              disabled={diagLoading}
+              className="text-[11px] text-ink-mute underline disabled:opacity-50"
+            >
+              {diagLoading ? '診断中...' : 'AI接続を診断する'}
+            </button>
+          </div>
+
+          {/* AI診断結果 */}
+          {aiDiag && (
+            <div className="mt-3 text-left bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <div className="text-xs font-bold text-blue-800 mb-2">AI診断結果</div>
+              {!aiDiag.ok ? (
+                <div className="text-[11px] text-blue-700">{aiDiag.reason}</div>
+              ) : (
+                <>
+                  <div className="text-[10px] text-blue-600 mb-1">
+                    APIキー: <span className="font-mono">{aiDiag.keyPrefix}</span><br />
+                    使用予定モデル: <span className="font-mono">{aiDiag.selectedModel}</span>
+                  </div>
+                  <table className="w-full text-[10px] mt-2">
+                    <tbody>
+                      {aiDiag.results?.map((r: any) => (
+                        <tr key={r.model} className="border-t border-blue-100">
+                          <td className="py-1 pr-2 font-mono">{r.model}</td>
+                          <td className="py-1 pr-2">
+                            <span className={r.ok ? 'text-emerald-600 font-bold' : 'text-rose-600 font-bold'}>
+                              {r.ok ? `✓ ${r.status}` : `✗ ${r.status || 'ERR'}`}
+                            </span>
+                          </td>
+                          <td className="py-1 text-ink-mute break-all">{r.message.slice(0, 60)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="text-[10px] text-blue-600 mt-2">
+                    ✓ が1つも無い場合 → 全モデルでクォータ超過。Google AI Studio で別プロジェクトを作るか、Billingを有効化してください。
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

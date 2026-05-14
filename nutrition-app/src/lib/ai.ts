@@ -1,8 +1,11 @@
 // Gemini API クライアント — サーバーサイド
 import type { Targets } from './nutrition';
 
-const MODEL = 'gemini-2.0-flash';
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+// モデルは環境変数で上書き可能。デフォルトは最新の 2.5 Flash（Vision対応・無料枠リフレッシュ）
+const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+// 429時にフォールバックするモデル群（独立したクォータを持つ）
+const FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest'];
 
 interface AdvicePayload {
   profile: {
@@ -158,57 +161,77 @@ export async function analyzePhoto(imageBase64: string): Promise<PhotoAnalysisRe
   const mimeType = m[1];
   const data = m[2];
 
-  try {
-    const res = await fetch(`${API_BASE}/${MODEL}:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: PHOTO_SYSTEM }] },
-        contents: [{
-          role: 'user',
-          parts: [
-            { inline_data: { mime_type: mimeType, data } },
-            { text: PHOTO_USER }
-          ]
-        }],
-        generationConfig: {
-          maxOutputTokens: 1000,
-          temperature: 0.4,
-          responseMimeType: 'application/json'
-        }
-      })
-    });
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      console.error('Gemini Vision failed:', res.status, errText);
-      return {
-        items: [],
-        diagnostic: { stage: 'api_http', detail: `Gemini APIエラー (${res.status}): ${errText.slice(0, 200)}` }
-      };
+  // モデルを順に試行（429時は別モデルにフォールバック）
+  const modelsToTry = [MODEL, ...FALLBACK_MODELS.filter((m) => m !== MODEL)];
+  const attempts: Array<{ model: string; status: number; snippet: string }> = [];
+
+  for (const model of modelsToTry) {
+    try {
+      const res = await fetch(`${API_BASE}/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: PHOTO_SYSTEM }] },
+          contents: [{
+            role: 'user',
+            parts: [
+              { inline_data: { mime_type: mimeType, data } },
+              { text: PHOTO_USER }
+            ]
+          }],
+          generationConfig: {
+            maxOutputTokens: 1000,
+            temperature: 0.4,
+            responseMimeType: 'application/json'
+          }
+        })
+      });
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '');
+        console.error(`Gemini ${model} failed:`, res.status, errText);
+        attempts.push({ model, status: res.status, snippet: errText.slice(0, 150) });
+        // 429（クォータ）/ 503（過負荷）は次のモデルへフォールバック
+        if (res.status === 429 || res.status === 503) continue;
+        // それ以外は即座に終了（404モデル不在など）
+        return {
+          items: [],
+          diagnostic: {
+            stage: 'api_http',
+            detail: `Gemini APIエラー (${res.status}) [model=${model}]: ${errText.slice(0, 200)}`
+          }
+        };
+      }
+      const result = await res.json();
+      const text = result.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
+      if (!text) {
+        return {
+          items: [],
+          diagnostic: { stage: 'parse_empty', detail: `AIが空の応答を返しました [model=${model}]。画像が認識できなかった可能性があります。` }
+        };
+      }
+      const items = parseItems(text);
+      if (items.length === 0) {
+        return {
+          items: [],
+          diagnostic: { stage: 'parse_fail', detail: `AIの応答を解析できませんでした [model=${model}]: ${text.slice(0, 150)}` }
+        };
+      }
+      return { items };
+    } catch (e: any) {
+      console.error(`photo analysis error [${model}]:`, e);
+      attempts.push({ model, status: 0, snippet: e?.message || String(e) });
     }
-    const result = await res.json();
-    const text = result.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join('').trim();
-    if (!text) {
-      return {
-        items: [],
-        diagnostic: { stage: 'parse_empty', detail: 'AIが空の応答を返しました。画像が認識できなかった可能性があります。' }
-      };
-    }
-    const items = parseItems(text);
-    if (items.length === 0) {
-      return {
-        items: [],
-        diagnostic: { stage: 'parse_fail', detail: `AIの応答を解析できませんでした: ${text.slice(0, 150)}` }
-      };
-    }
-    return { items };
-  } catch (e: any) {
-    console.error('photo analysis error:', e);
-    return {
-      items: [],
-      diagnostic: { stage: 'api_exception', detail: `通信エラー: ${e?.message || String(e)}` }
-    };
   }
+
+  // 全モデルが失敗
+  const attemptSummary = attempts.map((a) => `${a.model}: ${a.status} ${a.snippet}`).join(' | ');
+  return {
+    items: [],
+    diagnostic: {
+      stage: 'api_http',
+      detail: `全モデル(${attempts.length}個)で失敗。クォータ超過の可能性が高いです。Google AI Studio で別プロジェクトを作るか、Billingを有効化してください。\n試行: ${attemptSummary.slice(0, 300)}`
+    }
+  };
 }
 
 /* ---- 目標プラン生成 ---- */
