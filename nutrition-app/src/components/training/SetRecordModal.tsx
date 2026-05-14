@@ -180,6 +180,7 @@ export function SetRecordModal({ open, onClose, bodyPart, exercise, bodyWeight, 
         };
         const res = await fetch('/api/strength-sets/replace', {
           method: 'POST',
+          credentials: 'same-origin',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });

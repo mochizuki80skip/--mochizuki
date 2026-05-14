@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { getCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
@@ -14,7 +15,17 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
-    if (!user) return NextResponse.json({ error: 'unauthorized', detail: 'ログインセッションが見つかりません' }, { status: 401 });
+    if (!user) {
+      // デバッグ情報：どのCookieが届いているか
+      const c = await cookies();
+      const all = c.getAll().map((x) => x.name).join(', ');
+      const hasOmUser = !!c.get('om_user')?.value;
+      const hasOmSession = !!c.get('om_session')?.value;
+      return NextResponse.json({
+        error: 'unauthorized',
+        detail: `ログインセッションなし (om_user=${hasOmUser}, om_session=${hasOmSession}, 届いたCookie=[${all}])`
+      }, { status: 401 });
+    }
 
     const body = await req.json().catch(() => ({}));
     const { date, bodyPart, exercise, sets, kcal, memo } = body || {};

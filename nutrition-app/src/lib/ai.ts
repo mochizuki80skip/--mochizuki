@@ -5,7 +5,8 @@ const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 // モデルは環境変数で上書き可能。デフォルトは最新の 2.5 Flash（Vision対応・無料枠リフレッシュ）
 const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 // 429時にフォールバックするモデル群（独立したクォータを持つ）
-const FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest'];
+// gemini-1.5-flash-latest は廃止されたため除外、gemini-1.5-flash に変更
+const FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash'];
 
 interface AdvicePayload {
   profile: {
