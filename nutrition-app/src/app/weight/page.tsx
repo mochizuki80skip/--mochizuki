@@ -8,12 +8,15 @@ import * as storage from '@/lib/storage';
 import { todayStr, fmtShortDate, daysAgo } from '@/lib/utils';
 import { bmi, calcTargets, sumDay } from '@/lib/nutrition';
 import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
+import { generateWeeklyAdvice } from '@/lib/rule-advice';
+import { useRequireLogin } from '@/lib/use-login-check';
 
 export default function WeightPage() {
   return <WeightView />;
 }
 
 function WeightView() {
+  useRequireLogin();
   const { toast } = useToast?.() || { toast: () => {} };
   const [profile, setProfile] = useState<any>(null);
   const [features, setFeatures] = useState(getInitialFeatures());
@@ -28,25 +31,23 @@ function WeightView() {
   const fetchWeeklyAdvice = async (p: any) => {
     setAdviceLoading(true);
     try {
-      const t = calcTargets(p);
-      const fromDate = daysAgo(7);
-      const range = await storage.getMealsRange(fromDate, todayStr());
-      const byDate: Record<string, any> = {};
-      for (const m of range) {
-        const d = byDate[m.date] = byDate[m.date] || { date: m.date, kcal: 0, protein: 0, fat: 0, carbs: 0 };
-        d.kcal += m.kcal; d.protein += m.protein; d.fat += m.fat; d.carbs += m.carbs;
-      }
-      const recent7 = Object.values(byDate).sort((a: any, b: any) => a.date.localeCompare(b.date));
-      const todayMeals = await storage.getMealsByDate(todayStr());
-      const todaySum = sumDay(todayMeals as any);
-      const ws = (await storage.getAllWeights()).slice(-14);
-      const res = await fetch('/api/advice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: p, targets: t, today: todaySum, recent7, weights: ws, mode: 'weekly' })
+      // AI 自動呼び出しを廃止、ルールベースの固定アドバイスに変更（クウォータ節約）
+      const ws = await storage.getAllWeights();
+      const latest = ws.length > 0 ? ws[ws.length - 1] : null;
+      const weekAgo = ws.find((w) => {
+        const d = new Date(w.date);
+        const wDate = new Date();
+        wDate.setDate(wDate.getDate() - 7);
+        return d <= wDate;
       });
-      const data = await res.json();
-      setAdvice(data.advice || '');
+      const weeklyTrend = latest && weekAgo ? latest.weight - weekAgo.weight : null;
+      const text = generateWeeklyAdvice({
+        goalType: p.goal,
+        weeklyTrendKg: weeklyTrend,
+        currentWeight: latest?.weight,
+        targetWeight: p.targetWeight
+      });
+      setAdvice(text);
     } catch {}
     finally { setAdviceLoading(false); }
   };

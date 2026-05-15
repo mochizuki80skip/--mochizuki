@@ -11,6 +11,7 @@ import { calcTargets, sumByMeal, sumDay, type Targets } from '@/lib/nutrition';
 import { todayStr, fmtDateJp } from '@/lib/utils';
 import type { UserFeatures } from '@/components/layout/Navigation';
 import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
+import { useRequireLogin } from '@/lib/use-login-check';
 
 const MEAL_LABELS = { breakfast: '朝食', lunch: '昼食', dinner: '夕食', snack: '間食' } as const;
 const MEAL_ICONS = {
@@ -26,6 +27,7 @@ export default function LogPage() {
 }
 
 function LogContent() {
+  useRequireLogin();
   const [profile, setProfile] = useState<any>(null);
   const [features, setFeatures] = useState<UserFeatures>(getInitialFeatures());
   const [targets, setTargets] = useState<Targets | null>(null);

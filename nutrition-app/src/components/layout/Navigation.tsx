@@ -1,7 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Utensils, Dumbbell, LineChart, Settings, Sparkles, Moon, Droplets, Footprints, LogOut } from 'lucide-react';
+import { Home, Utensils, Dumbbell, LineChart, Settings, Sparkles, Moon, Droplets, Footprints, LogOut, Target } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { ReactNode } from 'react';
@@ -29,7 +29,7 @@ interface NavItem {
 // すべてのナビ項目（visible で表示制御）
 // 「アドバイス」はタブから外し、各画面に統合する方針
 const ALL_NAV: NavItem[] = [
-  { href: '/',          label: 'ホーム',       icon: Home,      visible: () => true },
+  { href: '/',          label: '目標',         icon: Target,    visible: () => true },
   { href: '/log',       label: '食事',         icon: Utensils,  visible: () => true },
   { href: '/training',  label: 'トレーニング', icon: Dumbbell,  visible: (f) => f.featExercise },
   { href: '/weight',    label: '体組成',       icon: LineChart, visible: () => true },

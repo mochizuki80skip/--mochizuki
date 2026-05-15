@@ -18,20 +18,16 @@ export default async function Page({ searchParams }: { searchParams: Promise<Rec
     k === 'code' || k === 'state' || k === 'liffClientId' || k.startsWith('liff.')
   );
 
-  // ゲスト（未ログイン）かつ「ようこそ画面」未通過なら /welcome へ
-  // ただし LIFF コールバックの場合はクエリパラメータを保持して /welcome へ
+  // ログイン必須化: 未ログインは常に /welcome へ強制リダイレクト
   if (!user) {
-    const c = await cookies();
-    const introSeen = !!c.get('om_intro');
     if (hasLiffCallback) {
-      // OAuth params を保持して /welcome にリダイレクト → LIFF SDK が処理
       const qs = Object.entries(sp)
         .filter(([_, v]) => v != null)
         .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(Array.isArray(v) ? v[0] : String(v))}`)
         .join('&');
       redirect('/welcome' + (qs ? '?' + qs : ''));
     }
-    if (!introSeen) redirect('/welcome');
+    redirect('/welcome');
   }
 
   if (user && user.onboardedAt) {

@@ -10,6 +10,7 @@ import { todayStr, daysAgo, fmtShortDate } from '@/lib/utils';
 import { LineChart } from '@/components/ui/LineChart';
 import type { UserFeatures } from '@/components/layout/Navigation';
 import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
+import { useRequireLogin } from '@/lib/use-login-check';
 import { ExerciseSelectModal } from '@/components/training/ExerciseSelectModal';
 import { SetRecordModal } from '@/components/training/SetRecordModal';
 import { CardioInputModal } from '@/components/training/CardioInputModal';
@@ -24,6 +25,7 @@ export default function TrainingPage() {
 }
 
 function TrainingContent() {
+  useRequireLogin();
   const router = useRouter();
   const { toast } = useToast?.() || ({ toast: () => {} } as any);
   const [profile, setProfile] = useState<any>(null);

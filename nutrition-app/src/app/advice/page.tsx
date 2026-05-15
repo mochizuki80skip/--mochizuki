@@ -6,6 +6,7 @@ import * as storage from '@/lib/storage';
 import { calcTargets, sumDay } from '@/lib/nutrition';
 import { todayStr, daysAgo } from '@/lib/utils';
 import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
+import { generateDailyAdvice, generateWeeklyAdvice } from '@/lib/rule-advice';
 
 export default function AdvicePage() {
   return <AdviceView />;
@@ -58,16 +59,26 @@ function AdviceView() {
     const ws = (await storage.getAllWeights()).slice(-14);
     setWeights(ws);
 
+    // AI 自動呼び出しを廃止、ルールベースの固定アドバイスに変更（クウォータ節約）
     try {
-      const res = await fetch('/api/advice', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: p, targets: t, today: todaySum, recent7: r7, weights: ws, mode })
-      });
-      const data = await res.json();
-      setAdvice(data.advice || '');
-    } catch {
-      setAdvice('アドバイスを取得できませんでした');
+      if (mode === 'daily') {
+        setAdvice(generateDailyAdvice({
+          todaySum,
+          targets: t,
+          hasGoal: !!(p as any).goalApproved,
+          goalType: (p as any).goal
+        }));
+      } else {
+        const latest = ws.length > 0 ? ws[ws.length - 1] : null;
+        const weekAgo = ws.length > 6 ? ws[ws.length - 7] : null;
+        const weeklyTrend = latest && weekAgo ? latest.weight - weekAgo.weight : null;
+        setAdvice(generateWeeklyAdvice({
+          goalType: (p as any).goal,
+          weeklyTrendKg: weeklyTrend,
+          currentWeight: latest?.weight,
+          targetWeight: (p as any).targetWeight
+        }));
+      }
     } finally {
       setLoading(false);
     }

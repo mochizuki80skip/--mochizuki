@@ -10,6 +10,7 @@ import { calcTargets, sumDay, sumByMeal, type Targets } from '@/lib/nutrition';
 import { fmtDateJp, fmtShortDate, todayStr } from '@/lib/utils';
 import * as storage from '@/lib/storage';
 import { getInitialFeatures, saveFeatures } from '@/lib/features-cache';
+import { generateDailyAdvice } from '@/lib/rule-advice';
 import type { UserFeatures } from '@/components/layout/Navigation';
 import { GoalCard } from '@/components/goal/GoalCard';
 import { GoalSetupModal } from '@/components/goal/GoalSetupModal';
@@ -79,20 +80,15 @@ export function HomeView(props: Props) {
 
   useEffect(() => {
     if (!targets) return;
-    (async () => {
-      try {
-        const res = await fetch('/api/advice', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ profile, targets, today, mode: 'daily' })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAdvice(data.advice || '');
-        }
-      } catch {}
-    })();
-  }, [targets, today, profile]);
+    // AI 自動呼び出しを廃止、ルールベースの固定アドバイスに変更（クウォータ節約）
+    const ruleAdvice = generateDailyAdvice({
+      todaySum: today,
+      targets,
+      hasGoal: !!goalPlan,
+      goalType: goalPlan?.goalType
+    });
+    setAdvice(ruleAdvice);
+  }, [targets, today, goalPlan]);
 
   const onGoalApproved = async (plan: GoalPlan, summary: string) => {
     // ゲスト時はローカル保存、ログイン時はサーバー保存
@@ -179,7 +175,7 @@ export function HomeView(props: Props) {
       {/* 挨拶 */}
       <div className="mb-4">
         <div className="text-xs text-ink-mute">今日 · {fmtDateJp(todayStr())}</div>
-        <h1 className="text-xl md:text-2xl font-bold mt-1">{greeting}{props.user ? `、${props.user.displayName}さん` : ''}</h1>
+        <h1 className="text-xl md:text-2xl font-bold mt-1">目標 {props.user ? `· ${props.user.displayName}さん` : ''}</h1>
       </div>
 
       <div className="grid md:grid-cols-2 gap-3 md:gap-4 mb-4">
@@ -225,59 +221,48 @@ export function HomeView(props: Props) {
           </div>
         </div>
 
-        {/* 🍽 セクション2: 本日のカロリー + PFC + 説明（統合） */}
-        <div className="card md:col-span-2 bg-gradient-to-br from-brand-500 to-brand-600 text-white">
-          <div className="text-xs font-medium opacity-90">本日の摂取カロリー</div>
-          <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-4xl md:text-5xl font-bold tracking-tight">{Math.round(today.kcal)}</span>
-            <span className="text-sm opacity-90">/ {targets.kcal} kcal</span>
-          </div>
-          <div className="mt-1 text-sm opacity-95">
-            {kcalRem >= 0 ? `残り ${kcalRem} kcal` : `${Math.abs(kcalRem)} kcal オーバー`}
-          </div>
-          <div className="mt-3 mb-4">
-            <ProgressBar value={today.kcal} target={targets.kcal} color="bg-white/90" className="bg-white/20" />
-          </div>
-
-          {/* PFC バランス（同じカード内に統合） */}
-          <div className="bg-white/15 rounded-xl p-3 mt-3">
-            <h3 className="text-[11px] font-bold opacity-95 mb-2">PFCバランス</h3>
-            <div className="space-y-2">
-              <PfcRowLight letter="P" name="タンパク質" value={today.protein} target={targets.protein} />
-              <PfcRowLight letter="F" name="脂質"       value={today.fat}     target={targets.fat} />
-              <PfcRowLight letter="C" name="炭水化物"   value={today.carbs}   target={targets.carbs} />
-            </div>
-            <div className="text-[10px] opacity-90 mt-3 leading-relaxed border-t border-white/20 pt-2">
-              {goalPlan ? <GoalPfcExplain plan={goalPlan} /> : 'PFCバランスを意識することで、栄養を偏らせず体組成を改善できます。'}
-            </div>
-          </div>
-        </div>
-
-        {/* 🍱 今日の食事 */}
+        {/* 🍱 今日のタスク（カロリー + PFC のシンプル版） */}
         <div className="card md:col-span-2">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-bold">今日の食事</h2>
+            <h2 className="text-sm font-bold">今日のタスク</h2>
             <Link href="/log" className="text-xs text-brand-600 font-bold flex items-center hover:underline">
-              すべて見る <ChevronRight className="w-3 h-3" />
+              食事へ <ChevronRight className="w-3 h-3" />
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {(['breakfast', 'lunch', 'dinner', 'snack'] as const).map((slot) => {
-              const items = byMeal[slot];
-              const kcal = items.reduce((a: number, b: any) => a + b.kcal, 0);
-              const label = ({ breakfast: '朝', lunch: '昼', dinner: '夕', snack: '間食' } as const)[slot];
+
+          {/* カロリー進捗 */}
+          <div className="mb-3">
+            <div className="flex items-baseline justify-between mb-1.5">
+              <span className="text-[11px] text-ink-dim font-bold">カロリー</span>
+              <span className="text-xs">
+                <span className="font-bold text-base">{Math.round(today.kcal)}</span>
+                <span className="text-ink-mute"> / {targets.kcal} kcal</span>
+              </span>
+            </div>
+            <ProgressBar value={today.kcal} target={targets.kcal} />
+            <div className="text-[10px] text-ink-mute mt-1 text-right">
+              {kcalRem >= 0 ? `残り ${kcalRem} kcal` : `${Math.abs(kcalRem)} kcal オーバー`}
+            </div>
+          </div>
+
+          {/* PFC 進捗 */}
+          <div className="grid grid-cols-3 gap-2 pt-3 border-t border-ink-line">
+            {[
+              { label: 'P', value: today.protein, target: targets.protein, color: 'bg-rose-400' },
+              { label: 'F', value: today.fat, target: targets.fat, color: 'bg-amber-400' },
+              { label: 'C', value: today.carbs, target: targets.carbs, color: 'bg-emerald-400' }
+            ].map((p) => {
+              const pct = p.target > 0 ? Math.min(100, (p.value / p.target) * 100) : 0;
               return (
-                <Link
-                  key={slot}
-                  href="/log"
-                  className="block bg-surface-alt rounded-xl p-3 hover:bg-ink-line/30 transition"
-                >
-                  <div className="text-[10px] text-ink-mute font-bold">{label}</div>
-                  <div className="text-lg font-bold mt-0.5">{kcal}<span className="text-[10px] font-normal text-ink-mute ml-0.5">kcal</span></div>
-                  <div className="text-[10px] text-ink-dim mt-0.5 truncate">
-                    {items.length === 0 ? '未記録' : `${items.length}件`}
+                <div key={p.label}>
+                  <div className="flex items-baseline justify-between text-[10px] mb-1">
+                    <span className="font-bold">{p.label}</span>
+                    <span className="text-ink-mute">{Math.round(p.value)}/{p.target}g</span>
                   </div>
-                </Link>
+                  <div className="h-1.5 bg-surface-alt rounded-full overflow-hidden">
+                    <div className={p.color} style={{ width: `${pct}%`, height: '100%' }} />
+                  </div>
+                </div>
               );
             })}
           </div>

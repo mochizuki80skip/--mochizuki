@@ -6,20 +6,24 @@ function readCookieSync(): boolean | null {
   return document.cookie.split(';').some((c) => c.trim().startsWith('om_session='));
 }
 
-/**
- * ログイン状態をクライアント側で判定するフック。
- * - null: SSR / 初回 hydration 前
- * - true: ログイン済み（om_session Cookie あり）
- * - false: 未ログイン → LoginRequiredModal を出す対象
- *
- * useState の initializer で同期的に Cookie を読むことで、
- * useEffect 待ちのフラッシュを防止する。
- */
 export function useLoginCheck(): boolean | null {
   const [loggedIn, setLoggedIn] = useState<boolean | null>(() => readCookieSync());
   useEffect(() => {
-    // ハイドレーション後の再評価（SSR時に null だったケース）
     if (loggedIn === null) setLoggedIn(readCookieSync());
   }, [loggedIn]);
   return loggedIn;
+}
+
+/**
+ * 未ログイン時に /welcome に強制リダイレクトするフック。
+ * 各ページの一番上で呼ぶことで、ログイン必須を実現。
+ */
+export function useRequireLogin() {
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const isLoggedIn = document.cookie.split(';').some((c) => c.trim().startsWith('om_session='));
+    if (!isLoggedIn) {
+      window.location.replace('/welcome');
+    }
+  }, []);
 }
