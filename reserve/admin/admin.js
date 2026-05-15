@@ -419,6 +419,9 @@
       const courseName = findCourseNameSync(p.targetCourseId, p.forClinic, p.forFirstTime);
       const title = buildPromoTitle(p, kind, courseName);
       const fullUrl = location.origin + '/?promo=' + encodeURIComponent(p.code);
+      // LINE のカード型メッセージなどで ?promo= 部分が剥がされる経路
+      // 用に、# 形式の URL も用意する（ハッシュは絶対に剥がされない）
+      const lineUrl = location.origin + '/#promo=' + encodeURIComponent(p.code);
       const chips = [];
       if (p.autoOpen) chips.push(`<span class="tag tag-auto">⚡ 自動進行</span>`);
       if (kind === 'override' && typeof p.price === 'number') {
@@ -442,6 +445,11 @@
           <input type="text" readonly value="${escapeHtml(fullUrl)}" data-url-for="${escapeHtml(p.code)}">
           <button type="button" class="admin-btn-mini" data-act="copy" data-code="${escapeHtml(p.code)}">コピー</button>
           <button type="button" class="admin-btn-mini" data-act="open" data-code="${escapeHtml(p.code)}">開く</button>
+        </div>
+        <div class="promo-item-url-row promo-item-url-line">
+          <span class="promo-item-url-label" title="LINE カードメッセージなど ? が剥がれる経路向け">LINE 用 (# 形式)</span>
+          <input type="text" readonly value="${escapeHtml(lineUrl)}" data-url-line-for="${escapeHtml(p.code)}">
+          <button type="button" class="admin-btn-mini" data-act="copy-line" data-code="${escapeHtml(p.code)}">コピー</button>
         </div>
         <div class="promo-item-footer">
           <span class="promo-item-code-mini">?promo=<strong>${escapeHtml(p.code)}</strong></span>
@@ -493,6 +501,7 @@
 
   function onItemAction(act, code, items) {
     const fullUrl = location.origin + '/?promo=' + encodeURIComponent(code);
+    const lineUrl = location.origin + '/#promo=' + encodeURIComponent(code);
     if (act === 'open') {
       window.open(fullUrl, '_blank', 'noopener');
       return;
@@ -500,6 +509,17 @@
     if (act === 'copy') {
       const btn = document.querySelector(`.promo-item[data-code="${CSS.escape(code)}"] button[data-act="copy"]`);
       copyToClipboard(fullUrl).then((ok) => {
+        if (btn) {
+          const o = btn.textContent;
+          btn.textContent = ok ? 'コピー済' : '失敗';
+          setTimeout(() => { btn.textContent = o; }, 1200);
+        }
+      });
+      return;
+    }
+    if (act === 'copy-line') {
+      const btn = document.querySelector(`.promo-item[data-code="${CSS.escape(code)}"] button[data-act="copy-line"]`);
+      copyToClipboard(lineUrl).then((ok) => {
         if (btn) {
           const o = btn.textContent;
           btn.textContent = ok ? 'コピー済' : '失敗';

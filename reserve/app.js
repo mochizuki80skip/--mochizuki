@@ -63,8 +63,21 @@
 
   function getPromoFromUrl() {
     try {
-      const p = new URLSearchParams(window.location.search).get('promo');
-      return p ? p.trim() : null;
+      // ?promo=xxx と #promo=xxx の両方をサポート
+      // (LINE のカード型メッセージなど、リダイレクト時に ?以降を
+      //  壊してしまう経路に備えて # 形式も読めるようにする)
+      const q = new URLSearchParams(window.location.search).get('promo');
+      if (q && q.trim()) return q.trim();
+      const hash = window.location.hash || '';
+      // "#promo=xxx" / "#xxx" / "#/?promo=xxx" のどれにも対応
+      const m1 = hash.match(/promo=([^&]+)/);
+      if (m1 && m1[1]) return decodeURIComponent(m1[1]).trim();
+      // "#xxx" 単独形式（短縮形）にも対応
+      if (hash.startsWith('#') && !hash.includes('=')) {
+        const v = hash.slice(1).trim();
+        if (v && /^[a-zA-Z0-9_-]+$/.test(v)) return v;
+      }
+      return null;
     } catch { return null; }
   }
 

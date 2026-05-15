@@ -345,6 +345,21 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
+.promo-item-url-line {
+  margin-top: -4px;
+}
+.promo-item-url-line .promo-item-url-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #06c755;
+  background: #e8f9ee;
+  border: 1px solid #b5e8c8;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: help;
+}
 
 .promo-item-footer {
   display: flex;
