@@ -2,6 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { appendRow } from "@/lib/sheets";
+import { syncAllTabs } from "@/lib/sheetSync";
 
 // "HH:MM" を minutes に変換
 function timeToMinutes(t: string): number {
@@ -295,6 +296,12 @@ export async function createReservation(params: {
       }
     } catch (e) {
       console.error("[reservation] Sheets append failed:", e);
+    }
+    // スケジュールタブも更新（失敗しても予約自体は成功扱い）
+    try {
+      await syncAllTabs(channelId);
+    } catch (e) {
+      console.error("[reservation] Schedule sync failed:", e);
     }
   }
 
