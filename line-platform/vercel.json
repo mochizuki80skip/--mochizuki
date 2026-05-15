@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- line-platform/"
+  "ignoreCommand": "bash -c 'git log -1 --name-only --pretty=format: HEAD | grep -q \"^line-platform/\" && exit 1 || exit 0'"
 }

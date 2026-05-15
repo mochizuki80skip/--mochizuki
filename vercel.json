@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- app.js index.html manifest.json style.css sw.js icon.svg"
+  "ignoreCommand": "bash -c 'git log -1 --name-only --pretty=format: HEAD | grep -Ev \"^(nutrition-app|auto-reply-tool|line-platform|reserve|clinic-app)/\" | grep -q . && exit 1 || exit 0'"
 }

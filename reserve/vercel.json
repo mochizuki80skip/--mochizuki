@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- reserve/",
+  "ignoreCommand": "bash -c 'git log -1 --name-only --pretty=format: HEAD | grep -q \"^reserve/\" && exit 1 || exit 0'",
   "headers": [
     {
       "source": "/(.*)\\.(html|js|css)",

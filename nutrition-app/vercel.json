@@ -6,5 +6,5 @@
       "claude/nutrition-fitness-tracker-Mvt0M": true
     }
   },
-  "ignoreCommand": "git diff HEAD^ HEAD --quiet -- nutrition-app/"
+  "ignoreCommand": "bash -c 'git log -1 --name-only --pretty=format: HEAD | grep -q \"^nutrition-app/\" && exit 1 || exit 0'"
 }
