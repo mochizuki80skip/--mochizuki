@@ -1,4 +1,6 @@
 import { redirect, notFound } from "next/navigation";
+import Link from "next/link";
+import { Calendar } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/permissions";
 import { ChannelSettingsForm } from "./ChannelSettingsForm";
@@ -25,6 +27,11 @@ export default async function ChannelSettingsPage({
     orderBy: { createdAt: "asc" },
   });
 
+  const reservationSettings = await prisma.reservationSettings.findUnique({
+    where: { lineChannelId: channelId },
+    select: { isEnabled: true },
+  });
+
   const isSuperAdmin = user.role === "super_admin";
 
   return (
@@ -49,6 +56,26 @@ export default async function ChannelSettingsPage({
         }}
         readOnly={!isSuperAdmin}
       />
+
+      <div className="bg-white border rounded p-5">
+        <div className="flex items-start gap-3">
+          <Calendar size={24} className="text-line-dark mt-0.5" />
+          <div className="flex-1">
+            <div className="font-medium">予約機能（オプション）</div>
+            <div className="text-sm text-gray-600 mt-1">
+              {reservationSettings?.isEnabled
+                ? "✅ この LINE で予約機能が有効になっています。"
+                : "接骨院・サロン等の予約受付に使えます。LIFF カレンダーから予約 → スプレッドシートに自動記録。"}
+            </div>
+          </div>
+          <Link
+            href={`/dashboard/c/${channelId}/reservations/settings`}
+            className="border px-3 py-1.5 rounded text-sm shrink-0"
+          >
+            {reservationSettings?.isEnabled ? "予約設定を開く" : "予約機能を設定"}
+          </Link>
+        </div>
+      </div>
 
       <MembersList
         channelId={channel.id}

@@ -23,6 +23,12 @@ export default async function ChannelLayout({
   const channel = await prisma.lineChannel.findUnique({ where: { id: channelId } });
   if (!channel) notFound();
 
+  const reservationSettings = await prisma.reservationSettings.findUnique({
+    where: { lineChannelId: channelId },
+    select: { isEnabled: true },
+  });
+  const reservationsEnabled = reservationSettings?.isEnabled ?? false;
+
   const accessibleChannels = await listAccessibleChannels(user.id, user.role);
 
   const base = `/dashboard/c/${channelId}`;
@@ -32,7 +38,9 @@ export default async function ChannelLayout({
     { href: `${base}/tags`, label: "タグ", icon: Tag },
     { href: `${base}/broadcasts`, label: "一斉配信", icon: Send },
     { href: `${base}/scenarios`, label: "ステップ配信", icon: Workflow },
-    { href: `${base}/reservations`, label: "予約管理", icon: Calendar },
+    ...(reservationsEnabled
+      ? [{ href: `${base}/reservations`, label: "予約管理", icon: Calendar }]
+      : []),
     { href: `${base}/settings`, label: "設定", icon: Settings },
   ];
 
