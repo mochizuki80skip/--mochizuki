@@ -56,6 +56,22 @@ export function SheetsSettings({
     });
   }
 
+  function syncSheet() {
+    setError(null);
+    setInfo(null);
+    start(async () => {
+      const res = await fetch(`/api/channels/${channelId}/reservations/sheets/sync`, {
+        method: "POST",
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(j.error ?? "同期に失敗しました");
+        return;
+      }
+      setInfo("同期しました（予約 / スケジュール / 設定 / メニュー / 営業時間 / きっかけ）");
+    });
+  }
+
   return (
     <div className="bg-white border rounded p-5 space-y-3">
       <h2 className="font-medium">スプレッドシート連携</h2>
@@ -93,7 +109,7 @@ export function SheetsSettings({
         />
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-wrap">
         <button
           onClick={save}
           disabled={pending}
@@ -108,7 +124,31 @@ export function SheetsSettings({
         >
           接続テスト
         </button>
+        <button
+          onClick={syncSheet}
+          disabled={pending || !v.spreadsheetId}
+          className="border border-line text-line-dark px-4 py-2 rounded text-sm disabled:opacity-50 ml-auto"
+          title="スプレッドシートの全タブを最新の予約データと設定で再生成します"
+        >
+          📋 シートを完全同期
+        </button>
       </div>
+
+      <details className="text-xs text-gray-600 pt-2 border-t">
+        <summary className="cursor-pointer">「シートを完全同期」ボタンの動作</summary>
+        <div className="mt-2 space-y-1">
+          <p>このボタンを押すと、以下のタブがアプリの最新データで上書きされます：</p>
+          <ul className="list-disc ml-5">
+            <li><b>予約</b>：ヘッダー行のみセット（既存データは保持）</li>
+            <li><b>スケジュール</b>：今日から最大30日先までの空き状況マトリクス（再生成）</li>
+            <li><b>設定</b>：ベッド数・営業情報など（再生成）</li>
+            <li><b>メニュー</b>：登録メニュー一覧（再生成）</li>
+            <li><b>営業時間</b>：曜日別営業時間（再生成）</li>
+            <li><b>きっかけ</b>：選択肢一覧（再生成）</li>
+          </ul>
+          <p className="text-orange-700">⚠️ スケジュール／設定／メニュー／営業時間／きっかけタブを Sheet 上で編集していても、同期時に上書きされます。</p>
+        </div>
+      </details>
     </div>
   );
 }

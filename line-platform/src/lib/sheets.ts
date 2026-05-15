@@ -57,6 +57,216 @@ export async function appendRow(
   return { rowNumber: match ? Number(match[1]) : null };
 }
 
+// 範囲を 2D 配列で書き込み（既存内容を上書き）
+export async function writeRange(
+  spreadsheetId: string,
+  range: string,
+  values: (string | number | null)[][],
+): Promise<void> {
+  const sheets = getSheetsClient();
+  const cleaned = values.map((row) => row.map((v) => (v ?? "")));
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: cleaned },
+  });
+}
+
+// タブの全データをクリア
+export async function clearTab(spreadsheetId: string, tabName: string): Promise<void> {
+  const sheets = getSheetsClient();
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `${tabName}!A:Z`,
+  });
+}
+
+// シートID取得（書式設定で使う）
+async function getSheetIdByTitle(spreadsheetId: string, title: string): Promise<number | null> {
+  const sheets = getSheetsClient();
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const found = (meta.data.sheets ?? []).find((s) => s.properties?.title === title);
+  return found?.properties?.sheetId ?? null;
+}
+
+// タブの書式設定：ヘッダー行を太字＋背景色、1 行目固定
+export async function applyTabFormatting(
+  spreadsheetId: string,
+  tabName: string,
+  headerColumnCount: number,
+): Promise<void> {
+  const sheets = getSheetsClient();
+  const sheetId = await getSheetIdByTitle(spreadsheetId, tabName);
+  if (sheetId === null) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        // ヘッダー行のスタイル
+        {
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: 0,
+              endRowIndex: 1,
+              startColumnIndex: 0,
+              endColumnIndex: headerColumnCount,
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.86, green: 0.97, blue: 0.94 },
+                textFormat: { bold: true },
+                horizontalAlignment: "CENTER",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+          },
+        },
+        // 1 行目を固定
+        {
+          updateSheetProperties: {
+            properties: { sheetId, gridProperties: { frozenRowCount: 1 } },
+            fields: "gridProperties.frozenRowCount",
+          },
+        },
+        // 列幅を自動
+        {
+          autoResizeDimensions: {
+            dimensions: {
+              sheetId,
+              dimension: "COLUMNS",
+              startIndex: 0,
+              endIndex: headerColumnCount,
+            },
+          },
+        },
+      ],
+    },
+  });
+}
+
+// スケジュールタブのカラー塗り分け（残数 0=赤系, 1+=緑系, 空文字=灰系）
+export async function applyScheduleFormatting(
+  spreadsheetId: string,
+  tabName: string,
+  startRow: number, // データ開始行（0 始まり）
+  rowCount: number,
+  colCount: number, // 日付列数（時間ラベル列を除く）
+): Promise<void> {
+  const sheets = getSheetsClient();
+  const sheetId = await getSheetIdByTitle(spreadsheetId, tabName);
+  if (sheetId === null) return;
+
+  const dataRange = {
+    sheetId,
+    startRowIndex: startRow,
+    endRowIndex: startRow + rowCount,
+    startColumnIndex: 1,
+    endColumnIndex: 1 + colCount,
+  };
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        // 既存の条件付き書式をクリア（タブ全体）
+        // ※ Sheets API では条件付き書式の一括削除が難しいので、まず空セル＝灰のみ追加
+        // 「-」 → 灰色
+        {
+          addConditionalFormatRule: {
+            rule: {
+              ranges: [dataRange],
+              booleanRule: {
+                condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "-" }] },
+                format: {
+                  backgroundColor: { red: 0.95, green: 0.95, blue: 0.95 },
+                  textFormat: { foregroundColor: { red: 0.6, green: 0.6, blue: 0.6 } },
+                },
+              },
+            },
+            index: 0,
+          },
+        },
+        // 「×」 → 赤
+        {
+          addConditionalFormatRule: {
+            rule: {
+              ranges: [dataRange],
+              booleanRule: {
+                condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "×" }] },
+                format: {
+                  backgroundColor: { red: 0.99, green: 0.92, blue: 0.92 },
+                  textFormat: { foregroundColor: { red: 0.7, green: 0.2, blue: 0.2 } },
+                },
+              },
+            },
+            index: 0,
+          },
+        },
+        // 「○」始まり → 緑
+        {
+          addConditionalFormatRule: {
+            rule: {
+              ranges: [dataRange],
+              booleanRule: {
+                condition: { type: "TEXT_STARTS_WITH", values: [{ userEnteredValue: "○" }] },
+                format: {
+                  backgroundColor: { red: 0.88, green: 0.96, blue: 0.92 },
+                  textFormat: {
+                    foregroundColor: { red: 0.1, green: 0.55, blue: 0.35 },
+                    bold: true,
+                  },
+                },
+              },
+            },
+            index: 0,
+          },
+        },
+        // セル中央寄せ
+        {
+          repeatCell: {
+            range: dataRange,
+            cell: { userEnteredFormat: { horizontalAlignment: "CENTER" } },
+            fields: "userEnteredFormat.horizontalAlignment",
+          },
+        },
+        // ヘッダー行（日付）
+        {
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: startRow - 1,
+              endRowIndex: startRow,
+              startColumnIndex: 0,
+              endColumnIndex: 1 + colCount,
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.86, green: 0.97, blue: 0.94 },
+                textFormat: { bold: true },
+                horizontalAlignment: "CENTER",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+          },
+        },
+        // 凍結
+        {
+          updateSheetProperties: {
+            properties: {
+              sheetId,
+              gridProperties: { frozenRowCount: startRow, frozenColumnCount: 1 },
+            },
+            fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount",
+          },
+        },
+      ],
+    },
+  });
+}
+
 export async function readRange(
   spreadsheetId: string,
   range: string,
