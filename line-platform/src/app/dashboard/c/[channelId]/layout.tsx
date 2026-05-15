@@ -1,6 +1,6 @@
 import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
-import { Users, Send, Workflow, Tag, LayoutDashboard, LogOut, Settings, ArrowLeft, ChevronDown } from "lucide-react";
+import { Users, Send, Workflow, Tag, LayoutDashboard, LogOut, Settings, ArrowLeft, ChevronDown, Calendar } from "lucide-react";
 import { getCurrentUser, canAccessChannel, listAccessibleChannels } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { signOutAction } from "../../actions";
@@ -32,6 +32,7 @@ export default async function ChannelLayout({
     { href: `${base}/tags`, label: "タグ", icon: Tag },
     { href: `${base}/broadcasts`, label: "一斉配信", icon: Send },
     { href: `${base}/scenarios`, label: "ステップ配信", icon: Workflow },
+    { href: `${base}/reservations`, label: "予約管理", icon: Calendar },
     { href: `${base}/settings`, label: "設定", icon: Settings },
   ];
 

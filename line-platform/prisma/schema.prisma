@@ -40,6 +40,13 @@ model LineChannel {
   broadcasts   Broadcast[]
   scenarios    Scenario[]
   deliveryLogs DeliveryLog[]
+  // 予約機能
+  reservationSettings ReservationSettings?
+  services            Service[]
+  businessHours       BusinessHours[]
+  holidays            Holiday[]
+  referralSources     ReferralSource[]
+  reservations        Reservation[]
 
   @@index([isActive])
 }
@@ -58,6 +65,142 @@ model ChannelMembership {
   @@unique([adminUserId, lineChannelId])
   @@index([lineChannelId])
 }
+
+// === 予約機能 ===
+
+// 予約システムの設定（チャネル毎に 1 件）
+model ReservationSettings {
+  id                     String   @id @default(cuid())
+  lineChannelId          String   @unique
+  isEnabled              Boolean  @default(false)
+  // Google Sheets 連携
+  spreadsheetId          String?
+  sheetTabReservations   String   @default("予約")
+  sheetTabSettings       String   @default("設定")
+  sheetTabMenu           String   @default("メニュー")
+  sheetTabHours          String   @default("営業時間")
+  sheetTabReferral       String   @default("きっかけ")
+  // 予約ルール
+  slotMinutes            Int      @default(20)
+  defaultBedCount        Int      @default(1)
+  bookingHorizonDays     Int      @default(30)
+  bookingLeadHours       Int      @default(2)
+  // LIFF
+  liffId                 String?
+  // 店舗表示
+  clinicName             String?
+  clinicAddress          String?
+  clinicPhone            String?
+  themeColor             String   @default("#1ABC9C")
+  // 予約完了時の挙動
+  sendConfirmMessage     Boolean  @default(false)
+  confirmMessageTemplate String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+}
+
+// メニュー（固定リスト）
+model Service {
+  id              String   @id @default(cuid())
+  lineChannelId   String
+  name            String
+  durationMinutes Int      // 20 の倍数を想定
+  price           Int      @default(0) // 円
+  description     String?
+  sortOrder       Int      @default(0)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  lineChannel  LineChannel   @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+  reservations Reservation[]
+
+  @@index([lineChannelId, isActive, sortOrder])
+}
+
+// 営業時間（曜日ベース）
+model BusinessHours {
+  id            String  @id @default(cuid())
+  lineChannelId String
+  dayOfWeek     Int     // 0=日, 1=月, ..., 6=土
+  isClosed      Boolean @default(false)
+  openTime      String? // "HH:MM"
+  closeTime     String? // "HH:MM"
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+
+  @@unique([lineChannelId, dayOfWeek])
+}
+
+// 臨時休業日
+model Holiday {
+  id            String   @id @default(cuid())
+  lineChannelId String
+  date          DateTime // 日付（時刻は無視）
+  reason        String?
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+
+  @@unique([lineChannelId, date])
+  @@index([lineChannelId, date])
+}
+
+// 知ったきっかけ（プルダウン項目）
+model ReferralSource {
+  id            String   @id @default(cuid())
+  lineChannelId String
+  name          String
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+
+  @@unique([lineChannelId, name])
+  @@index([lineChannelId, isActive, sortOrder])
+}
+
+// 予約
+model Reservation {
+  id              String    @id @default(cuid())
+  lineChannelId   String
+  serviceId       String?
+  // サービス情報スナップショット（後でメニュー変更されても予約は当時の値）
+  serviceName     String
+  durationMinutes Int
+  price           Int       @default(0)
+  // 予約時間
+  startAt         DateTime
+  endAt           DateTime
+  // 顧客情報
+  customerName    String
+  customerPhone   String
+  referralSource  String?
+  // LINE 連携（LIFF 経由のとき設定）
+  lineUserId      String?
+  friendId        String?
+  // ステータス
+  status          String    @default("confirmed") // confirmed / cancelled / no_show
+  cancelledAt     DateTime?
+  cancelReason    String?
+  notes           String?
+  // Sheet 連携
+  sheetRowNumber  Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+  service     Service?    @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  friend      Friend?     @relation(fields: [friendId], references: [id], onDelete: SetNull)
+
+  @@index([lineChannelId, startAt])
+  @@index([lineChannelId, status, startAt])
+  @@index([lineUserId])
+}
+
+// === 予約機能 ここまで ===
 
 // LINE 友だち（チャネル単位）
 model Friend {
@@ -82,6 +225,7 @@ model Friend {
   inboundMessages InboundMessage[]
   scenarioRuns    ScenarioRun[]
   deliveryLogs    DeliveryLog[]
+  reservations    Reservation[]
 
   @@unique([lineChannelId, lineUserId])
   @@index([lineChannelId, isFollowing])
