@@ -254,7 +254,7 @@ export async function analyzeFoodText(input: string): Promise<FoodTextAnalysisRe
   return {
     diagnostic: {
       stage: 'api_http',
-      detail: `全モデル(${attempts.length}個)で失敗。クォータ超過の可能性が高いです。`
+      detail: `Gemini API のクォータが上限に達しています。\n\n対処方法:\n1. 1〜2分待ってから再試行（無料枠の RPM 上限の場合）\n2. Vercel の環境変数 GEMINI_API_KEY を新しい API キーに更新（古いキーが他で使われている場合）\n3. Google AI Studio で Pay-as-you-go プラン有効化（月数十円程度）\n\n試行: ${attempts.map((a) => `${a.model}:${a.status}`).join(', ')}`
     }
   };
 }

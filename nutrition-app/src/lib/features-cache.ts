@@ -3,11 +3,12 @@ import type { UserFeatures } from '@/components/layout/Navigation';
 
 const KEY = 'om:userFeatures';
 
+// 初期表示は全タブ表示（チラつき防止）。profile 取得後に正しい値で上書きされる。
 const DEFAULT: UserFeatures = {
-  featExercise: false,
-  featSleep: false,
-  featWater: false,
-  featSteps: false
+  featExercise: true,
+  featSleep: true,
+  featWater: true,
+  featSteps: true
 };
 
 /**

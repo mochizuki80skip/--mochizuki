@@ -172,11 +172,14 @@ export function TopBar({ user }: { user: NavUser | null }) {
 function BrandHeader() {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shrink-0">
-        <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
-          <path d="M14 4 L15.5 12.5 L24 14 L15.5 15.5 L14 24 L12.5 15.5 L4 14 L12.5 12.5 Z" fill="#FFF" />
-        </svg>
-      </div>
+      <Image
+        src="/app-icon.jpg"
+        alt="ONE'S BODY"
+        width={32}
+        height={32}
+        className="w-8 h-8 rounded-lg shrink-0 object-cover"
+        priority
+      />
       <div className="min-w-0">
         <div className="font-bold text-sm leading-tight truncate">ONE'S BODY</div>
         <div className="text-[10px] text-ink-mute leading-tight">食事管理サポート</div>
