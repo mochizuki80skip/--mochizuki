@@ -37,6 +37,8 @@ function LogContent() {
 
   // 食品追加モーダル状態
   const [addSlot, setAddSlot] = useState<MealSlot | null>(null);
+  // 食品編集モーダル状態
+  const [editMeal, setEditMeal] = useState<any>(null);
 
   useEffect(() => {
     (async () => {
@@ -196,12 +198,15 @@ function LogContent() {
                 <ul className="space-y-2">
                   {items.map((it: any) => (
                     <li key={it.id} className="flex items-center justify-between p-2 hover:bg-surface-alt rounded-lg transition">
-                      <div className="flex-1 min-w-0">
+                      <button
+                        onClick={() => setEditMeal(it)}
+                        className="flex-1 min-w-0 text-left"
+                      >
                         <div className="text-sm font-medium truncate">{it.name}</div>
                         <div className="text-[10px] text-ink-mute">
-                          {it.kcal} kcal · P {it.protein}g · F {it.fat}g · C {it.carbs}g
+                          {it.qty && it.unit ? `${it.qty} × ${it.unit} · ` : ''}{it.kcal} kcal · P {it.protein}g · F {it.fat}g · C {it.carbs}g
                         </div>
-                      </div>
+                      </button>
                       <button
                         onClick={async () => { await storage.deleteMeal(it.id); refresh(); }}
                         className="ml-2 p-2 text-ink-mute hover:text-rose-500 transition"
@@ -224,6 +229,13 @@ function LogContent() {
         onClose={() => setAddSlot(null)}
         onAdded={refresh}
       />
+
+      {/* 食品編集モーダル（量・栄養値の編集） */}
+      <EditMealModal
+        meal={editMeal}
+        onClose={() => setEditMeal(null)}
+        onSaved={() => { setEditMeal(null); refresh(); }}
+      />
     </AppShell>
   );
 }
@@ -244,6 +256,161 @@ function PfcMini({ label, value, target }: { label: string; value: number; targe
 }
 
 /* ---------- AddFoodModal: 検索/写真/手入力 統合 ---------- */
+
+/* ---------- EditMealModal: 登録済み食品の量・栄養を編集 ---------- */
+function EditMealModal({ meal, onClose, onSaved }: { meal: any | null; onClose: () => void; onSaved: () => void }) {
+  const { toast } = useToast();
+  const [qty, setQty] = useState<number>(1);
+  const [unit, setUnit] = useState<string>('1人前');
+  const [original, setOriginal] = useState<{ kcal: number; protein: number; fat: number; carbs: number; qty: number } | null>(null);
+  const [kcal, setKcal] = useState<number>(0);
+  const [protein, setProtein] = useState<number>(0);
+  const [fat, setFat] = useState<number>(0);
+  const [carbs, setCarbs] = useState<number>(0);
+  const [scaleMode, setScaleMode] = useState(true); // 量変更時に栄養を比例スケールするか
+
+  useEffect(() => {
+    if (!meal) return;
+    setQty(meal.qty || 1);
+    setUnit(meal.unit || '1人前');
+    setKcal(meal.kcal || 0);
+    setProtein(meal.protein || 0);
+    setFat(meal.fat || 0);
+    setCarbs(meal.carbs || 0);
+    setOriginal({
+      kcal: meal.kcal || 0,
+      protein: meal.protein || 0,
+      fat: meal.fat || 0,
+      carbs: meal.carbs || 0,
+      qty: meal.qty || 1
+    });
+    setScaleMode(true);
+  }, [meal?.id]);
+
+  // 量変更時に栄養値を比例スケール
+  const onQtyChange = (newQty: number) => {
+    setQty(newQty);
+    if (scaleMode && original && original.qty > 0) {
+      const ratio = newQty / original.qty;
+      setKcal(Math.round(original.kcal * ratio));
+      setProtein(+(original.protein * ratio).toFixed(1));
+      setFat(+(original.fat * ratio).toFixed(1));
+      setCarbs(+(original.carbs * ratio).toFixed(1));
+    }
+  };
+
+  const save = async () => {
+    if (!meal) return;
+    try {
+      await storage.updateMeal(meal.id, { qty, unit, kcal, protein, fat, carbs });
+      toast('更新しました');
+      onSaved();
+    } catch (e: any) {
+      toast(`更新失敗: ${e?.message || String(e)}`);
+    }
+  };
+
+  if (!meal) return null;
+
+  // 単位が個数系か判定
+  const isPieceUnit = /(?:個|枚|杯|玉|切れ|本|串|尾|人前)/.test(unit);
+  const step = isPieceUnit ? 0.5 : 10;
+
+  return (
+    <Modal open={!!meal} onClose={onClose} title="食品を編集">
+      <div className="space-y-3">
+        <div>
+          <div className="text-xs text-ink-mute">食品名</div>
+          <div className="font-bold">{meal.name}</div>
+        </div>
+
+        {/* 量 */}
+        <div>
+          <label className="label">量（{unit}）</label>
+          <div className="flex items-center gap-2">
+            <button
+              className="btn-secondary !min-h-[44px] !px-3"
+              onClick={() => onQtyChange(Math.max(0, +(qty - step).toFixed(1)))}
+            >
+              <Minus className="w-4 h-4" />
+            </button>
+            <input
+              className="input text-center text-lg font-bold"
+              type="number"
+              inputMode="decimal"
+              step={step}
+              value={qty}
+              onChange={(e) => onQtyChange(+e.target.value || 0)}
+            />
+            <button
+              className="btn-secondary !min-h-[44px] !px-3"
+              onClick={() => onQtyChange(+(qty + step).toFixed(1))}
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+          <label className="flex items-center gap-2 mt-2 text-[11px] text-ink-dim">
+            <input
+              type="checkbox"
+              checked={scaleMode}
+              onChange={(e) => setScaleMode(e.target.checked)}
+            />
+            量を変更したら栄養値も自動でスケール
+          </label>
+        </div>
+
+        {/* 栄養値 */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">カロリー (kcal)</label>
+            <input
+              className="input"
+              type="number"
+              inputMode="numeric"
+              value={kcal}
+              onChange={(e) => { setKcal(+e.target.value || 0); setScaleMode(false); }}
+            />
+          </div>
+          <div>
+            <label className="label">タンパク質 (g)</label>
+            <input
+              className="input"
+              type="number"
+              step="0.1"
+              value={protein}
+              onChange={(e) => { setProtein(+e.target.value || 0); setScaleMode(false); }}
+            />
+          </div>
+          <div>
+            <label className="label">脂質 (g)</label>
+            <input
+              className="input"
+              type="number"
+              step="0.1"
+              value={fat}
+              onChange={(e) => { setFat(+e.target.value || 0); setScaleMode(false); }}
+            />
+          </div>
+          <div>
+            <label className="label">炭水化物 (g)</label>
+            <input
+              className="input"
+              type="number"
+              step="0.1"
+              value={carbs}
+              onChange={(e) => { setCarbs(+e.target.value || 0); setScaleMode(false); }}
+            />
+          </div>
+        </div>
+
+        <div className="flex gap-2 pt-2">
+          <button className="btn-secondary flex-1" onClick={onClose}>キャンセル</button>
+          <button className="btn-primary flex-1" onClick={save}>保存</button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null; date: string; onClose: () => void; onAdded: () => void }) {
   const { toast } = useToast();

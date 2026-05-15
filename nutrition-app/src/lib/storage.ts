@@ -222,6 +222,32 @@ export async function deleteMeal(id: string): Promise<void> {
   await reqP(db.transaction('meals', 'readwrite').objectStore('meals').delete(id));
 }
 
+/** 食事の量・栄養値を更新 */
+export async function updateMeal(id: string, patch: Partial<{
+  qty: number;
+  unit: string;
+  kcal: number;
+  protein: number;
+  fat: number;
+  carbs: number;
+}>): Promise<void> {
+  if (isLoggedIn()) {
+    await fetch(`/api/meals/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(patch)
+    });
+    return;
+  }
+  const db = await openDB();
+  const tx = db.transaction('meals', 'readwrite');
+  const store = tx.objectStore('meals');
+  const row = await reqP<any>(store.get(id));
+  if (!row) return;
+  Object.assign(row, patch);
+  await reqP(store.put(row));
+}
+
 // ---- Weights ----
 export async function getAllWeights(): Promise<WeightRow[]> {
   if (isLoggedIn()) {
