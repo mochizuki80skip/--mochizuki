@@ -264,6 +264,7 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
   const [photoLoading, setPhotoLoading] = useState(false);
   const [photoError, setPhotoError] = useState<{ stage: string; detail: string } | null>(null);
   const [photoHint, setPhotoHint] = useState('');
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null); // 写真選択後の画像（解析前）
   const [aiDiag, setAiDiag] = useState<any>(null);
   const [diagLoading, setDiagLoading] = useState(false);
   const photoRef = useRef<HTMLInputElement>(null);
@@ -381,19 +382,30 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
     onClose();
   };
 
+  // 写真を選択 → プレビュー（まだ解析しない）
   const onPhoto = async (file: File) => {
-    setPhotoLoading(true);
     setPhotoError(null);
     try {
       const dataUrl = await compress(file, 1024);
+      setPhotoDataUrl(dataUrl);
+    } catch (e: any) {
+      setPhotoError({ stage: 'client', detail: `画像読み込みエラー: ${e?.message || String(e)}` });
+    }
+  };
+
+  // 「解析する」ボタン → 実際に AI を呼ぶ
+  const analyzePhotoNow = async () => {
+    if (!photoDataUrl) return;
+    setPhotoLoading(true);
+    setPhotoError(null);
+    try {
       const res = await fetch('/api/photo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: dataUrl, hint: photoHint.trim() || undefined })
+        body: JSON.stringify({ image: photoDataUrl, hint: photoHint.trim() || undefined })
       });
       const data = await res.json();
       if (!data.items?.length) {
-        // 診断情報があれば詳細表示、なければ汎用メッセージ
         if (data.diagnostic) {
           setPhotoError(data.diagnostic);
           toast(`解析失敗: ${data.diagnostic.detail.slice(0, 40)}…`);
@@ -410,6 +422,9 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
         });
       }
       toast(`${data.items.length}件を追加`);
+      // 状態リセット
+      setPhotoDataUrl(null);
+      setPhotoHint('');
       onAdded();
       onClose();
     } catch (e: any) {
@@ -546,29 +561,58 @@ function AddFoodModal({ slot, date, onClose, onAdded }: { slot: MealSlot | null;
       {/* 写真 */}
       {!selected && tab === 'photo' && (
         <div className="py-6">
-          <div className="text-center">
-            <Camera className="w-12 h-12 text-brand-500 mx-auto mb-3" />
-            <p className="text-sm text-ink-dim mb-4">食事の写真を撮影 or 選択すると、AIが食品とカロリーを推定します。</p>
-          </div>
+          {!photoDataUrl ? (
+            // ステップ1: 写真がまだ選択されていない
+            <>
+              <div className="text-center">
+                <Camera className="w-12 h-12 text-brand-500 mx-auto mb-3" />
+                <p className="text-sm text-ink-dim mb-4">食事の写真を撮影 or 選択してください。<br />選択後にヒント文字も追加できます。</p>
+              </div>
+              <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = ''; }} />
+              <button onClick={() => photoRef.current?.click()} className="btn-primary w-full">
+                <Camera className="w-4 h-4" /> 写真を選択
+              </button>
+            </>
+          ) : (
+            // ステップ2: 写真選択後 → プレビュー + ヒント編集 + 解析ボタン
+            <>
+              <div className="rounded-xl overflow-hidden mb-3 bg-surface-alt">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={photoDataUrl} alt="選択された食事" className="w-full max-h-64 object-contain" />
+              </div>
 
-          {/* 写真+文字のハイブリッドヒント（精度向上、任意） */}
-          <div className="mb-3">
-            <label className="label text-[11px]">料理名のヒント（任意・精度UP）</label>
-            <input
-              className="input"
-              type="text"
-              value={photoHint}
-              onChange={(e) => setPhotoHint(e.target.value)}
-              placeholder="例: ラーメン二郎系、コンビニ唐揚げ弁当"
-              disabled={photoLoading}
-            />
-            <p className="text-[10px] text-ink-mute mt-1">写真だけより、商品名や料理名を一緒に伝えると精度が上がります</p>
-          </div>
+              <div className="mb-3">
+                <label className="label text-[11px]">料理名のヒント（任意・精度UP）</label>
+                <input
+                  className="input"
+                  type="text"
+                  value={photoHint}
+                  onChange={(e) => setPhotoHint(e.target.value)}
+                  placeholder="例: ラーメン二郎系、コンビニ唐揚げ弁当"
+                  disabled={photoLoading}
+                  autoFocus
+                />
+                <p className="text-[10px] text-ink-mute mt-1">商品名・料理名・量を伝えると精度が大幅にアップします</p>
+              </div>
 
-          <input ref={photoRef} type="file" accept="image/*" hidden onChange={(e) => { const f = e.target.files?.[0]; if (f) onPhoto(f); e.target.value = ''; }} />
-          <button onClick={() => photoRef.current?.click()} disabled={photoLoading} className="btn-primary w-full">
-            {photoLoading ? <><span className="spinner" /> 解析中...</> : <><Camera className="w-4 h-4" /> 写真を選択</>}
-          </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setPhotoDataUrl(null); setPhotoError(null); }}
+                  disabled={photoLoading}
+                  className="btn-secondary flex-1"
+                >
+                  写真を変更
+                </button>
+                <button
+                  onClick={analyzePhotoNow}
+                  disabled={photoLoading}
+                  className="btn-primary flex-[2]"
+                >
+                  {photoLoading ? <><span className="spinner" /> 解析中...</> : <>✨ AIで解析する</>}
+                </button>
+              </div>
+            </>
+          )}
 
           {photoError && (
             <div className="mt-4 text-left bg-rose-50 border border-rose-200 rounded-lg p-3">

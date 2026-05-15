@@ -38,7 +38,7 @@ export function generateDailyAdvice(input: RuleAdviceInput): string {
       return '**昼食の時間です** 🍱\n\nまだ十分に食べていません。**1食 500〜700kcal** 程度を目安にバランス良く摂取しましょう。';
     }
     if (kcalRatio > 0.6) {
-      return '**カロリー摂取がやや早めです** ⚠️\n\n現在 ${Math.round(todaySum.kcal)} kcal。夜のために残り **${targets.kcal - todaySum.kcal} kcal** を計画的に。';
+      return `**カロリー摂取がやや早めです** ⚠️\n\n現在 ${Math.round(todaySum.kcal)} kcal。夜のために残り **${targets.kcal - todaySum.kcal} kcal** を計画的に。`;
     }
     return `**良いペースです** 👍\n\n現在 ${Math.round(todaySum.kcal)} kcal / ${targets.kcal} kcal。昼食を含めて、目標通りに進んでいます。`;
   }
@@ -46,21 +46,21 @@ export function generateDailyAdvice(input: RuleAdviceInput): string {
   // 夕方〜夜（15〜22時）
   if (hour >= 15 && hour < 22) {
     if (kcalRatio < 0.5) {
-      return '**夕食をしっかり摂りましょう** 🍽️\n\n摂取量が不足気味です。**たんぱく質**を中心に、不足分の **${targets.kcal - Math.round(todaySum.kcal)} kcal** をバランス良く。';
+      return `**夕食をしっかり摂りましょう** 🍽️\n\n摂取量が不足気味です。**たんぱく質**を中心に、不足分の **${targets.kcal - Math.round(todaySum.kcal)} kcal** をバランス良く。`;
     }
     if (kcalRatio > 1.1) {
       const over = Math.round(todaySum.kcal) - targets.kcal;
       return `**カロリーオーバーです** 🚨\n\n目標を **+${over} kcal** 超過しています。${goalType === 'diet' ? '減量中なので、明日は調整しましょう。' : '夜は軽めに切り替えるのがおすすめです。'}`;
     }
     if (proteinRatio < 0.5) {
-      return '**たんぱく質が不足しています** 💪\n\n鶏むね肉・卵・プロテインなどで**残り ${Math.max(0, Math.round((targets.protein - todaySum.protein) * 10) / 10)}g** を補給しましょう。';
+      return `**たんぱく質が不足しています** 💪\n\n鶏むね肉・卵・プロテインなどで**残り ${Math.max(0, Math.round((targets.protein - todaySum.protein) * 10) / 10)}g** を補給しましょう。`;
     }
     return `**順調です！** ✨\n\n現在 ${Math.round(todaySum.kcal)} kcal / ${targets.kcal} kcal、P ${todaySum.protein}g / ${targets.protein}g。このペースを維持しましょう。`;
   }
 
   // 夜（22時以降〜深夜）
   if (kcalRatio < 0.7) {
-    return '**今日の摂取量が少なめです** 🌙\n\n${Math.round(todaySum.kcal)} kcal / ${targets.kcal} kcal。記録漏れがないか確認してください。寝る前の食事は控えめに。';
+    return `**今日の摂取量が少なめです** 🌙\n\n${Math.round(todaySum.kcal)} kcal / ${targets.kcal} kcal。記録漏れがないか確認してください。寝る前の食事は控えめに。`;
   }
   if (kcalRatio > 1.15) {
     return `**今日はカロリーオーバー** 😅\n\n+${Math.round(todaySum.kcal) - targets.kcal} kcal。明日は意識的に調整しましょう。${goalType === 'diet' ? '週単位で見れば挽回可能です。' : ''}`;

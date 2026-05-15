@@ -301,7 +301,7 @@ function Welcome() {
             </div>
           )}
 
-          {/* LINE / ゲスト */}
+          {/* LINE */}
           <div className="space-y-2">
             <button
               onClick={startWithLine}
@@ -311,14 +311,8 @@ function Welcome() {
               {loading ? <span className="spinner" /> : <LogIn className="w-4 h-4" />}
               LINEでログイン
             </button>
-            <button
-              onClick={startAsGuest}
-              className="w-full bg-white border border-ink-line text-ink-dim font-bold rounded-xl py-2.5 text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition hover:bg-surface-alt"
-            >
-              ゲストとして始める <ArrowRight className="w-4 h-4" />
-            </button>
             <p className="text-[10px] text-ink-mute text-center mt-2">
-              ゲストはこの端末のみで使用 · LINE/メアドでデータをサーバーに保存
+              LINE または メアド + パスワードでログインしてください
             </p>
           </div>
         </div>
