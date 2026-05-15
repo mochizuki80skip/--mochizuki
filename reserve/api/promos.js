@@ -1,7 +1,7 @@
 // Public read-only endpoint: returns the promo menus for a given code.
 // If the code does not match any active promo, returns empty.
 
-import { listPromos, isStorageUnconfiguredError } from './_admin-helpers.js';
+import { listPromos, isStorageUnconfiguredError, isShortcutShape } from './_admin-helpers.js';
 
 export default async function handler(req, res) {
   const code = String(req.query.code || '').trim();
@@ -14,17 +14,21 @@ export default async function handler(req, res) {
   try {
     const all = await listPromos();
     const matched = all.filter((p) => p.code === code);
-    const menus = matched.map((p) => ({
-      id: 'promo-' + p.code,
-      name: p.name,
-      description: p.description || '',
-      duration: p.duration,
-      price: p.price,
-      forClinic: p.forClinic || 'both',
-      forFirstTime: p.forFirstTime || 'both',
-      targetCourseId: typeof p.targetCourseId === 'number' ? p.targetCourseId : null,
-      autoOpen: !!p.autoOpen,
-    }));
+    const menus = matched.map((p) => {
+      // shortcut 形の promo は保存時の autoOpen 値に関わらず常に true として扱う
+      const effectiveAutoOpen = isShortcutShape(p) ? true : !!p.autoOpen;
+      return {
+        id: 'promo-' + p.code,
+        name: p.name,
+        description: p.description || '',
+        duration: p.duration,
+        price: p.price,
+        forClinic: p.forClinic || 'both',
+        forFirstTime: p.forFirstTime || 'both',
+        targetCourseId: typeof p.targetCourseId === 'number' ? p.targetCourseId : null,
+        autoOpen: effectiveAutoOpen,
+      };
+    });
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');
     return res.status(200).json({ menus });
   } catch (err) {

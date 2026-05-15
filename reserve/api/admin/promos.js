@@ -7,8 +7,18 @@ import {
   readJsonBody,
   validatePromo,
   normalizePromo,
+  isShortcutShape,
   isStorageUnconfiguredError,
 } from '../_admin-helpers.js';
+
+// 既存データの shortcut 形を読み出し時に修正（autoOpen 強制 true）
+function applyShortcutAutoOpen(items) {
+  return items.map((p) => (
+    isShortcutShape(p) && !p.autoOpen
+      ? { ...p, autoOpen: true }
+      : p
+  ));
+}
 
 export default async function handler(req, res) {
   const auth = checkAuth(req);
@@ -19,7 +29,7 @@ export default async function handler(req, res) {
   try {
     if (req.method === 'GET') {
       const items = await listPromos();
-      return res.status(200).json({ items });
+      return res.status(200).json({ items: applyShortcutAutoOpen(items) });
     }
 
     if (req.method === 'POST') {
@@ -31,7 +41,7 @@ export default async function handler(req, res) {
       const idx = items.findIndex((p) => p.code === normalized.code);
       if (idx >= 0) items[idx] = normalized; else items.push(normalized);
       await savePromos(items);
-      return res.status(200).json({ items });
+      return res.status(200).json({ items: applyShortcutAutoOpen(items) });
     }
 
     if (req.method === 'DELETE') {
@@ -40,7 +50,7 @@ export default async function handler(req, res) {
       const items = await listPromos();
       const next = items.filter((p) => p.code !== code);
       await savePromos(next);
-      return res.status(200).json({ items: next });
+      return res.status(200).json({ items: applyShortcutAutoOpen(next) });
     }
 
     res.setHeader('Allow', 'GET, POST, DELETE');

@@ -94,20 +94,39 @@ export function validatePromo(p) {
   return null;
 }
 
+// "Shortcut" 形を判定するヘルパー：
+//   targetCourseId が指定されていて、表示用の上書き値（name/desc/price）が
+//   一切ない promo は「対象コースの空き状況にユーザーを直接案内するだけ」の
+//   ショートカット用途と見なす。この形のとき autoOpen は常に true として扱う。
+export function isShortcutShape(p) {
+  if (!p) return false;
+  if (typeof p.targetCourseId !== 'number') return false;
+  const hasName = typeof p.name === 'string' && p.name.trim() !== '';
+  const hasDesc = typeof p.description === 'string' && p.description.trim() !== '';
+  const hasPrice = typeof p.price === 'number';
+  return !hasName && !hasDesc && !hasPrice;
+}
+
 export function normalizePromo(p) {
   const targetCourseId = typeof p.targetCourseId === 'number' ? p.targetCourseId : null;
   const rawName = typeof p.name === 'string' ? p.name.trim() : '';
   const rawDesc = typeof p.description === 'string' ? p.description.trim() : '';
+  const rawPrice = typeof p.price === 'number' ? p.price : null;
+  // shortcut 形の promo は autoOpen を強制 true に
+  let autoOpen = !!p.autoOpen;
+  if (isShortcutShape({ ...p, name: rawName, description: rawDesc, price: rawPrice, targetCourseId })) {
+    autoOpen = true;
+  }
   return {
     code: String(p.code).trim(),
     name: rawName,
     description: rawDesc,
     duration: typeof p.duration === 'number' ? p.duration : null,
-    price: typeof p.price === 'number' ? p.price : null,
+    price: rawPrice,
     forClinic: p.forClinic || 'both',
     forFirstTime: p.forFirstTime || 'both',
     targetCourseId,
-    autoOpen: !!p.autoOpen,
+    autoOpen,
     updatedAt: new Date().toISOString(),
   };
 }
