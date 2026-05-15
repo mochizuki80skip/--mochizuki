@@ -1,6 +1,8 @@
 export { default } from "next-auth/middleware";
 
 export const config = {
-  // /api/line/webhook と /api/auth, /login 以外は要認証
-  matcher: ["/((?!api/line/webhook|api/cron|api/auth|login|_next/static|_next/image|favicon.ico).*)"],
+  // 認証を要求しないパス: LINE Webhook / Cron / 認証API / ログイン / LIFF / 公開API
+  matcher: [
+    "/((?!api/line/webhook|api/cron|api/auth|api/public|login|liff|_next/static|_next/image|favicon.ico).*)",
+  ],
 };
