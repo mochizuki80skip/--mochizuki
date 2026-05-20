@@ -82,11 +82,11 @@ export function validatePromo(p) {
   if (typeof p.price !== 'number' && p.price !== null && p.price !== undefined) return 'price must be a number';
   const validClinic = !p.forClinic || ['both', '192', '193'].includes(p.forClinic);
   if (!validClinic) return 'forClinic must be both/192/193';
-  const validFt = !p.forFirstTime || ['both', 'true', 'false'].includes(p.forFirstTime);
-  if (!validFt) return 'forFirstTime must be both/true/false';
+  const validFt = !p.forFirstTime || ['both', 'true', 'false', 'three_months'].includes(p.forFirstTime);
+  if (!validFt) return 'forFirstTime must be both/true/false/three_months';
   if (p.autoOpen) {
     const hasClinic = p.forClinic === '192' || p.forClinic === '193';
-    const hasFt = p.forFirstTime === 'true' || p.forFirstTime === 'false';
+    const hasFt = p.forFirstTime === 'true' || p.forFirstTime === 'false' || p.forFirstTime === 'three_months';
     if (!hasClinic && !hasFt && !isOverride) {
       return 'autoOpen には「対象院」「対象来院」「対象既存メニュー」のうち最低1つを具体的に指定してください';
     }

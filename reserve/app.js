@@ -104,14 +104,14 @@
     // Find an autoOpen promo with at least one specific field
     const auto = state.promoMenus.find((p) => p.autoOpen && (
       p.forClinic === '192' || p.forClinic === '193'
-      || p.forFirstTime === 'true' || p.forFirstTime === 'false'
+      || p.forFirstTime === 'true' || p.forFirstTime === 'false' || p.forFirstTime === 'three_months'
       || (typeof p.targetCourseId === 'number')
     ));
     if (!auto) return;
     state._autoOpenApplied = true;
 
     const hasClinic = auto.forClinic === '192' || auto.forClinic === '193';
-    const hasFt = auto.forFirstTime === 'true' || auto.forFirstTime === 'false';
+    const hasFt = auto.forFirstTime === 'true' || auto.forFirstTime === 'false' || auto.forFirstTime === 'three_months';
     const hasCourse = typeof auto.targetCourseId === 'number';
 
     // Pre-fill clinic
@@ -128,10 +128,15 @@
       fetchAvailability();
     }
 
-    // Pre-fill firstTime / visitMode (autoOpen only knows first vs returning)
+    // Pre-fill firstTime / visitMode
     if (hasFt) {
-      state.firstTime = auto.forFirstTime === 'true';
-      state.visitMode = state.firstTime ? 'first' : 'returning';
+      if (auto.forFirstTime === 'three_months') {
+        state.visitMode = 'three_months';
+        state.firstTime = false; // threease 的には for_new=false で取得
+      } else {
+        state.firstTime = auto.forFirstTime === 'true';
+        state.visitMode = state.firstTime ? 'first' : 'returning';
+      }
       const selectedVisit = state.visitMode;
       document.querySelectorAll('.choice[data-visit]').forEach((b) => {
         b.classList.toggle('is-selected', b.dataset.visit === selectedVisit);
@@ -250,10 +255,11 @@
     if (!state.promoCode || !state.promoMenus.length) return [];
     return state.promoMenus.filter((p) => {
       if (p.forClinic && p.forClinic !== 'both' && p.forClinic !== state.clinic) return false;
-      if (state.firstTime === null) return true;
+      if (state.visitMode === null) return true;
       if (!p.forFirstTime || p.forFirstTime === 'both') return true;
-      if (p.forFirstTime === 'true' && state.firstTime === true) return true;
-      if (p.forFirstTime === 'false' && state.firstTime === false) return true;
+      if (p.forFirstTime === 'true' && state.visitMode === 'first') return true;
+      if (p.forFirstTime === 'false' && state.visitMode === 'returning') return true;
+      if (p.forFirstTime === 'three_months' && state.visitMode === 'three_months') return true;
       return false;
     });
   }

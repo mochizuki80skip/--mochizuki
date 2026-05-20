@@ -148,15 +148,29 @@
     const help = $('f-target-help');
     const clinic = $('f-forClinic').value;
     const ft = $('f-forFirstTime').value;
+    const kind = getKind();
     if (clinic === 'both' || ft === 'both') {
-      sel.innerHTML = '<option value="">— 院と来院を「両方以外」に絞ってください —</option>';
+      sel.innerHTML = '<option value="">— 対象既存メニューは指定しません —</option>';
       sel.disabled = true;
-      help.textContent = '価格上書き／自動進行の場合は、対象院と対象来院を1つずつ選んでください。';
+      if (kind === 'shortcut' && clinic !== 'both' && ft === 'both') {
+        // 院だけ pre-select したいケース：対象コース未指定でOK
+        help.innerHTML = 'このまま保存すると、URLを開いたユーザーは <strong>院だけ自動選択された状態</strong> でスタートします（来院・コース・日時はユーザーが選択）。';
+      } else {
+        help.textContent = '対象既存メニューを指定する場合は、対象院と対象来院を1つずつ選んでください。';
+      }
       return;
     }
     sel.disabled = false;
     help.textContent = '読み込み中…';
-    const courses = await getCourses(clinic, ft === 'true');
+    // 3ヶ月モードと2回目以降モードはどちらも threease 側では for_new=false
+    const forNew = ft === 'true';
+    let courses = await getCourses(clinic, forNew);
+    // 3ヶ月モードは【久しぶり】コースだけ、2回目以降モードは【久しぶり】以外だけに絞る
+    if (ft === 'three_months') {
+      courses = courses.filter((c) => /^【久しぶり】/.test(c.name));
+    } else if (ft === 'false') {
+      courses = courses.filter((c) => !/^【久しぶり】/.test(c.name));
+    }
     let html = '<option value="">— 選択してください —</option>';
     for (const c of courses) {
       const meta = [];
@@ -216,6 +230,8 @@
         ? '説明 <small>(任意・空欄なら元のコースの説明を使用)</small>'
         : '説明 <small>(任意)</small>';
     }
+    // shortcut + 院のみ pre-select のヘルプ文を即時反映
+    refreshTargetCourseOptions(Number($('f-targetCourseId').value) || null);
   }
 
   document.querySelectorAll('input[name="kind"]').forEach((r) => {
@@ -310,12 +326,16 @@
   function visitLabel(forFt) {
     if (forFt === 'true') return '初回';
     if (forFt === 'false') return '2回目以降';
+    if (forFt === 'three_months') return '3ヶ月ぶり';
     return '来院問わず';
   }
   function findCourseNameSync(targetCourseId, forClinic, forFt) {
     if (typeof targetCourseId !== 'number') return null;
     const clinics = forClinic === '192' || forClinic === '193' ? [forClinic] : ['192', '193'];
-    const fts = forFt === 'true' ? [true] : forFt === 'false' ? [false] : [true, false];
+    // 3ヶ月モードと2回目以降モードはどちらも threease 側では for_new=false
+    const fts = forFt === 'true' ? [true]
+      : (forFt === 'false' || forFt === 'three_months') ? [false]
+      : [true, false];
     for (const c of clinics) {
       for (const f of fts) {
         const cached = courseCache[`${c}:${f}`];
