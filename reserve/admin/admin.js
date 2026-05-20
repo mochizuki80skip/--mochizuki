@@ -188,11 +188,18 @@
     return document.querySelector('input[name="kind"]:checked')?.value || 'override';
   }
   function detectKind(p) {
-    if (typeof p.targetCourseId !== 'number') return 'addon';
+    const hasTarget = typeof p.targetCourseId === 'number';
     const hasOverrideValues = (typeof p.price === 'number')
       || (typeof p.name === 'string' && p.name.trim() !== '')
       || (typeof p.description === 'string' && p.description.trim() !== '');
-    return hasOverrideValues ? 'override' : 'shortcut';
+    if (hasTarget) {
+      return hasOverrideValues ? 'override' : 'shortcut';
+    }
+    // 対象既存メニュー未指定:
+    //   表示内容なし & autoOpen ON → 院だけ自動入力（shortcut の派生）
+    //   表示内容あり → 新メニュー追加
+    if (!hasOverrideValues && p.autoOpen) return 'shortcut';
+    return 'addon';
   }
   function setKind(kind) {
     const r = document.querySelector(`input[name="kind"][value="${kind}"]`);
@@ -347,10 +354,12 @@
     }
     return null;
   }
-  function kindLabel(kind) {
-    return kind === 'override' ? '価格上書き'
-      : kind === 'shortcut' ? '空き状況へ直行'
-      : '新メニュー';
+  function kindLabel(kind, p) {
+    if (kind === 'override') return '価格上書き';
+    if (kind === 'shortcut') {
+      return (p && typeof p.targetCourseId === 'number') ? '空き状況へ直行' : '院だけ自動入力';
+    }
+    return '新メニュー';
   }
   function buildPromoTitle(p, kind, courseName) {
     const segments = [];
@@ -359,6 +368,10 @@
     if (kind === 'addon') {
       const nm = p.name && p.name.trim() ? p.name.trim() : '(無題のキャンペーン)';
       return `${segments.join(' / ')} / ${nm}`;
+    }
+    if (kind === 'shortcut' && typeof p.targetCourseId !== 'number') {
+      segments.push('院だけ自動入力');
+      return segments.join(' / ');
     }
     if (courseName) segments.push(courseName);
     else if (typeof p.targetCourseId === 'number') segments.push(`コースID:${p.targetCourseId}`);
@@ -456,7 +469,7 @@
         : '';
       html += `<div class="promo-item promo-item--${kind}" data-code="${escapeHtml(p.code)}">
         <div class="promo-item-head">
-          <span class="promo-kind-badge promo-kind-${kind}">${escapeHtml(kindLabel(kind))}</span>
+          <span class="promo-kind-badge promo-kind-${kind}">${escapeHtml(kindLabel(kind, p))}</span>
           <h3 class="promo-item-title">${escapeHtml(title)}</h3>
         </div>
         ${descShort}

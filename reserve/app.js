@@ -647,7 +647,16 @@
 
     // Reset state.availability to an empty per-day structure that renderGrid
     // can render against immediately. Days fill in as their fetches resolve.
-    state.availability = { available: [], axisAvailable: [], _dayResults: {}, _doneDays: 0, _totalDays: 7 };
+    // unknown と _failedDays は「取得失敗 → ? を表示」のために保持。
+    state.availability = {
+      available: [],
+      axisAvailable: [],
+      unknown: [],
+      _failedDays: new Set(),
+      _dayResults: {},
+      _doneDays: 0,
+      _totalDays: 7,
+    };
 
     showGridLoading(true);
     showGridError(null);
@@ -658,6 +667,7 @@
     const dayPromises = [];
     for (let i = 0; i < 7; i++) {
       const ymd = jstYmdCompact(addDays(state.weekStart, i));
+      const ymdDashed = jstYmd(addDays(state.weekStart, i));
       const url = `/api/availability?clinic=${state.clinic}&start=${ymd}&end=${ymd}${baseSuffix}`;
       // 直近日から順に表示できるよう、後の日ほど発射を少し遅らせる。
       // (7日同時発射より体感が良く、threease の瞬間負荷も少し軽くなる)
@@ -668,29 +678,40 @@
         try {
           const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
           if (state._availabilityFetchKey !== fetchKey) return;
-          if (!r.ok) { anyError = true; return; }
+          if (!r.ok) {
+            anyError = true;
+            state.availability._failedDays.add(ymdDashed);
+            renderGrid();
+            return;
+          }
           const data = await r.json();
           if (state._availabilityFetchKey !== fetchKey) return;
           state.availability._dayResults[ymd] = data;
           state.availability.available.push(...(data.available || []));
           state.availability.axisAvailable.push(...(data.axisAvailable || []));
+          state.availability._failedDays.delete(ymdDashed);
           state.availability._doneDays++;
           // Real progress: completed days / total days
           setProgress((state.availability._doneDays / state.availability._totalDays) * 100);
           renderGrid();
         } catch (e) {
-          anyError = true;
           if (state._availabilityFetchKey !== fetchKey) return;
+          anyError = true;
+          state.availability._failedDays.add(ymdDashed);
+          renderGrid();
         }
       })());
     }
 
     await Promise.all(dayPromises);
     if (state._availabilityFetchKey !== fetchKey) return;
-    if (anyError && state.availability._doneDays === 0) {
-      // Total failure: surface the error
-      showGridError('取得に失敗しました');
-      state.availability = null;
+    if (anyError) {
+      // 部分失敗・全失敗どちらも state.availability は残し、失敗日は "?" として
+      // 表示してユーザーがタップで個別再取得できるようにする。
+      const msg = state.availability._doneDays === 0
+        ? '取得に失敗しました。? をタップで再取得できます'
+        : null;
+      if (msg) showGridError(msg);
       renderGrid();
     }
     showGridLoading(false);
@@ -852,7 +873,26 @@
       const m = axisByDate.get(d.ymd);
       if (m) for (const t of m) timeSet.add(t);
     }
+    // 取得失敗日があり、かつ成功日から十分な時間軸が取れていない場合は
+    // デフォルトの 09:00–20:30 をフォールバックとして加え、? を広く表示する。
+    const failedDays = (state.availability && state.availability._failedDays instanceof Set)
+      ? state.availability._failedDays : new Set();
+    if (failedDays.size > 0 && timeSet.size <= 2) {
+      for (let h = 9; h <= 20; h++) {
+        timeSet.add(`${String(h).padStart(2, '0')}:00`);
+        timeSet.add(`${String(h).padStart(2, '0')}:30`);
+      }
+    }
     const times = [...timeSet].sort();
+
+    // 取得失敗日の各時間枠を「?」として unknownByDate に流し込む
+    for (const failedYmd of failedDays) {
+      if (!unknownByDate.has(failedYmd)) unknownByDate.set(failedYmd, new Map());
+      const m = unknownByDate.get(failedYmd);
+      for (const t of times) {
+        if (!m.has(t)) m.set(t, `${failedYmd}T${t}:00+09:00`);
+      }
+    }
 
     // "完全に空きなし" 表示は実スロット（filtered）が 0 件のときのみ。
     // ベースライン行は常にあるので times は空にならない。
