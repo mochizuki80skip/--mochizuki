@@ -9,18 +9,30 @@ const UPSTREAM_HEADERS = {
   'Accept-Language': 'ja',
 };
 
-import { getCachedCourseIds, setCachedCourseIds, recordUpstreamCall } from './_cache-stats.js';
+import {
+  getCachedCourseIds,
+  setCachedCourseIds,
+  setCourseFetchFailed,
+  recordUpstreamCall,
+} from './_cache-stats.js';
 
 // At a given clinic + start time, threease returns the course IDs that are
 // actually bookable then (taking real bookings into account). This is the
 // filter the reservation UI uses; the calendar endpoint alone only checks
 // room-level availability and over-reports.
 async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool, attempts = 2) {
-  // KV キャッシュ命中なら即返す（threease への呼び出しを減らす）
+  // KV キャッシュを確認。
+  //   fresh な値      → そのまま返す（上流を叩かない）
+  //   stale な good 値 → 上流を試し、失敗したらこの値にフォールバック
   const cached = await getCachedCourseIds(clinic, forNewBool, startIso);
+  let staleIds; // 上流失敗時のフォールバック用（undefined = フォールバック不可）
   if (cached !== undefined) {
-    recordUpstreamCall('courses', 'cache_hit', 0);
-    return cached;
+    if (cached.fresh) {
+      recordUpstreamCall('courses', 'cache_hit', 0);
+      return cached.ids;
+    }
+    // stale: 上流を試すが、good 値があれば失敗時に再利用する
+    if (Array.isArray(cached.ids)) staleIds = cached.ids;
   }
 
   const params = new URLSearchParams({
@@ -31,6 +43,19 @@ async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool, attempts =
   });
   if (forNewBool !== null) params.set('for_new_customers', String(forNewBool));
   const url = `${UPSTREAM_BASE}/${clinic}/courses?${params.toString()}`;
+
+  // 上流失敗時の共通フォールバック処理。
+  const onFailure = (dur) => {
+    if (staleIds !== undefined) {
+      // 期限切れの good 値を再利用（threease を叩かずに済んだ扱い）
+      recordUpstreamCall('courses', 'stale', dur);
+      return staleIds;
+    }
+    recordUpstreamCall('courses', 'fail', dur);
+    setCourseFetchFailed(clinic, forNewBool, startIso);
+    return null;
+  };
+
   for (let i = 0; i < attempts; i++) {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 8000);
@@ -53,9 +78,7 @@ async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool, attempts =
         await new Promise((s) => setTimeout(s, 250 * (i + 1)));
         continue;
       }
-      recordUpstreamCall('courses', 'fail', dur);
-      setCachedCourseIds(clinic, forNewBool, startIso, null);
-      return null;
+      return onFailure(dur);
     } catch {
       clearTimeout(timer);
       const dur = Date.now() - startTs;
@@ -63,9 +86,7 @@ async function fetchBookableCourseIdsAt(clinic, startIso, forNewBool, attempts =
         await new Promise((s) => setTimeout(s, 300 * (i + 1)));
         continue;
       }
-      recordUpstreamCall('courses', 'fail', dur);
-      setCachedCourseIds(clinic, forNewBool, startIso, null);
-      return null;
+      return onFailure(dur);
     }
   }
   return null;

@@ -36,7 +36,7 @@
 
       <section class="admin-card">
         <h2>📊 通信ログ（直近3日）</h2>
-        <p class="admin-help">threease への問い合わせの成功率・平均応答時間。失敗が多い時はカレンダーに「?」枠が出やすくなります。</p>
+        <p class="admin-help">「上流成功率」は threease を実際に叩いた呼び出しの成功割合（キャッシュ命中は除外）。「キャッシュ率」が高いほど threease への負荷が軽く、失敗・遅延が起きにくくなります。失敗が多い時はカレンダーに「?」枠が出やすくなります。</p>
         <div id="stats-panel" class="stats-panel">
           <p class="admin-help">読み込み中…</p>
         </div>
@@ -194,6 +194,6 @@
 
   </main>
 
-  <script src="/admin/admin.js"></script>
+  <script src="/admin/admin.js?v=20260520b"></script>
 </body>
 </html>

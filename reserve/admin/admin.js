@@ -34,9 +34,11 @@
       let html = '';
       for (const day of days) {
         const kinds = stats[day] || {};
-        const c = kinds.courses || { total: 0, ok: 0, fail: 0, avgMs: null, successRate: null };
+        const c = kinds.courses || { total: 0, ok: 0, fail: 0, cacheHit: 0, stale: 0, avgMs: null, successRate: null, cacheHitRate: null };
         if (c.total === 0) continue;
-        const rateColor = c.successRate >= 99 ? 'good' : c.successRate >= 95 ? 'warn' : 'bad';
+        const rateColor = c.successRate == null ? 'good'
+          : c.successRate >= 99 ? 'good' : c.successRate >= 95 ? 'warn' : 'bad';
+        const live = (c.ok || 0) + (c.fail || 0);
         html += `<div class="stats-day">
           <div class="stats-day-head">${escapeHtml(day)}</div>
           <div class="stats-day-body">
@@ -45,15 +47,19 @@
               <div class="stats-value">${c.total.toLocaleString()}</div>
             </div>
             <div class="stats-item">
-              <div class="stats-label">成功率</div>
+              <div class="stats-label">上流成功率 <small>(実呼び出し ${live.toLocaleString()}件)</small></div>
               <div class="stats-value stats-${rateColor}">${c.successRate != null ? c.successRate + '%' : '-'}</div>
             </div>
             <div class="stats-item">
-              <div class="stats-label">失敗</div>
-              <div class="stats-value">${c.fail.toLocaleString()}</div>
+              <div class="stats-label">キャッシュ率</div>
+              <div class="stats-value">${c.cacheHitRate != null ? c.cacheHitRate + '%' : '-'}</div>
             </div>
             <div class="stats-item">
-              <div class="stats-label">平均応答</div>
+              <div class="stats-label">失敗</div>
+              <div class="stats-value">${(c.fail || 0).toLocaleString()}</div>
+            </div>
+            <div class="stats-item">
+              <div class="stats-label">平均応答 <small>(成功時)</small></div>
               <div class="stats-value">${c.avgMs != null ? c.avgMs + 'ms' : '-'}</div>
             </div>
           </div>
