@@ -27,6 +27,8 @@ export default async function handler(req, res) {
         forFirstTime: p.forFirstTime || 'both',
         targetCourseId: typeof p.targetCourseId === 'number' ? p.targetCourseId : null,
         autoOpen: effectiveAutoOpen,
+        autoOpenLevel: ['clinic', 'visit', 'course'].includes(p.autoOpenLevel) ? p.autoOpenLevel : 'course',
+        keepOriginalMenu: !!p.keepOriginalMenu,
         customFieldLabel: typeof p.customFieldLabel === 'string' ? p.customFieldLabel : '',
         customFieldRequired: !!p.customFieldRequired,
         customFieldPlaceholder: typeof p.customFieldPlaceholder === 'string' ? p.customFieldPlaceholder : '',

@@ -131,6 +131,11 @@ export function normalizePromo(p) {
   const customFieldPlaceholder = customFieldLabel && typeof p.customFieldPlaceholder === 'string'
     ? p.customFieldPlaceholder.trim() : '';
   const customFieldRequired = customFieldLabel ? !!p.customFieldRequired : false;
+  // 価格変更（override）で「通常メニューも残す」かどうか
+  const keepOriginalMenu = !!p.keepOriginalMenu;
+  // autoOpen の到達範囲: clinic（院だけ） / visit（来院まで） / course（コースまで＝既定）
+  const autoOpenLevel = ['clinic', 'visit', 'course'].includes(p.autoOpenLevel)
+    ? p.autoOpenLevel : 'course';
   return {
     code: String(p.code).trim(),
     name: rawName,
@@ -141,6 +146,8 @@ export function normalizePromo(p) {
     forFirstTime: p.forFirstTime || 'both',
     targetCourseId,
     autoOpen,
+    autoOpenLevel,
+    keepOriginalMenu,
     customFieldLabel,
     customFieldRequired,
     customFieldPlaceholder,

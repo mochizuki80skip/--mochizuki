@@ -110,9 +110,14 @@
     if (!auto) return;
     state._autoOpenApplied = true;
 
+    // 自動で進める範囲: clinic（院だけ） / visit（来院まで） / course（コースまで＝既定）
+    const level = ['clinic', 'visit', 'course'].includes(auto.autoOpenLevel) ? auto.autoOpenLevel : 'course';
+    const allowVisit = level === 'visit' || level === 'course';
+    const allowCourse = level === 'course';
+
     const hasClinic = auto.forClinic === '192' || auto.forClinic === '193';
-    const hasFt = auto.forFirstTime === 'true' || auto.forFirstTime === 'false' || auto.forFirstTime === 'three_months';
-    const hasCourse = typeof auto.targetCourseId === 'number';
+    const hasFt = allowVisit && (auto.forFirstTime === 'true' || auto.forFirstTime === 'false' || auto.forFirstTime === 'three_months');
+    const hasCourse = allowCourse && typeof auto.targetCourseId === 'number';
 
     // Pre-fill clinic
     if (hasClinic && state.clinic !== auto.forClinic) {
@@ -281,16 +286,37 @@
 
   function applyOverrideToCourse(c) {
     const p = getOverridePromoFor(c.id);
-    if (!p) return c;
+    if (!p) return { ...c, _courseId: c.id };
     const overrideName = typeof p.name === 'string' ? p.name.trim() : '';
     const overrideDesc = typeof p.description === 'string' ? p.description.trim() : '';
     const hasOverrideValues = !!overrideName || !!overrideDesc || typeof p.price === 'number';
     return {
       ...c,
+      _courseId: c.id,
       name: overrideName || c.name,
       description: overrideDesc || c.description,
       price: typeof p.price === 'number' ? p.price : c.price,
       _isPromoOverride: hasOverrideValues,
+      _origPrice: c.price,
+      _origName: c.name,
+      _customField: customFieldOf(p),
+    };
+  }
+
+  // 価格変更プロモで「通常メニューも残す」ときの割引バリアント1枚を作る。
+  // UI 上の識別子(id)は通常コースと区別するため合成し、空き状況取得用の
+  // 数値コースIDは _courseId に保持する。
+  function makeVariantCard(c, p) {
+    const overrideName = typeof p.name === 'string' ? p.name.trim() : '';
+    const overrideDesc = typeof p.description === 'string' ? p.description.trim() : '';
+    return {
+      ...c,
+      id: `${p.id}@${c.id}`,
+      _courseId: c.id,
+      name: overrideName || c.name,
+      description: overrideDesc || c.description,
+      price: typeof p.price === 'number' ? p.price : c.price,
+      _isPromoOverride: true,
       _origPrice: c.price,
       _origName: c.name,
       _customField: customFieldOf(p),
@@ -327,12 +353,30 @@
     } else if (state.visitMode === 'returning') {
       courses = courses.filter((c) => !THREE_MONTH_NAMES.has(c.name));
     }
-    const overlaid = courses.map(applyOverrideToCourse);
+    const overlaid = [];
+    for (const c of courses) {
+      const p = getOverridePromoFor(c.id);
+      const overrideName = p && typeof p.name === 'string' ? p.name.trim() : '';
+      const overrideDesc = p && typeof p.description === 'string' ? p.description.trim() : '';
+      const hasOverrideValues = !!p && (!!overrideName || !!overrideDesc || typeof p.price === 'number');
+      if (p && p.keepOriginalMenu && hasOverrideValues) {
+        // 通常メニュー（元の価格）＋ 割引バリアント の2枚を出す
+        overlaid.push({ ...c, _courseId: c.id });
+        overlaid.push(makeVariantCard(c, p));
+      } else {
+        overlaid.push(applyOverrideToCourse(c));
+      }
+    }
     return [...addonPromos, ...overlaid];
   }
 
   function getSelectedCardObject() {
     if (state.courseId == null) return null;
+    // カード一覧から選択中の id（通常コース / 割引バリアント / addon）を探す。
+    const cards = getAllCardsForStep2(state._coursesList || []);
+    const found = cards.find((c) => String(c.id) === String(state.courseId));
+    if (found) return found;
+    // フォールバック（コース一覧ロード前など）
     const promos = getActivePromos();
     const addon = promos.find((p) => !p.targetCourseId && p.id === state.courseId);
     if (addon) {
@@ -350,6 +394,15 @@
       const c = state._coursesList.find((c) => c.id === state.courseId);
       if (c) return applyOverrideToCourse(c);
     }
+    return null;
+  }
+
+  // 空き状況取得に使う threease の数値コースID。割引バリアント選択時は
+  // カード側の _courseId（元コースの数値ID）を使う。
+  function getNumericCourseId() {
+    const card = getSelectedCardObject();
+    if (card && typeof card._courseId === 'number') return card._courseId;
+    if (typeof state.courseId === 'number') return state.courseId;
     return null;
   }
 
@@ -601,9 +654,8 @@
       if (myToken !== state.fetchToken) return;
       state._coursesList = courses.map((c) => Object.assign({}, c, { _forNew: state.firstTime }));
       renderCourses();
-      const stillValid =
-        getActivePromos().some((p) => p.id === state.courseId) ||
-        state._coursesList.some((c) => c.id === state.courseId);
+      const cards = getAllCardsForStep2(state._coursesList);
+      const stillValid = cards.some((c) => String(c.id) === String(state.courseId));
       if (state.courseId && !stillValid) {
         state.courseId = null;
         state.selectedIsos = [];
@@ -665,8 +717,10 @@
   async function fetchAvailability() {
     const baseParams = [];
     const card = getSelectedCardObject();
-    if (typeof state.courseId === 'number') {
-      baseParams.push(`course_id=${state.courseId}`);
+    const numericCourseId = card && typeof card._courseId === 'number' ? card._courseId
+      : (typeof state.courseId === 'number' ? state.courseId : null);
+    if (numericCourseId !== null) {
+      baseParams.push(`course_id=${numericCourseId}`);
       const dur = card ? Number(card.duration) : null;
       if (dur && Number.isFinite(dur)) baseParams.push(`duration=${dur}`);
     }
@@ -792,13 +846,14 @@
   }
 
   async function recheckSingleSlot(iso, btnEl) {
-    if (typeof state.courseId !== 'number') return;
+    const numericCourseId = getNumericCourseId();
+    if (numericCourseId == null) return;
     if (btnEl) btnEl.classList.add('is-loading');
     try {
       const params = new URLSearchParams({
         clinic: state.clinic,
         iso,
-        course_id: String(state.courseId),
+        course_id: String(numericCourseId),
       });
       if (state.firstTime !== null) {
         params.set('for_new', state.firstTime ? 'true' : 'false');
@@ -1235,7 +1290,8 @@ ${dtLines}${promoLine}${nameLine}${cfLine}
     if (courseBtn) {
       const raw = courseBtn.dataset.courseId;
       const id = /^\d+$/.test(raw) ? parseInt(raw, 10) : raw;
-      const courseChanged = state.courseId !== id;
+      const prevNumeric = getNumericCourseId();
+      const courseChanged = String(state.courseId) !== String(id);
       if (courseChanged) {
         state.courseId = id;
         state.selectedIsos = [];
@@ -1243,9 +1299,10 @@ ${dtLines}${promoLine}${nameLine}${cfLine}
       document.querySelectorAll('.course-card').forEach((b) => {
         b.classList.toggle('is-selected', b === courseBtn);
       });
-      // Re-fetch availability for the selected (threease) course so duration
-      // filtering happens upstream
-      if (courseChanged && typeof id === 'number') {
+      // 空き状況は threease の数値コースIDで取得する。通常⇔割引バリアントの
+      // 切替（同じ数値ID）では取り直さず再描画のみ。
+      const newNumeric = getNumericCourseId();
+      if (courseChanged && newNumeric != null && newNumeric !== prevNumeric) {
         fetchAvailability();
       } else {
         renderGrid();

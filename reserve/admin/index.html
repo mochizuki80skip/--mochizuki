@@ -117,6 +117,11 @@
             <input type="number" name="price" id="f-price" min="0" step="100" placeholder="3000">
           </label>
 
+          <label class="admin-checkbox" id="f-keeporiginal-wrap" hidden>
+            <input type="checkbox" name="keepOriginalMenu" id="f-keepOriginalMenu">
+            <span>通常メニューも一緒に表示する <small>(紹介者がいない方も元の価格で選べます)</small></span>
+          </label>
+
           <p class="admin-help" id="f-shortcut-help" hidden>
             「空き状況を表示」モードでは、対象の既存メニューにそのまま誘導します。<br>
             価格や説明は変更しません（元のコースをそのまま表示）。<br>
@@ -129,11 +134,20 @@
               <input type="checkbox" name="autoOpen" id="f-autoOpen">
               <span>URLをタップしたら、<strong>指定済みの項目を自動入力</strong>する</span>
             </label>
+            <label id="f-autoopenlevel-wrap" hidden>
+              <span>自動で進める範囲</span>
+              <select name="autoOpenLevel" id="f-autoOpenLevel">
+                <option value="course">コースまで自動（カレンダーへ直行）</option>
+                <option value="visit">来院まで自動（コースはお客様が選択）</option>
+                <option value="clinic">院だけ自動（来院から選択）</option>
+              </select>
+            </label>
             <p class="admin-help">
               ON にすると、上で指定した「対象院」「対象来院」「対象既存メニュー」のうち
-              <strong>具体的に絞られているものだけ</strong>が自動で選択された状態でページが開きます。<br>
-              （例：院＝三島、来院＝初回 を指定しておけば、ユーザーはコースを選ぶだけで空き枠まで進めます。）<br>
-              すべて指定すれば、ユーザーは何もタップせずカレンダーまで進めます。
+              <strong>具体的に絞られているもの</strong>が自動で選択された状態でページが開きます。<br>
+              「自動で進める範囲」で、どこまで自動で進めるか調整できます。<br>
+              （例：通常メニューも一緒に出す紹介キャンペーンなら「来院まで自動」を選ぶと、
+              お客様が通常／紹介者割を選べます。）
             </p>
           </fieldset>
 
@@ -215,6 +229,6 @@
 
   </main>
 
-  <script src="/admin/admin.js?v=20260520c"></script>
+  <script src="/admin/admin.js?v=20260520d"></script>
 </body>
 </html>

@@ -232,6 +232,9 @@
     // autoOpen: hidden in shortcut mode (forced true on submit)
     $('f-autoopen-wrap').hidden = isShortcut;
 
+    // 「通常メニューも残す」は価格変更（override）のときだけ表示
+    $('f-keeporiginal-wrap').hidden = !isOverride;
+
     // Name required only for addon
     $('f-name').required = isAddon;
     $('f-name-label').innerHTML = isOverride
@@ -243,13 +246,23 @@
         ? '説明 <small>(任意・空欄なら元のコースの説明を使用)</small>'
         : '説明 <small>(任意)</small>';
     }
+    applyAutoOpenLevelUI();
     // shortcut + 院のみ pre-select のヘルプ文を即時反映
     refreshTargetCourseOptions(Number($('f-targetCourseId').value) || null);
+  }
+
+  // 「自動で進める範囲」セレクトは autoOpen が ON のときだけ表示
+  function applyAutoOpenLevelUI() {
+    const wrap = $('f-autoopenlevel-wrap');
+    if (!wrap) return;
+    const isShortcut = getKind() === 'shortcut';
+    wrap.hidden = isShortcut || !$('f-autoOpen').checked;
   }
 
   document.querySelectorAll('input[name="kind"]').forEach((r) => {
     r.addEventListener('change', applyKindUI);
   });
+  $('f-autoOpen').addEventListener('change', applyAutoOpenLevelUI);
   $('f-forClinic').addEventListener('change', () => refreshTargetCourseOptions());
   $('f-forFirstTime').addEventListener('change', () => refreshTargetCourseOptions());
   $('f-code-rand').addEventListener('click', () => {
@@ -580,6 +593,8 @@
       $('f-forClinic').value = p.forClinic || 'both';
       $('f-forFirstTime').value = p.forFirstTime || 'both';
       $('f-autoOpen').checked = !!p.autoOpen;
+      $('f-autoOpenLevel').value = ['clinic', 'visit', 'course'].includes(p.autoOpenLevel) ? p.autoOpenLevel : 'course';
+      $('f-keepOriginalMenu').checked = !!p.keepOriginalMenu;
       $('f-cf-label').value = p.customFieldLabel || '';
       $('f-cf-required').checked = !!p.customFieldRequired;
       $('f-cf-placeholder').value = p.customFieldPlaceholder || '';
@@ -615,6 +630,8 @@
       forFirstTime: $('f-forFirstTime').value,
       targetCourseId,
       autoOpen: kind === 'shortcut' ? true : $('f-autoOpen').checked,
+      autoOpenLevel: $('f-autoOpenLevel').value,
+      keepOriginalMenu: kind === 'override' ? $('f-keepOriginalMenu').checked : false,
       customFieldLabel: cfLabel,
       customFieldRequired: cfLabel ? $('f-cf-required').checked : false,
       customFieldPlaceholder: cfLabel ? $('f-cf-placeholder').value.trim() : '',
