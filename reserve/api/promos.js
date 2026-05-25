@@ -27,6 +27,9 @@ export default async function handler(req, res) {
         forFirstTime: p.forFirstTime || 'both',
         targetCourseId: typeof p.targetCourseId === 'number' ? p.targetCourseId : null,
         autoOpen: effectiveAutoOpen,
+        customFieldLabel: typeof p.customFieldLabel === 'string' ? p.customFieldLabel : '',
+        customFieldRequired: !!p.customFieldRequired,
+        customFieldPlaceholder: typeof p.customFieldPlaceholder === 'string' ? p.customFieldPlaceholder : '',
       };
     });
     res.setHeader('Cache-Control', 's-maxage=60, stale-while-revalidate=120');

@@ -91,6 +91,15 @@ export function validatePromo(p) {
       return 'autoOpen には「対象院」「対象来院」「対象既存メニュー」のうち最低1つを具体的に指定してください';
     }
   }
+  if (p.customFieldLabel != null && typeof p.customFieldLabel !== 'string') {
+    return 'customFieldLabel must be a string';
+  }
+  if (typeof p.customFieldLabel === 'string' && p.customFieldLabel.length > 60) {
+    return 'customFieldLabel must be 60 characters or fewer';
+  }
+  if (p.customFieldPlaceholder != null && typeof p.customFieldPlaceholder !== 'string') {
+    return 'customFieldPlaceholder must be a string';
+  }
   return null;
 }
 
@@ -117,6 +126,11 @@ export function normalizePromo(p) {
   if (isShortcutShape({ ...p, name: rawName, description: rawDesc, price: rawPrice, targetCourseId })) {
     autoOpen = true;
   }
+  // 予約時の任意記入欄（例: 紹介者のお名前）。ラベルが空なら欄なし。
+  const customFieldLabel = typeof p.customFieldLabel === 'string' ? p.customFieldLabel.trim() : '';
+  const customFieldPlaceholder = customFieldLabel && typeof p.customFieldPlaceholder === 'string'
+    ? p.customFieldPlaceholder.trim() : '';
+  const customFieldRequired = customFieldLabel ? !!p.customFieldRequired : false;
   return {
     code: String(p.code).trim(),
     name: rawName,
@@ -127,6 +141,9 @@ export function normalizePromo(p) {
     forFirstTime: p.forFirstTime || 'both',
     targetCourseId,
     autoOpen,
+    customFieldLabel,
+    customFieldRequired,
+    customFieldPlaceholder,
     updatedAt: new Date().toISOString(),
   };
 }

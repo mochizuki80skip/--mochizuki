@@ -269,6 +269,16 @@
     return promos.find((p) => p.targetCourseId && p.targetCourseId === courseId) || null;
   }
 
+  // promo / menu オブジェクトから予約時の記入欄設定を取り出す（無ければ null）
+  function customFieldOf(p) {
+    if (!p || !p.customFieldLabel) return null;
+    return {
+      label: String(p.customFieldLabel),
+      required: !!p.customFieldRequired,
+      placeholder: p.customFieldPlaceholder || '',
+    };
+  }
+
   function applyOverrideToCourse(c) {
     const p = getOverridePromoFor(c.id);
     if (!p) return c;
@@ -283,6 +293,7 @@
       _isPromoOverride: hasOverrideValues,
       _origPrice: c.price,
       _origName: c.name,
+      _customField: customFieldOf(p),
     };
   }
 
@@ -302,6 +313,7 @@
       duration: p.duration,
       price: p.price,
       isPromo: true,
+      _customField: customFieldOf(p),
     }));
     let courses = threaseCourses || [];
     // 3ヶ月モードで表示する2コース（courses.js が自動でリネーム済）。
@@ -331,6 +343,7 @@
         duration: addon.duration,
         price: addon.price,
         isPromo: true,
+        _customField: customFieldOf(addon),
       };
     }
     if (state._coursesList) {
@@ -425,6 +438,33 @@
     const wrap = document.getElementById('firsttime-name-wrap');
     if (!wrap) return;
     wrap.hidden = state.firstTime !== true;
+  }
+
+  // キャンペーンに記入欄が設定されている場合、Step4 に入力欄を出す。
+  function renderCustomField(card) {
+    const wrap = document.getElementById('custom-field-wrap');
+    if (!wrap) return;
+    const cf = card && card._customField;
+    if (!cf) {
+      wrap.hidden = true;
+      wrap.dataset.label = '';
+      return;
+    }
+    const labelEl = document.getElementById('custom-field-label');
+    const input = document.getElementById('custom-field-input');
+    // 対象の記入欄が変わったら入力値をリセット（別キャンペーンへ切替時など）
+    if (wrap.dataset.label !== cf.label) {
+      wrap.dataset.label = cf.label;
+      if (input) input.value = '';
+      wrap.classList.remove('is-error');
+    }
+    if (labelEl) {
+      labelEl.innerHTML = escapeHtml(cf.label)
+        + (cf.required ? ' <small>(必須)</small>' : ' <small>(任意)</small>');
+    }
+    if (input) input.placeholder = cf.placeholder || '';
+    wrap.dataset.error = `「${cf.label}」のご入力をお願いします。`;
+    wrap.hidden = false;
   }
 
   // Custom smooth scroll — the browser-native scrollIntoView with
@@ -997,6 +1037,7 @@
       }
     }
     document.getElementById('m-course').textContent = card ? card.name : '—';
+    renderCustomField(card);
     const dtSummary = state.selectedIsos.length === 0
       ? '—'
       : [0, 1, 2]
@@ -1021,13 +1062,17 @@
       const nameInput = document.getElementById('m-name');
       const nameVal = nameInput ? nameInput.value.trim() : '';
       const nameLine = state.firstTime ? `\nお名前: ${nameVal}` : '';
+      const cf = card._customField;
+      const cfInput = document.getElementById('custom-field-input');
+      const cfVal = cfInput ? cfInput.value.trim() : '';
+      const cfLine = (cf && cf.label) ? `\n${cf.label}: ${cfVal}` : '';
       ta.value =
 `【予約希望】
 院: ${clinic.name}
 来院: ${visitModeLabel()}
 ${courseLine}
 日時:
-${dtLines}${promoLine}${nameLine}
+${dtLines}${promoLine}${nameLine}${cfLine}
 ————————————————
 コチラからの返信で予約が確定になります。
 メッセージはこのまま送信してください。`;
@@ -1058,6 +1103,23 @@ ${dtLines}${promoLine}${nameLine}
           if (nameInput) {
             nameInput.focus();
             nameInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }
+        return;
+      }
+    }
+    // Custom-field guard: block when a required campaign field is empty
+    const selCard = getSelectedCardObject();
+    if (selCard && selCard._customField && selCard._customField.required) {
+      const cfInput = document.getElementById('custom-field-input');
+      const cfVal = cfInput ? cfInput.value.trim() : '';
+      if (!cfVal) {
+        const wrap = document.getElementById('custom-field-wrap');
+        if (wrap) {
+          wrap.classList.add('is-error');
+          if (cfInput) {
+            cfInput.focus();
+            cfInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
         }
         return;
@@ -1267,6 +1329,17 @@ ${dtLines}${promoLine}${nameLine}
   if (nameInputEl) {
     nameInputEl.addEventListener('input', () => {
       const wrap = document.getElementById('firsttime-name-wrap');
+      if (wrap) wrap.classList.remove('is-error');
+      updateBookingPanel();
+    });
+  }
+
+  // Live-update the LINE message and clear the error marker as the user types
+  // in the campaign custom field.
+  const cfInputEl = document.getElementById('custom-field-input');
+  if (cfInputEl) {
+    cfInputEl.addEventListener('input', () => {
+      const wrap = document.getElementById('custom-field-wrap');
       if (wrap) wrap.classList.remove('is-error');
       updateBookingPanel();
     });

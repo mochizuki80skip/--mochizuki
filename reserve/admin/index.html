@@ -137,6 +137,27 @@
             </p>
           </fieldset>
 
+          <fieldset class="admin-fieldset" id="f-customfield-wrap">
+            <legend>予約時の記入欄（任意）</legend>
+            <label>
+              <span>記入欄のラベル <small>(空欄なら表示しない・例: 紹介者のお名前)</small></span>
+              <input type="text" name="customFieldLabel" id="f-cf-label" maxlength="60" placeholder="例: 紹介者のお名前">
+            </label>
+            <label class="admin-checkbox">
+              <input type="checkbox" name="customFieldRequired" id="f-cf-required">
+              <span>この記入欄を<strong>必須</strong>にする</span>
+            </label>
+            <label>
+              <span>入力例（プレースホルダ） <small>(任意)</small></span>
+              <input type="text" name="customFieldPlaceholder" id="f-cf-placeholder" maxlength="60" placeholder="例: 山田 太郎">
+            </label>
+            <p class="admin-help">
+              予約確認画面で、お客様にこの項目を記入してもらえます。<br>
+              記入内容は LINE の予約文面に自動で追加されます。<br>
+              （例：紹介イベントで「紹介者のお名前」を必須にする）
+            </p>
+          </fieldset>
+
           <button class="primary" type="submit">追加 / 更新</button>
           <p class="admin-info" id="form-info" hidden></p>
           <p class="admin-error" id="form-error" hidden></p>
@@ -194,6 +215,6 @@
 
   </main>
 
-  <script src="/admin/admin.js?v=20260520b"></script>
+  <script src="/admin/admin.js?v=20260520c"></script>
 </body>
 </html>

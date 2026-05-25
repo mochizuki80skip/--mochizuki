@@ -463,6 +463,9 @@
       const lineUrl = location.origin + '/#promo=' + encodeURIComponent(p.code);
       const chips = [];
       if (p.autoOpen) chips.push(`<span class="tag tag-auto">⚡ 自動進行</span>`);
+      if (p.customFieldLabel) {
+        chips.push(`<span class="tag">📝 ${escapeHtml(p.customFieldLabel)}${p.customFieldRequired ? '(必須)' : ''}</span>`);
+      }
       if (kind === 'override' && typeof p.price === 'number') {
         chips.push(`<span class="tag tag-price">¥${Number(p.price).toLocaleString('ja-JP')}</span>`);
       }
@@ -577,6 +580,9 @@
       $('f-forClinic').value = p.forClinic || 'both';
       $('f-forFirstTime').value = p.forFirstTime || 'both';
       $('f-autoOpen').checked = !!p.autoOpen;
+      $('f-cf-label').value = p.customFieldLabel || '';
+      $('f-cf-required').checked = !!p.customFieldRequired;
+      $('f-cf-placeholder').value = p.customFieldPlaceholder || '';
       setKind(detectKind(p));
       refreshTargetCourseOptions(p.targetCourseId || null);
       $('f-code').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -598,6 +604,7 @@
     const nameTrim = $('f-name').value.trim();
     const wantsTarget = kind === 'override' || kind === 'shortcut';
     const targetCourseId = wantsTarget && targetRaw !== '' ? Number(targetRaw) : null;
+    const cfLabel = $('f-cf-label').value.trim();
     const body = {
       code: $('f-code').value.trim(),
       name: kind === 'shortcut' ? '' : nameTrim,
@@ -608,6 +615,9 @@
       forFirstTime: $('f-forFirstTime').value,
       targetCourseId,
       autoOpen: kind === 'shortcut' ? true : $('f-autoOpen').checked,
+      customFieldLabel: cfLabel,
+      customFieldRequired: cfLabel ? $('f-cf-required').checked : false,
+      customFieldPlaceholder: cfLabel ? $('f-cf-placeholder').value.trim() : '',
     };
     $('form-error').hidden = true;
     $('form-info').hidden = true;
