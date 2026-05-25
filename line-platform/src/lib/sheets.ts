@@ -323,3 +323,12 @@ export async function verifySpreadsheetAccess(spreadsheetId: string): Promise<
     return { ok: false, error: e instanceof Error ? e.message : "unknown" };
   }
 }
+
+// 全タブ名を取得
+export async function listTabs(spreadsheetId: string): Promise<string[]> {
+  const sheets = getSheetsClient();
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  return (meta.data.sheets ?? [])
+    .map((s) => s.properties?.title ?? "")
+    .filter((t) => t.length > 0);
+}
