@@ -80,6 +80,12 @@ model ReservationSettings {
   sheetTabMenu           String   @default("メニュー")
   sheetTabHours          String   @default("営業時間")
   sheetTabReferral       String   @default("きっかけ")
+  sheetTabInquiry        String   @default("問い合わせ一覧")
+  // シート連動モード（当日タブから空き状況を読み、予約は問い合わせ一覧へリクエストとして追記）
+  sheetLinkedMode          Boolean @default(false)
+  newPatientDurationMinutes Int    @default(30)
+  returningDurationMinutes  Int    @default(15)
+  inquiryReplyMessage       String?
   // 予約ルール
   slotMinutes            Int      @default(20)
   defaultBedCount        Int      @default(1)

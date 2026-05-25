@@ -6,6 +6,8 @@ import { ServicesSettings } from "./ServicesSettings";
 import { HoursSettings } from "./HoursSettings";
 import { ReferralSettings } from "./ReferralSettings";
 import { SheetsSettings } from "./SheetsSettings";
+import { SheetLinkedSettings } from "./SheetLinkedSettings";
+import { AvailabilityUrl } from "./AvailabilityUrl";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +60,8 @@ export default async function ReservationSettingsPage({
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">予約設定</h1>
 
+      <AvailabilityUrl channelId={channelId} liffId={settings.liffId ?? ""} />
+
       <GeneralSettings
         channelId={channelId}
         initial={{
@@ -107,6 +111,17 @@ export default async function ReservationSettingsPage({
           sortOrder: r.sortOrder,
           isActive: r.isActive,
         }))}
+      />
+
+      <SheetLinkedSettings
+        channelId={channelId}
+        initial={{
+          sheetLinkedMode: settings.sheetLinkedMode,
+          sheetTabInquiry: settings.sheetTabInquiry,
+          newPatientDurationMinutes: settings.newPatientDurationMinutes,
+          returningDurationMinutes: settings.returningDurationMinutes,
+          inquiryReplyMessage: settings.inquiryReplyMessage ?? "",
+        }}
       />
 
       <SheetsSettings
