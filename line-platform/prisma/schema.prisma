@@ -47,6 +47,7 @@ model LineChannel {
   holidays            Holiday[]
   referralSources     ReferralSource[]
   reservations        Reservation[]
+  richMenu            RichMenu?
 
   @@index([isActive])
 }
@@ -207,6 +208,22 @@ model Reservation {
 }
 
 // === 予約機能 ここまで ===
+
+// リッチメニュー
+model RichMenu {
+  id             String   @id @default(cuid())
+  lineChannelId  String   @unique
+  size           String   @default("large") // large(2500x1686) / compact(2500x843)
+  layout         String   @default("2") // ボタン数: 1/2/3/4/6
+  chatBarText    String   @default("メニュー")
+  buttons        Json     // [{label, actionType, value, bgColor, textColor}]
+  lineRichMenuId String?  // LINE 側の richMenuId
+  isApplied      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+}
 
 // LINE 友だち（チャネル単位）
 model Friend {

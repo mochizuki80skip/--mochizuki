@@ -90,3 +90,36 @@ export async function verifyChannelCredentials(channelAccessToken: string, chann
     return { ok: false as const, message: e instanceof Error ? e.message : "unknown" };
   }
 }
+
+// === リッチメニュー ===
+import type { RichMenu } from "@line/bot-sdk";
+
+export async function listRichMenus(channelId: string) {
+  const { client } = await getClientByChannelId(channelId);
+  return client.getRichMenuList();
+}
+
+export async function createRichMenu(channelId: string, richMenu: RichMenu): Promise<string> {
+  const { client } = await getClientByChannelId(channelId);
+  return client.createRichMenu(richMenu);
+}
+
+export async function setRichMenuImage(
+  channelId: string,
+  richMenuId: string,
+  image: Buffer,
+  contentType: "image/png" | "image/jpeg",
+) {
+  const { client } = await getClientByChannelId(channelId);
+  return client.setRichMenuImage(richMenuId, image, contentType);
+}
+
+export async function setDefaultRichMenu(channelId: string, richMenuId: string) {
+  const { client } = await getClientByChannelId(channelId);
+  return client.setDefaultRichMenu(richMenuId);
+}
+
+export async function deleteRichMenu(channelId: string, richMenuId: string) {
+  const { client } = await getClientByChannelId(channelId);
+  return client.deleteRichMenu(richMenuId);
+}
