@@ -18,11 +18,17 @@ const Body = z.object({
   confirmMessageTemplate: z.string().max(1000).nullable().optional(),
   spreadsheetId: z.string().max(120).nullable().optional(),
   sheetTabReservations: z.string().max(120).optional(),
+  // シート連動モード
+  sheetLinkedMode: z.boolean().optional(),
+  sheetTabInquiry: z.string().max(120).optional(),
+  newPatientDurationMinutes: z.number().int().min(5).max(240).optional(),
+  returningDurationMinutes: z.number().int().min(5).max(240).optional(),
+  inquiryReplyMessage: z.string().max(1000).nullable().optional(),
 });
 
 function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
   const cleaned: Record<string, unknown> = { ...obj };
-  for (const k of ["clinicName", "clinicAddress", "clinicPhone", "liffId", "spreadsheetId", "confirmMessageTemplate"]) {
+  for (const k of ["clinicName", "clinicAddress", "clinicPhone", "liffId", "spreadsheetId", "confirmMessageTemplate", "inquiryReplyMessage"]) {
     if (cleaned[k] === "") cleaned[k] = null;
   }
   return cleaned as T;
