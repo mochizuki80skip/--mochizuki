@@ -148,38 +148,30 @@
       });
     }
 
-    // Pre-fill course (requires firstTime to know which course list to load)
-    if (hasCourse && state.firstTime !== null) {
+    // Load the course list for the (possibly) pre-filled visit mode, tagging
+    // each with _forNew so availability/recheck use the correct customer flag.
+    if (state.firstTime !== null) {
       try {
         const courses = await getCoursesPromise(state.clinic, state.firstTime);
-        state._coursesList = courses;
-        if (courses.some((c) => c.id === auto.targetCourseId)) {
-          state.courseId = auto.targetCourseId;
-        }
+        state._coursesList = courses.map((c) => Object.assign({}, c, { _forNew: state.firstTime }));
       } catch { /* keep going even on fetch failure */ }
-    } else if (state.firstTime !== null) {
-      try {
-        state._coursesList = await getCoursesPromise(state.clinic, state.firstTime);
-      } catch {}
+    }
+
+    // Pre-select the target course only when the configured level allows it.
+    if (hasCourse && Array.isArray(state._coursesList)
+        && state._coursesList.some((c) => c.id === auto.targetCourseId)) {
+      state.courseId = auto.targetCourseId;
     }
 
     renderCourses();
-    // Re-fetch availability with course filter when a course was auto-selected
-    if (typeof state.courseId === 'number') {
-      fetchAvailability();
-    } else {
-      renderGrid();
-    }
+    fetchAvailability();
     recomputeStepStates();
 
-    // Decide which step to focus
+    // Reliably expand + scroll to the deepest reached step (same path as a tap).
     let focusStep = 1;
     if (state.firstTime !== null) focusStep = 2;
     if (state.courseId != null) focusStep = 3;
-    setTimeout(() => {
-      const target = document.getElementById('step-' + focusStep);
-      if (target && target.scrollIntoView) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    setTimeout(() => activateStep(focusStep), 80);
   }
 
   // -------------------------------------------------------------------
@@ -701,9 +693,14 @@
       const badge = c.isPromo
         ? '<span class="promo-badge">限定</span>'
         : (c._isPromoOverride ? '<span class="promo-badge">限定価格</span>' : '');
+      // 価格変更カードでは、表示名の下に元の（通常）メニュー名を併記する
+      const origNameHtml = (c._isPromoOverride && c._origName && c._origName !== c.name)
+        ? `<span class="choice-origname">通常メニュー: ${escapeHtml(c._origName)}</span>`
+        : '';
       btn.innerHTML =
         badge +
         `<span class="choice-title">${escapeHtml(c.name || '')}</span>` +
+        origNameHtml +
         (meta.length || priceHtml ? `<span class="choice-meta">${[...meta, priceHtml].filter(Boolean).join(' / ')}</span>` : '') +
         (descShort ? `<span class="choice-desc">${escapeHtml(descShort)}</span>` : '');
       list.appendChild(btn);
