@@ -5,8 +5,10 @@ import { useState, useTransition } from "react";
 export function SheetsSettings({
   channelId,
   initial,
+  sheetMode = false,
 }: {
   channelId: string;
+  sheetMode?: boolean;
   initial: { spreadsheetId: string; sheetTabReservations: string };
 }) {
   const [v, setV] = useState(initial);
@@ -124,14 +126,16 @@ export function SheetsSettings({
         >
           接続テスト
         </button>
-        <button
-          onClick={syncSheet}
-          disabled={pending || !v.spreadsheetId}
-          className="border border-line text-line-dark px-4 py-2 rounded text-sm disabled:opacity-50 ml-auto"
-          title="スプレッドシートの全タブを最新の予約データと設定で再生成します"
-        >
-          📋 シートを完全同期
-        </button>
+        {!sheetMode && (
+          <button
+            onClick={syncSheet}
+            disabled={pending || !v.spreadsheetId}
+            className="border border-line text-line-dark px-4 py-2 rounded text-sm disabled:opacity-50 ml-auto"
+            title="スプレッドシートの全タブを最新の予約データと設定で再生成します"
+          >
+            📋 シートを完全同期
+          </button>
+        )}
       </div>
 
       <details className="text-xs text-gray-600 pt-2 border-t">

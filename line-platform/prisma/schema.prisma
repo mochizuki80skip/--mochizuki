@@ -47,6 +47,7 @@ model LineChannel {
   holidays            Holiday[]
   referralSources     ReferralSource[]
   reservations        Reservation[]
+  inquiries           Inquiry[]
   richMenu            RichMenu?
 
   @@index([isActive])
@@ -208,6 +209,27 @@ model Reservation {
 }
 
 // === 予約機能 ここまで ===
+
+// シート連動モードの予約リクエスト（DB 控え）
+model Inquiry {
+  id             String   @id @default(cuid())
+  lineChannelId  String
+  date           String   // 希望日 YYYY-MM-DD
+  time           String   // 希望時間 H:MM
+  visitType      String   // new / returning
+  customerName   String
+  customerPhone  String
+  referralSource String?
+  lineUserId     String?
+  status         String   @default("pending") // pending / handled / cancelled
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+
+  @@index([lineChannelId, createdAt])
+  @@index([lineChannelId, status])
+}
 
 // リッチメニュー
 model RichMenu {

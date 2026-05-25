@@ -34,13 +34,18 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   }
 
   // タブが揃ってなければ自動作成
-  await ensureSheetTabs(settings.spreadsheetId, [
-    settings.sheetTabReservations,
-    settings.sheetTabSettings,
-    settings.sheetTabMenu,
-    settings.sheetTabHours,
-    settings.sheetTabReferral,
-  ]);
+  // シート連動モードでは「問い合わせ一覧」だけ。DB モードでは従来の各タブ。
+  if (settings.sheetLinkedMode) {
+    await ensureSheetTabs(settings.spreadsheetId, [settings.sheetTabInquiry]);
+  } else {
+    await ensureSheetTabs(settings.spreadsheetId, [
+      settings.sheetTabReservations,
+      settings.sheetTabSettings,
+      settings.sheetTabMenu,
+      settings.sheetTabHours,
+      settings.sheetTabReferral,
+    ]);
+  }
 
   return NextResponse.json({ ok: true, title: result.title });
 }

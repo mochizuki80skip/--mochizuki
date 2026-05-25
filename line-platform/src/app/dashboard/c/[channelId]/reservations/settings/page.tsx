@@ -64,6 +64,7 @@ export default async function ReservationSettingsPage({
 
       <GeneralSettings
         channelId={channelId}
+        sheetMode={settings.sheetLinkedMode}
         initial={{
           isEnabled: settings.isEnabled,
           slotMinutes: settings.slotMinutes,
@@ -80,39 +81,6 @@ export default async function ReservationSettingsPage({
         }}
       />
 
-      <ServicesSettings
-        channelId={channelId}
-        initial={services.map((s) => ({
-          id: s.id,
-          name: s.name,
-          durationMinutes: s.durationMinutes,
-          price: s.price,
-          sortOrder: s.sortOrder,
-          isActive: s.isActive,
-        }))}
-        slotMinutes={settings.slotMinutes}
-      />
-
-      <HoursSettings
-        channelId={channelId}
-        initial={hours.map((h) => ({
-          dayOfWeek: h.dayOfWeek,
-          isClosed: h.isClosed,
-          openTime: h.openTime ?? "",
-          closeTime: h.closeTime ?? "",
-        }))}
-      />
-
-      <ReferralSettings
-        channelId={channelId}
-        initial={referrals.map((r) => ({
-          id: r.id,
-          name: r.name,
-          sortOrder: r.sortOrder,
-          isActive: r.isActive,
-        }))}
-      />
-
       <SheetLinkedSettings
         channelId={channelId}
         initial={{
@@ -124,8 +92,47 @@ export default async function ReservationSettingsPage({
         }}
       />
 
+      {/* DB モード専用（シート連動モードでは非表示） */}
+      {!settings.sheetLinkedMode && (
+        <>
+          <ServicesSettings
+            channelId={channelId}
+            initial={services.map((s) => ({
+              id: s.id,
+              name: s.name,
+              durationMinutes: s.durationMinutes,
+              price: s.price,
+              sortOrder: s.sortOrder,
+              isActive: s.isActive,
+            }))}
+            slotMinutes={settings.slotMinutes}
+          />
+
+          <HoursSettings
+            channelId={channelId}
+            initial={hours.map((h) => ({
+              dayOfWeek: h.dayOfWeek,
+              isClosed: h.isClosed,
+              openTime: h.openTime ?? "",
+              closeTime: h.closeTime ?? "",
+            }))}
+          />
+        </>
+      )}
+
+      <ReferralSettings
+        channelId={channelId}
+        initial={referrals.map((r) => ({
+          id: r.id,
+          name: r.name,
+          sortOrder: r.sortOrder,
+          isActive: r.isActive,
+        }))}
+      />
+
       <SheetsSettings
         channelId={channelId}
+        sheetMode={settings.sheetLinkedMode}
         initial={{
           spreadsheetId: settings.spreadsheetId ?? "",
           sheetTabReservations: settings.sheetTabReservations,
