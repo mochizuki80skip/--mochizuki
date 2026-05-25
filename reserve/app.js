@@ -697,12 +697,18 @@
       const origNameHtml = (c._isPromoOverride && c._origName && c._origName !== c.name)
         ? `<span class="choice-origname">通常メニュー: ${escapeHtml(c._origName)}</span>`
         : '';
+      // 記入欄があるカードは、選択前にその旨を表示（必須は強調）
+      const cf = c._customField;
+      const cfNoteHtml = (cf && cf.label)
+        ? `<span class="choice-cfnote${cf.required ? ' is-required' : ''}">📝 ${escapeHtml(cf.label)}の記入${cf.required ? 'が必要' : '欄あり'}</span>`
+        : '';
       btn.innerHTML =
         badge +
         `<span class="choice-title">${escapeHtml(c.name || '')}</span>` +
         origNameHtml +
         (meta.length || priceHtml ? `<span class="choice-meta">${[...meta, priceHtml].filter(Boolean).join(' / ')}</span>` : '') +
-        (descShort ? `<span class="choice-desc">${escapeHtml(descShort)}</span>` : '');
+        (descShort ? `<span class="choice-desc">${escapeHtml(descShort)}</span>` : '') +
+        cfNoteHtml;
       list.appendChild(btn);
     }
   }
