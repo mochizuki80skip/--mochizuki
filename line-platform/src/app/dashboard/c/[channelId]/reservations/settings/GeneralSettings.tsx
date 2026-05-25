@@ -6,8 +6,10 @@ import { useRouter } from "next/navigation";
 export function GeneralSettings({
   channelId,
   initial,
+  sheetMode = false,
 }: {
   channelId: string;
+  sheetMode?: boolean;
   initial: {
     isEnabled: boolean;
     slotMinutes: number;
@@ -98,27 +100,31 @@ export function GeneralSettings({
       </div>
 
       <div className="grid grid-cols-3 gap-3">
-        <div>
-          <label className="block text-sm font-medium">時間粒度（分）</label>
-          <input
-            type="number"
-            min={5}
-            step={5}
-            value={v.slotMinutes}
-            onChange={(e) => update("slotMinutes", Number(e.target.value))}
-            className="mt-1 w-full border rounded px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium">ベッド数（同時受入）</label>
-          <input
-            type="number"
-            min={1}
-            value={v.defaultBedCount}
-            onChange={(e) => update("defaultBedCount", Number(e.target.value))}
-            className="mt-1 w-full border rounded px-3 py-2 text-sm"
-          />
-        </div>
+        {!sheetMode && (
+          <div>
+            <label className="block text-sm font-medium">時間粒度（分）</label>
+            <input
+              type="number"
+              min={5}
+              step={5}
+              value={v.slotMinutes}
+              onChange={(e) => update("slotMinutes", Number(e.target.value))}
+              className="mt-1 w-full border rounded px-3 py-2 text-sm"
+            />
+          </div>
+        )}
+        {!sheetMode && (
+          <div>
+            <label className="block text-sm font-medium">ベッド数（同時受入）</label>
+            <input
+              type="number"
+              min={1}
+              value={v.defaultBedCount}
+              onChange={(e) => update("defaultBedCount", Number(e.target.value))}
+              className="mt-1 w-full border rounded px-3 py-2 text-sm"
+            />
+          </div>
+        )}
         <div>
           <label className="block text-sm font-medium">アクセントカラー</label>
           <input

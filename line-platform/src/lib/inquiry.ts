@@ -51,6 +51,23 @@ export async function submitInquiry(
       : settings.returningDurationMinutes;
   const menuLabel = `${VISIT_LABEL[input.visitType]}（${duration}分）`;
 
+  // 0. DB 控えを作成（アプリ内でも一覧表示できるように）
+  await prisma.inquiry
+    .create({
+      data: {
+        lineChannelId: input.channelId,
+        date: input.date,
+        time: input.time,
+        visitType: input.visitType,
+        customerName: input.customerName,
+        customerPhone: input.customerPhone,
+        referralSource: input.referralSource ?? null,
+        lineUserId: input.lineUserId ?? null,
+        status: "pending",
+      },
+    })
+    .catch((e) => console.error("[inquiry] DB save failed:", e));
+
   // 1. 問い合わせ一覧へ追記
   try {
     await ensureInquiryHeader(settings.spreadsheetId, settings.sheetTabInquiry);
