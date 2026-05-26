@@ -267,6 +267,100 @@ export async function applyScheduleFormatting(
   });
 }
 
+// 当日タブ（予約表）の書式：施術者名行を強調、見出し固定、グリッドに枠線
+export async function applyDailyTabFormatting(
+  spreadsheetId: string,
+  tabName: string,
+  nameRow1based: number,
+  firstTimeRow1based: number,
+  totalRows: number,
+  bedCols: number[], // 各ベッドの名前列（1-based）
+): Promise<void> {
+  const sheets = getSheetsClient();
+  const sheetId = await getSheetIdByTitle(spreadsheetId, tabName);
+  if (sheetId === null || bedCols.length === 0) return;
+
+  const lastCol = Math.max(...bedCols) + 1;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        // 日付（A1）を大きく太字
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 14 } } },
+            fields: "userEnteredFormat.textFormat",
+          },
+        },
+        // 施術者名行を強調
+        {
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: nameRow1based - 2,
+              endRowIndex: nameRow1based,
+              startColumnIndex: 0,
+              endColumnIndex: lastCol,
+            },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.86, green: 0.97, blue: 0.94 },
+                textFormat: { bold: true },
+                horizontalAlignment: "CENTER",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+          },
+        },
+        // 時間列を中央寄せ
+        {
+          repeatCell: {
+            range: {
+              sheetId,
+              startRowIndex: firstTimeRow1based - 1,
+              endRowIndex: totalRows,
+              startColumnIndex: 0,
+              endColumnIndex: 1,
+            },
+            cell: { userEnteredFormat: { horizontalAlignment: "CENTER", textFormat: { bold: true } } },
+            fields: "userEnteredFormat(horizontalAlignment,textFormat)",
+          },
+        },
+        // グリッドに枠線
+        {
+          updateBorders: {
+            range: {
+              sheetId,
+              startRowIndex: nameRow1based - 1,
+              endRowIndex: totalRows,
+              startColumnIndex: 0,
+              endColumnIndex: lastCol,
+            },
+            innerHorizontal: { style: "SOLID", color: { red: 0.8, green: 0.8, blue: 0.8 } },
+            innerVertical: { style: "SOLID", color: { red: 0.8, green: 0.8, blue: 0.8 } },
+            top: { style: "SOLID" },
+            bottom: { style: "SOLID" },
+            left: { style: "SOLID" },
+            right: { style: "SOLID" },
+          },
+        },
+        // 見出し行＋時間列を固定
+        {
+          updateSheetProperties: {
+            properties: {
+              sheetId,
+              gridProperties: { frozenRowCount: nameRow1based, frozenColumnCount: 1 },
+            },
+            fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount",
+          },
+        },
+      ],
+    },
+  });
+}
+
 export async function readRange(
   spreadsheetId: string,
   range: string,

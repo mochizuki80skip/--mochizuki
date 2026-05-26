@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireChannel } from "@/lib/permissions";
+import { regenerateDailyTab } from "@/lib/dailyTab";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -73,6 +74,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       }),
     ),
   ]);
+
+  // スプレッドシート当日タブを再生成（best effort）
+  try {
+    await regenerateDailyTab(id, date);
+  } catch (e) {
+    console.error("[beds] sheet regen failed:", e);
+  }
 
   return NextResponse.json({ ok: true, count: keep.length });
 }
