@@ -12,6 +12,7 @@ const Body = z.object({
   clinicName: z.string().max(120).nullable().optional(),
   clinicAddress: z.string().max(255).nullable().optional(),
   clinicPhone: z.string().max(50).nullable().optional(),
+  clinicPhotoUrl: z.string().max(3_000_000).nullable().optional(),
   themeColor: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   liffId: z.string().max(120).nullable().optional(),
   sendConfirmMessage: z.boolean().optional(),
@@ -29,7 +30,7 @@ const Body = z.object({
 
 function emptyToNull<T extends Record<string, unknown>>(obj: T): T {
   const cleaned: Record<string, unknown> = { ...obj };
-  for (const k of ["clinicName", "clinicAddress", "clinicPhone", "liffId", "spreadsheetId", "confirmMessageTemplate", "inquiryReplyMessage"]) {
+  for (const k of ["clinicName", "clinicAddress", "clinicPhone", "clinicPhotoUrl", "liffId", "spreadsheetId", "confirmMessageTemplate", "inquiryReplyMessage"]) {
     if (cleaned[k] === "") cleaned[k] = null;
   }
   return cleaned as T;

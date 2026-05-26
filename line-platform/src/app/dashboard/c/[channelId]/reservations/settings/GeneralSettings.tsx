@@ -19,6 +19,7 @@ export function GeneralSettings({
     clinicName: string;
     clinicAddress: string;
     clinicPhone: string;
+    clinicPhotoUrl: string;
     themeColor: string;
     liffId: string;
     sendConfirmMessage: boolean;
@@ -33,6 +34,35 @@ export function GeneralSettings({
 
   function update<K extends keyof typeof v>(key: K, value: (typeof v)[K]) {
     setV((prev) => ({ ...prev, [key]: value }));
+  }
+
+  // 画像を最大800pxのJPEGに圧縮して data URL 化
+  async function onPhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    const img = new Image();
+    img.onload = () => {
+      const maxDim = 800;
+      let { width, height } = img;
+      if (width > maxDim || height > maxDim) {
+        if (width >= height) { height = Math.round((height * maxDim) / width); width = maxDim; }
+        else { width = Math.round((width * maxDim) / height); height = maxDim; }
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL("image/jpeg", 0.82);
+      update("clinicPhotoUrl", compressed);
+    };
+    img.src = dataUrl;
   }
 
   function save() {
@@ -96,6 +126,26 @@ export function GeneralSettings({
             onChange={(e) => update("clinicAddress", e.target.value)}
             className="mt-1 w-full border rounded px-3 py-2 text-sm"
           />
+        </div>
+        <div className="col-span-2">
+          <label className="block text-sm font-medium">店舗写真</label>
+          <div className="mt-1 flex items-center gap-3">
+            {v.clinicPhotoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={v.clinicPhotoUrl} alt="店舗" className="w-24 h-24 object-cover rounded border" />
+            ) : (
+              <div className="w-24 h-24 rounded border bg-gray-100 flex items-center justify-center text-xs text-gray-400">未設定</div>
+            )}
+            <div className="flex flex-col gap-1">
+              <input type="file" accept="image/*" onChange={onPhotoChange} className="text-sm" />
+              {v.clinicPhotoUrl && (
+                <button type="button" onClick={() => update("clinicPhotoUrl", "")} className="text-xs text-red-600 self-start">
+                  写真を削除
+                </button>
+              )}
+              <span className="text-xs text-gray-500">確認画面に表示されます（自動で圧縮）</span>
+            </div>
+          </div>
         </div>
       </div>
 

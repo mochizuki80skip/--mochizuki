@@ -58,7 +58,9 @@ export function ClinicCalendarApp({
   liffId,
   themeColor,
   clinicName,
+  clinicAddress,
   clinicPhone,
+  clinicPhotoUrl,
   bookingHorizonDays,
   newDurationMin,
   returningDurationMin,
@@ -71,6 +73,7 @@ export function ClinicCalendarApp({
   clinicName: string;
   clinicAddress: string;
   clinicPhone: string;
+  clinicPhotoUrl: string;
   bookingHorizonDays: number;
   newDurationMin: number;
   returningDurationMin: number;
@@ -78,9 +81,13 @@ export function ClinicCalendarApp({
   lineBasicId: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (rootRef.current) rootRef.current.style.setProperty("--turquoise", themeColor);
   }, [themeColor]);
+  function scrollToCalendar() {
+    calendarRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   const [profile, setProfile] = useState<LiffProfile | null>(null);
   const [liffReady, setLiffReady] = useState(false);
@@ -195,7 +202,23 @@ export function ClinicCalendarApp({
     setSubmitErr(null);
     const text = buildMessage();
     try {
-      // 1. 先に問い合わせ一覧 + DB へ記録（送信し忘れても運営に希望が残る）
+      const inClient = typeof window !== "undefined" && window.liff?.isInClient?.();
+
+      // 1. LINE トークへ自動送信（LIFF 内）。ブラウザはコピーにフォールバック。
+      if (inClient && window.liff?.sendMessages) {
+        try {
+          await window.liff.sendMessages([{ type: "text", text }]);
+        } catch (e) {
+          console.warn("[liff] sendMessages failed, fallback to copy", e);
+          await navigator.clipboard.writeText(text).catch(() => {});
+          setCopied(true);
+        }
+      } else {
+        await navigator.clipboard.writeText(text).catch(() => {});
+        setCopied(true);
+      }
+
+      // 2. 問い合わせ一覧 + DB 記録 + 確認中メッセージ自動送信
       const res = await fetch(`/api/public/${channelId}/reservations`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -211,19 +234,8 @@ export function ClinicCalendarApp({
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error ?? "送信に失敗しました");
 
-      // 2. LINE トーク入力欄に本文を入れた状態で開く（oaMessage）。お客様が送信ボタンを押す。
-      if (lineBasicId) {
-        const url = `https://line.me/R/oaMessage/${encodeURIComponent(lineBasicId)}/?${encodeURIComponent(text)}`;
-        setDone(true);
-        // わずかに遷移を遅らせて done 画面を見せてから LINE へ
-        setTimeout(() => { window.location.href = url; }, 400);
-        return;
-      }
-
-      // 基本ID が無い場合はクリップボードにコピー（フォールバック）
-      await navigator.clipboard.writeText(text).catch(() => {});
-      setCopied(true);
       setDone(true);
+      if (inClient && !copied) setTimeout(() => window.liff?.closeWindow?.(), 1800);
     } catch (e) {
       setSubmitErr(e instanceof Error ? e.message : "送信に失敗しました");
     } finally {
@@ -250,11 +262,11 @@ export function ClinicCalendarApp({
         <header className="liff-top"><h1>{clinicName}</h1><p className="sub">RESERVATION</p></header>
         <div className="done">
           <div className="done-icon">✓</div>
-          <h2>{copied ? "予約内容をコピーしました" : "LINE を開きます…"}</h2>
+          <h2>{copied ? "予約内容をコピーしました" : "予約希望を送信しました"}</h2>
           <p>
             {copied
               ? "LINE のトーク画面に貼り付けて、そのまま送信してください。"
-              : "トーク画面に予約内容が入力されます。内容を確認して「送信」ボタンを押してください。"}
+              : "トークに予約希望を送信しました。確認のうえ、改めてご連絡いたします。"}
           </p>
           <div className="summary">
             <div><b>{visitType === "new" ? "新規" : "2回目以降"}（{duration}分）</b></div>
@@ -303,7 +315,7 @@ export function ClinicCalendarApp({
         </section>
 
         {/* Step 2 */}
-        <section className="step" data-state={step2State}>
+        <section className="step" data-state={step2State} ref={calendarRef}>
           <div className="step-head">
             <span className="step-num">2</span>
             <h2>希望日時を選ぶ</h2>
@@ -387,18 +399,58 @@ export function ClinicCalendarApp({
           </div>
         </section>
 
-        {/* Step 3 */}
+        {/* Step 3: 予約内容の確認 */}
         <section className="step" data-state={step3State}>
           <div className="step-head">
             <span className="step-num">3</span>
-            <h2>お客様情報</h2>
+            <h2>予約内容の確認</h2>
           </div>
           <div className="step-body">
             <div className="locked-msg">先に希望日時を選んでください</div>
 
+            {/* 店舗カード */}
+            <div className="store-card">
+              {clinicPhotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={clinicPhotoUrl} alt="" className="store-photo" />
+              ) : (
+                <div className="store-photo store-photo-empty" />
+              )}
+              <div className="store-meta">
+                <div className="store-name">{clinicName}</div>
+                {clinicAddress && <div className="store-addr">{clinicAddress}</div>}
+              </div>
+            </div>
+
+            {/* 概要 */}
+            <div className="confirm-box">
+              <div className="confirm-row">
+                <span className="confirm-label">来院</span>
+                <span className="confirm-value">{visitType === "new" ? "初回" : "2回目以降"}</span>
+              </div>
+              <div className="confirm-row">
+                <span className="confirm-label">メニュー</span>
+                <span className="confirm-value">{visitType === "new" ? "新規" : "2回目以降"}（{duration}分）</span>
+              </div>
+              <div className="confirm-row">
+                <span className="confirm-label">日時</span>
+                <span className="confirm-value">
+                  {prefs.length === 0 ? (
+                    <span className="confirm-empty">未選択</span>
+                  ) : (
+                    prefs.map((p, i) => (
+                      <div key={i}>第{i + 1}希望: {formatDateJp(p.date)} {p.time}</div>
+                    ))
+                  )}
+                  <button className="confirm-edit" onClick={scrollToCalendar}>日時を変更</button>
+                </span>
+              </div>
+            </div>
+
+            {/* お客様情報 */}
             <div className="form-row">
-              <label>お名前 *</label>
-              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="山田 太郎" />
+              <label>お名前 {phoneRequired && "*"}<span className="form-note">（初診の方は必須）</span></label>
+              <input type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder="例: 山田 太郎" />
             </div>
             {phoneRequired ? (
               <>
@@ -432,7 +484,7 @@ export function ClinicCalendarApp({
             {prefs.length < 2 ? "第2希望まで選んでください" : `${prefs.length}件の希望日時`}
           </div>
           <button className="cta-btn" disabled={!canSubmit || submitting} onClick={submit}>
-            {submitting ? "送信中..." : "LINEで予約を送る"}
+            {submitting ? "送信中..." : "公式LINEで予約する"}
           </button>
         </div>
       )}

@@ -74,6 +74,7 @@ export default async function ReservationSettingsPage({
           clinicName: settings.clinicName ?? "",
           clinicAddress: settings.clinicAddress ?? "",
           clinicPhone: settings.clinicPhone ?? "",
+          clinicPhotoUrl: settings.clinicPhotoUrl ?? "",
           themeColor: settings.themeColor,
           liffId: settings.liffId ?? "",
           sendConfirmMessage: settings.sendConfirmMessage,

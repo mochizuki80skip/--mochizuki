@@ -160,6 +160,38 @@
   font-size: 12px; color: var(--ink-soft); padding: 4px 0 8px;
 }
 
+/* 店舗カード（確認画面） */
+.store-card {
+  display: flex; gap: 14px; align-items: flex-start;
+  padding-bottom: 14px; margin-bottom: 14px;
+  border-bottom: 1px dashed var(--line-strong);
+}
+.store-photo {
+  width: 88px; height: 88px; border-radius: 10px;
+  object-fit: cover; flex-shrink: 0; background: #eee;
+}
+.store-photo-empty { background: var(--turquoise-bg); }
+.store-meta { flex: 1; padding-top: 2px; }
+.store-name { font-size: 17px; font-weight: 700; line-height: 1.4; }
+.store-addr { font-size: 13px; color: var(--ink-soft); margin-top: 4px; }
+
+/* 確認ボックス */
+.confirm-box {
+  background: var(--turquoise-bg); border-radius: 10px;
+  padding: 14px; margin-bottom: 16px;
+}
+.confirm-row { display: flex; gap: 12px; padding: 6px 0; align-items: flex-start; }
+.confirm-row + .confirm-row { border-top: 1px solid rgba(0,0,0,0.04); }
+.confirm-label { width: 64px; flex-shrink: 0; font-size: 13px; color: var(--ink-soft); }
+.confirm-value { flex: 1; font-size: 15px; font-weight: 600; }
+.confirm-empty { color: var(--ink-faint); font-weight: 400; }
+.confirm-edit {
+  margin-top: 6px; border: 1px solid var(--turquoise);
+  background: #fff; color: var(--turquoise-deep);
+  padding: 4px 12px; border-radius: 999px; font-size: 12px; cursor: pointer;
+}
+.form-note { font-size: 11px; color: var(--ink-faint); font-weight: 400; margin-left: 4px; }
+
 /* Form */
 .form-row { margin-bottom: 14px; }
 .form-row label {
