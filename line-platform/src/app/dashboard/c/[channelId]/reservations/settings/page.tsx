@@ -94,32 +94,31 @@ export default async function ReservationSettingsPage({
         }}
       />
 
-      {/* DB モード専用（シート連動モードでは非表示） */}
-      {!settings.sheetLinkedMode && (
-        <>
-          <ServicesSettings
-            channelId={channelId}
-            initial={services.map((s) => ({
-              id: s.id,
-              name: s.name,
-              durationMinutes: s.durationMinutes,
-              price: s.price,
-              sortOrder: s.sortOrder,
-              isActive: s.isActive,
-            }))}
-            slotMinutes={settings.slotMinutes}
-          />
+      {/* 営業時間は両モードで必要（空き計算に使用） */}
+      <HoursSettings
+        channelId={channelId}
+        initial={hours.map((h) => ({
+          dayOfWeek: h.dayOfWeek,
+          isClosed: h.isClosed,
+          openTime: h.openTime ?? "",
+          closeTime: h.closeTime ?? "",
+        }))}
+      />
 
-          <HoursSettings
-            channelId={channelId}
-            initial={hours.map((h) => ({
-              dayOfWeek: h.dayOfWeek,
-              isClosed: h.isClosed,
-              openTime: h.openTime ?? "",
-              closeTime: h.closeTime ?? "",
-            }))}
-          />
-        </>
+      {/* メニューは DB モード専用（シート連動モードでは非表示） */}
+      {!settings.sheetLinkedMode && (
+        <ServicesSettings
+          channelId={channelId}
+          initial={services.map((s) => ({
+            id: s.id,
+            name: s.name,
+            durationMinutes: s.durationMinutes,
+            price: s.price,
+            sortOrder: s.sortOrder,
+            isActive: s.isActive,
+          }))}
+          slotMinutes={settings.slotMinutes}
+        />
       )}
 
       <ReferralSettings

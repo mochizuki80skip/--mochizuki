@@ -1,66 +1,9 @@
-// 確定処理：問い合わせ → 確定予約を作成 + スプレッドシート日付タブへ書き出し（保険）
+// 確定処理：問い合わせ → 確定予約を作成 + スプレッドシート当日タブを再生成（保険）
 import { prisma } from "@/lib/prisma";
-import { findDayTab } from "@/lib/clinicSheet";
-import { readRange, writeRange } from "@/lib/sheets";
-
-const DAILY_NAME_ROW = 6; // 当日タブ：施術者名の行（時間行はこの下から）
+import { regenerateDailyTab } from "@/lib/dailyTab";
 
 function jstDateTime(dateStr: string, time: string): Date {
   return new Date(`${dateStr}T${time.length === 4 ? "0" + time : time}:00+09:00`);
-}
-function bedColumn(bedNumber: number): number {
-  // 1-based 列番号。ベッド1=B(2), 2=E(5), 3=H(8)...（3列ごと）
-  return 2 + (bedNumber - 1) * 3;
-}
-function columnLetter(col: number): string {
-  let s = "";
-  while (col > 0) {
-    const r = (col - 1) % 26;
-    s = String.fromCharCode(65 + r) + s;
-    col = Math.floor((col - 1) / 26);
-  }
-  return s;
-}
-function normTime(s: string): string {
-  const m = String(s).trim().match(/^(\d{1,2}):(\d{2})/);
-  return m ? `${parseInt(m[1], 10)}:${m[2]}` : String(s).trim();
-}
-
-// 当日タブの時間行（1-based）を返す
-async function findTimeRow(spreadsheetId: string, tabName: string, time: string): Promise<number> {
-  const vals = await readRange(spreadsheetId, `${tabName}!A1:A200`);
-  const target = normTime(time);
-  for (let i = DAILY_NAME_ROW; i < vals.length; i++) {
-    if (normTime(vals[i]?.[0] ?? "") === target) return i + 1;
-  }
-  return -1;
-}
-
-// スプレッドシート日付タブへ予約を書き出す（best effort）
-async function writeToDailyTab(
-  channelId: string,
-  date: string,
-  time: string,
-  bedNumber: number,
-  name: string,
-  phone: string,
-  kikkake: string | null,
-  isNew: boolean,
-): Promise<void> {
-  const settings = await prisma.reservationSettings.findUnique({ where: { lineChannelId: channelId } });
-  if (!settings?.spreadsheetId) return;
-  const tab = await findDayTab(settings.spreadsheetId, date);
-  if (!tab) return; // 当日タブが無ければスキップ
-  const row = await findTimeRow(settings.spreadsheetId, tab, time);
-  if (row < 0) return;
-  const col = bedColumn(bedNumber);
-  const colL = columnLetter(col);
-  const colKL = columnLetter(col + 1);
-  // 名前・電話（名前の下）
-  await writeRange(settings.spreadsheetId, `${tab}!${colL}${row}:${colL}${row + 1}`, [[name], [phone]]);
-  if (isNew && kikkake) {
-    await writeRange(settings.spreadsheetId, `${tab}!${colKL}${row}`, [[kikkake]]);
-  }
 }
 
 export async function confirmReservation(params: {
@@ -137,12 +80,9 @@ export async function confirmReservation(params: {
 
   if (result.conflict) return { ok: false, error: "そのベッド・時間は既に予約があります" };
 
-  // スプレッドシートへ書き出し（保険・best effort）
+  // スプレッドシート当日タブを再生成（保険・best effort）
   try {
-    await writeToDailyTab(
-      channelId, date, time, bedNumber,
-      inquiry.customerName, inquiry.customerPhone, inquiry.referralSource, isNew,
-    );
+    await regenerateDailyTab(channelId, date);
   } catch (e) {
     console.error("[confirm] sheet write failed:", e);
   }
