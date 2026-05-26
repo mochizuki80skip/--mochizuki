@@ -2,7 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser, canAccessChannel } from "@/lib/permissions";
-import { InquiryStatusButtons } from "./InquiryStatusButtons";
+import { InquiryActions } from "./InquiryActions";
+import { ReservationActions } from "./ReservationActions";
 
 export const dynamic = "force-dynamic";
 
@@ -61,18 +62,30 @@ export default async function ReservationsPage({
       take: 200,
     });
 
+    const now = new Date();
+    const upcoming = await prisma.reservation.findMany({
+      where: { lineChannelId: channelId, status: "confirmed", endAt: { gte: now } },
+      orderBy: { startAt: "asc" },
+      take: 100,
+    });
+
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-xl font-semibold">予約リクエスト（問い合わせ一覧）</h1>
-          <Link href={`/dashboard/c/${channelId}/reservations/settings`} className="border px-3 py-1.5 rounded text-sm">
-            予約設定
-          </Link>
+          <h1 className="text-xl font-semibold">予約管理</h1>
+          <div className="flex gap-2">
+            <Link href={`/dashboard/c/${channelId}/reservations/roster`} className="border px-3 py-1.5 rounded text-sm">
+              ベッド担当
+            </Link>
+            <Link href={`/dashboard/c/${channelId}/reservations/settings`} className="border px-3 py-1.5 rounded text-sm">
+              予約設定
+            </Link>
+          </div>
         </div>
 
         <div className="bg-blue-50 border border-blue-200 text-blue-800 text-xs p-3 rounded">
-          シート連動モードです。お客様からの予約リクエスト一覧です。内容を確認して、スプレッドシートの当日タブに記入してください。
-          確定したら「対応済」にすると一覧から消えます（スプレッドシート「問い合わせ一覧」にも記録されています）。
+          お客様からの予約リクエスト一覧です。「確定する」で日時・ベッドを指定すると確定予約になり、スプレッドシートの当日タブにも書き出します。
+          確定後は下の「確定済みの予約」から公式LINEで案内を送信できます。
         </div>
 
         <div className="flex gap-2 text-sm">
@@ -128,13 +141,68 @@ export default async function ReservationsPage({
                   <td className="px-4 py-2 text-gray-500">{q.referralSource ?? "-"}</td>
                   <td className="px-4 py-2">{INQ_STATUS[q.status] ?? q.status}</td>
                   <td className="px-4 py-2 text-right">
-                    <InquiryStatusButtons channelId={channelId} inquiryId={q.id} status={q.status} />
+                    <InquiryActions
+                      channelId={channelId}
+                      inquiryId={q.id}
+                      status={q.status}
+                      visitType={q.visitType}
+                      prefs={prefs}
+                    />
                   </td>
                 </tr>
                 );
               })}
               {inquiries.length === 0 && (
                 <tr><td colSpan={8} className="px-4 py-6 text-sm text-gray-500 text-center">該当するリクエストはありません。</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <h2 className="text-lg font-semibold pt-2">確定済みの予約（今後）</h2>
+        <div className="bg-white border rounded">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-left">
+              <tr>
+                <th className="px-4 py-2 font-medium">日時</th>
+                <th className="px-4 py-2 font-medium">区分</th>
+                <th className="px-4 py-2 font-medium">ベッド</th>
+                <th className="px-4 py-2 font-medium">お名前</th>
+                <th className="px-4 py-2 font-medium">電話</th>
+                <th className="px-4 py-2 font-medium">LINE案内</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {upcoming.map((r) => (
+                <tr key={r.id} className="border-t">
+                  <td className="px-4 py-2">
+                    {new Date(r.startAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", weekday: "short", hour: "2-digit", minute: "2-digit" })}
+                  </td>
+                  <td className="px-4 py-2">{VISIT[r.visitType ?? ""] ?? r.serviceName}</td>
+                  <td className="px-4 py-2">
+                    {r.bedNumber != null ? `#${r.bedNumber}` : "-"}
+                    {r.therapistName ? <span className="text-xs text-gray-500 ml-1">{r.therapistName}</span> : null}
+                  </td>
+                  <td className="px-4 py-2">{r.customerName}</td>
+                  <td className="px-4 py-2">{r.customerPhone || "-"}</td>
+                  <td className="px-4 py-2 text-xs text-gray-500">
+                    {r.confirmSentAt
+                      ? `送信済 ${new Date(r.confirmSentAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}`
+                      : "未送信"}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    <ReservationActions
+                      channelId={channelId}
+                      reservationId={r.id}
+                      hasLineUser={!!r.lineUserId}
+                      alreadySent={!!r.confirmSentAt}
+                    />
+                  </td>
+                </tr>
+              ))}
+              {upcoming.length === 0 && (
+                <tr><td colSpan={7} className="px-4 py-6 text-sm text-gray-500 text-center">確定済みの予約はありません。</td></tr>
               )}
             </tbody>
           </table>

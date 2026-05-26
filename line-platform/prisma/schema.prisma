@@ -49,6 +49,7 @@ model LineChannel {
   referralSources     ReferralSource[]
   reservations        Reservation[]
   inquiries           Inquiry[]
+  dailyBeds           DailyBed[]
   richMenu            RichMenu?
 
   @@index([isActive])
@@ -189,6 +190,11 @@ model Reservation {
   customerName    String
   customerPhone   String
   referralSource  String?
+  // 担当（管理画面で確定時に指定）
+  bedNumber       Int?
+  therapistName   String?
+  visitType       String?   // new / returning
+  inquiryId       String?   // 元の問い合わせ
   // LINE 連携（LIFF 経由のとき設定）
   lineUserId      String?
   friendId        String?
@@ -199,6 +205,7 @@ model Reservation {
   notes           String?
   // Sheet 連携
   sheetRowNumber  Int?
+  confirmSentAt   DateTime? // 確定案内LINE送信日時
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
@@ -212,6 +219,23 @@ model Reservation {
 }
 
 // === 予約機能 ここまで ===
+
+// 日次のベッド担当（日替わり対応）
+model DailyBed {
+  id            String   @id @default(cuid())
+  lineChannelId String
+  date          String   // YYYY-MM-DD
+  bedNumber     Int      // 1〜
+  therapistName String
+  acceptsNew    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+
+  @@unique([lineChannelId, date, bedNumber])
+  @@index([lineChannelId, date])
+}
 
 // シート連動モードの予約リクエスト（DB 控え）
 model Inquiry {
