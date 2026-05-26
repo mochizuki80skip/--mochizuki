@@ -65,7 +65,6 @@ export function ClinicCalendarApp({
   newDurationMin,
   returningDurationMin,
   lowStockThreshold,
-  lineBasicId,
 }: {
   channelId: string;
   liffId: string;
@@ -78,7 +77,6 @@ export function ClinicCalendarApp({
   newDurationMin: number;
   returningDurationMin: number;
   lowStockThreshold: number;
-  lineBasicId: string;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
   const calendarRef = useRef<HTMLElement>(null);
@@ -172,7 +170,6 @@ export function ClinicCalendarApp({
   const [submitting, setSubmitting] = useState(false);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [done, setDone] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const phoneRequired = visitType === "new";
   const duration = visitType === "new" ? newDurationMin : returningDurationMin;
@@ -181,44 +178,12 @@ export function ClinicCalendarApp({
   const canSubmit =
     !!visitType && prefs.length >= 2 && name.trim() && (!phoneRequired || phone.trim());
 
-  function buildMessage(): string {
-    const visitLabel = visitType === "new" ? "新規" : "2回目以降";
-    const prefLines = prefs.map((p, i) => `第${i + 1}希望: ${formatDateJp(p.date)} ${p.time}`).join("\n");
-    const lines = [
-      "【予約希望】",
-      `区分: ${visitLabel}（${duration}分）`,
-      prefLines,
-      `お名前: ${name}`,
-    ];
-    if (phone) lines.push(`電話: ${phone}`);
-    if (visitType === "new" && referralName) lines.push(`きっかけ: ${referralName}`);
-    lines.push("————————————", "このまま送信してください。確認後にご連絡いたします。");
-    return lines.join("\n");
-  }
-
   async function submit() {
     if (!visitType || !canSubmit) return;
     setSubmitting(true);
     setSubmitErr(null);
-    const text = buildMessage();
     try {
-      const inClient = typeof window !== "undefined" && window.liff?.isInClient?.();
-
-      // 1. LINE トークへ自動送信（LIFF 内）。ブラウザはコピーにフォールバック。
-      if (inClient && window.liff?.sendMessages) {
-        try {
-          await window.liff.sendMessages([{ type: "text", text }]);
-        } catch (e) {
-          console.warn("[liff] sendMessages failed, fallback to copy", e);
-          await navigator.clipboard.writeText(text).catch(() => {});
-          setCopied(true);
-        }
-      } else {
-        await navigator.clipboard.writeText(text).catch(() => {});
-        setCopied(true);
-      }
-
-      // 2. 問い合わせ一覧 + DB 記録 + 確認中メッセージ自動送信
+      // 問い合わせ一覧 + DB 記録 + 確認中メッセージ（希望内容入り）を自動送信
       const res = await fetch(`/api/public/${channelId}/reservations`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -235,7 +200,8 @@ export function ClinicCalendarApp({
       if (!res.ok) throw new Error(j.error ?? "送信に失敗しました");
 
       setDone(true);
-      if (inClient && !copied) setTimeout(() => window.liff?.closeWindow?.(), 1800);
+      const inClient = typeof window !== "undefined" && window.liff?.isInClient?.();
+      if (inClient) setTimeout(() => window.liff?.closeWindow?.(), 1800);
     } catch (e) {
       setSubmitErr(e instanceof Error ? e.message : "送信に失敗しました");
     } finally {
@@ -262,11 +228,9 @@ export function ClinicCalendarApp({
         <header className="liff-top"><h1>{clinicName}</h1><p className="sub">RESERVATION</p></header>
         <div className="done">
           <div className="done-icon">✓</div>
-          <h2>{copied ? "予約内容をコピーしました" : "予約希望を送信しました"}</h2>
+          <h2>予約希望を送信しました</h2>
           <p>
-            {copied
-              ? "LINE のトーク画面に貼り付けて、そのまま送信してください。"
-              : "トークに予約希望を送信しました。確認のうえ、改めてご連絡いたします。"}
+            ご希望を受け付けました。確認のうえ、公式LINEのトークで改めてご連絡いたします。
           </p>
           <div className="summary">
             <div><b>{visitType === "new" ? "新規" : "2回目以降"}（{duration}分）</b></div>

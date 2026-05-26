@@ -25,6 +25,7 @@ var C = {
   userId: 10, ステータス: 11,
   確定日: 12, 確定時間: 13, ベッド番号: 14,
   _転記先: 15, // 自動管理（変更検知用・非表示）
+  確定案内送信: 16, // チェックを入れると確定案内を送信（ボタン代わり）
 };
 var DAILY_NAME_ROW = 6; // 当日タブ：施術者名の行
 var DAILY_NEW_ROW  = 5; // 当日タブ：新規対応(TRUE/FALSE)の行
@@ -56,17 +57,22 @@ function sendConfirmation() {
   if (sh.getName() !== INQUIRY_SHEET) { ss.toast('問い合わせ一覧シートで実行してください', '予約連携', 6); return; }
   var row = sh.getActiveRange().getRow();
   if (row < 2) { ss.toast('お客様の行を選択してください', '予約連携', 6); return; }
+  sendConfirmRow_(sh, row);
+}
 
+// 1行分の確定案内を送信（メニュー/チェックボックス共通）
+function sendConfirmRow_(sh, row) {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
   var secret = getPushSecret_();
-  if (!secret) { SpreadsheetApp.getUi().alert('先にメニュー「送信用の合言葉を設定」を実行してください。'); return; }
+  if (!secret) { ss.toast('先にメニュー「送信用の合言葉を設定」を実行してください', '予約連携', 8); return false; }
 
   var userId  = String(sh.getRange(row, C.userId).getValue() || '').trim();
   var name    = String(sh.getRange(row, C.名前).getValue() || '').trim();
   var kubun   = String(sh.getRange(row, C.区分).getValue() || '');
   var dateStr = sh.getRange(row, C.確定日).getDisplayValue();
   var timeStr = sh.getRange(row, C.確定時間).getDisplayValue();
-  if (!userId) { ss.toast('この行に LINE userId がありません（LINE経由の予約のみ送信可）', '予約連携', 7); return; }
-  if (!dateStr || !timeStr) { ss.toast('確定日・確定時間を先に入力してください', '予約連携', 7); return; }
+  if (!userId) { ss.toast('この行に LINE userId がありません（LINE経由の予約のみ送信可）', '予約連携', 7); return false; }
+  if (!dateStr || !timeStr) { ss.toast('確定日・確定時間を先に入力してください', '予約連携', 7); return false; }
 
   var isNew = kubun.indexOf('新規') >= 0;
   var dur = isNew ? NEW_DURATION : RETURN_DURATION;
@@ -86,14 +92,46 @@ function sendConfirmation() {
       muteHttpExceptions: true,
     });
     var code = resp.getResponseCode();
-    if (code === 200) {
-      ss.toast(name + ' さんに確認メッセージを送信しました', '予約連携', 6);
-    } else {
-      ss.toast('送信失敗 (' + code + '): ' + resp.getContentText().slice(0, 120), '予約連携', 9);
-    }
+    if (code === 200) { ss.toast(name + ' さんに確認メッセージを送信しました', '予約連携', 6); return true; }
+    ss.toast('送信失敗 (' + code + '): ' + resp.getContentText().slice(0, 120), '予約連携', 9); return false;
   } catch (err) {
-    ss.toast('送信エラー: ' + err.message, '予約連携', 9);
+    ss.toast('送信エラー: ' + err.message, '予約連携', 9); return false;
   }
+}
+
+// チェックボックス（確定案内送信列）で送信する：インストール型トリガーから呼ばれる
+function onEditSend(e) {
+  try {
+    var sh = e.range.getSheet();
+    if (sh.getName() !== INQUIRY_SHEET) return;
+    if (e.range.getColumn() !== C.確定案内送信) return;
+    var row = e.range.getRow();
+    if (row < 2) return;
+    if (e.range.getValue() !== true) return; // チェックが入ったときだけ
+    var ok = sendConfirmRow_(sh, row);
+    e.range.setValue(false); // 送信後はチェックを戻す（ボタンのように）
+    if (ok) sh.getRange(row, C.ステータス).setValue('案内済');
+  } catch (err) {
+    try { SpreadsheetApp.getActiveSpreadsheet().toast('送信エラー: ' + err.message, '予約連携', 9); } catch (_) {}
+  }
+}
+
+// メニュー「送信ボタンを有効化（初回のみ）」：インストール型トリガーを作成
+function installSendTrigger() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'onEditSend') ScriptApp.deleteTrigger(triggers[i]);
+  }
+  ScriptApp.newTrigger('onEditSend').forSpreadsheet(ss).onEdit().create();
+  // チェックボックス列を用意
+  var sh = ss.getSheetByName(INQUIRY_SHEET);
+  if (sh) {
+    sh.getRange(1, C.確定案内送信).setValue('確定案内送信');
+    var lastRow = Math.max(sh.getLastRow(), 2);
+    sh.getRange(2, C.確定案内送信, lastRow - 1 + 200, 1).insertCheckboxes();
+  }
+  SpreadsheetApp.getUi().alert('送信ボタン（チェックボックス）を有効化しました。\n「確定案内送信」列のチェックを入れると、その行のお客様に確定案内を送ります。');
 }
 
 function bedNameCol(n) { return 2 + (n - 1) * 3; } // B,E,H,...
@@ -106,6 +144,7 @@ function onOpen() {
     .addItem('確定日リストを更新', 'refreshDateDropdown')
     .addSeparator()
     .addItem('選択行に確認メッセージを送信', 'sendConfirmation')
+    .addItem('送信ボタン(チェックボックス)を有効化', 'installSendTrigger')
     .addItem('送信用の合言葉を設定', 'setPushSecret')
     .addToUi();
   try { refreshDateDropdown(); } catch (e) {}
