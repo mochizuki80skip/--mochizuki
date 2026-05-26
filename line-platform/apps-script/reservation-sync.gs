@@ -84,7 +84,7 @@ function onEdit(e) {
 
     // 確定日 を選択 → 確定時間プルダウンをセット（下流をクリア）
     if (col === C.確定日) {
-      var times = listTimesForDate(dateVal);
+      var times = listTimesForDate(dateVal, kubun);
       var tCell = sh.getRange(row, C.確定時間);
       tCell.clearContent();
       if (times.length) {
@@ -178,15 +178,21 @@ function normalizeTime(s) {
   return m ? (parseInt(m[1], 10) + ':' + m[2]) : s;
 }
 
-function listTimesForDate(dateVal) {
+function listTimesForDate(dateVal, kubun) {
   var tab = findDailyTab(dateVal);
   if (!tab) return [];
+  var isNew = String(kubun || '').indexOf('新規') >= 0;
   var last = tab.getLastRow();
   var vals = tab.getRange(1, 1, last, 1).getDisplayValues();
   var times = [];
   for (var r = DAILY_NAME_ROW; r < vals.length; r++) {
     var t = normalizeTime(vals[r][0]);
-    if (/^\d{1,2}:\d{2}$/.test(t)) times.push(t);
+    if (!/^\d{1,2}:\d{2}$/.test(t)) continue;
+    if (isNew) {
+      var mm = parseInt(t.split(':')[1], 10);
+      if (mm % 30 !== 0) continue; // 新規は :00 / :30 のみ
+    }
+    times.push(t);
   }
   return times;
 }
