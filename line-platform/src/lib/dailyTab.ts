@@ -42,6 +42,10 @@ function jstHM(d: Date): string {
   const jst = new Date(d.getTime() + 9 * 3600_000);
   return `${jst.getUTCHours()}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
 }
+// 日付文字列の曜日（0=日）。UTC 基準で計算してタイムゾーンずれを防ぐ
+function dowOf(dateIso: string): number {
+  return new Date(`${dateIso}T00:00:00Z`).getUTCDay();
+}
 
 // 既存の "M/D" 始まりタブを探す。無ければ作成して名前を返す。
 async function findOrCreateDayTab(spreadsheetId: string, dateIso: string): Promise<string> {
@@ -62,8 +66,7 @@ async function findOrCreateDayTab(spreadsheetId: string, dateIso: string): Promi
       if (after === "" || !/\d/.test(after)) return tab;
     }
   }
-  const dow = new Date(`${dateIso}T00:00:00+09:00`).getUTCDay();
-  const name = `${m}/${d}(${DAYS_JP[dow]})`;
+  const name = `${m}/${d}(${DAYS_JP[dowOf(dateIso)]})`;
   await ensureSheetTabs(spreadsheetId, [name]);
   return name;
 }
@@ -103,7 +106,7 @@ export async function regenerateDailyTab(channelId: string, dateIso: string): Pr
   });
   if (beds.length === 0) return; // 担当未登録の日はシートに触れない
 
-  const dow = new Date(`${dateIso}T00:00:00+09:00`).getUTCDay();
+  const dow = dowOf(dateIso);
   const hours = await resolveHours(channelId, dateIso, dow);
   if (!hours) return; // 営業時間が未設定なら触れない（誤消去防止）
 
@@ -122,7 +125,7 @@ export async function regenerateDailyTab(channelId: string, dateIso: string): Pr
   const tab = await findOrCreateDayTab(spreadsheetId, dateIso);
 
   const maxBedCol = Math.max(...beds.map((b) => bedColumn(b.bedNumber)));
-  const lastCol = maxBedCol + 1; // きっかけ列ぶん +1
+  const lastCol = maxBedCol + 2; // きっかけ列(+1) と チェック列(+2)
   const lastColL = columnLetter(lastCol);
   const lastRow = FIRST_TIME_ROW + slotTimes.length * 2 - 1; // 最終枠の電話行まで
 
@@ -138,25 +141,28 @@ export async function regenerateDailyTab(channelId: string, dateIso: string): Pr
     if (r >= 0 && r < rowCount && c >= 0 && c < lastCol) grid[r][c] = val;
   };
 
-  // 見出しラベルとベッド担当
+  // 見出しラベルとベッド担当（施術者名｜きっかけ｜チェック）
   set(NEW_ROW, 1, "新規対応");
   set(NAME_ROW, 1, "施術者");
   for (const b of beds) {
     const col = bedColumn(b.bedNumber);
     set(NEW_ROW, col, b.acceptsNew ? "TRUE" : "FALSE");
     set(NAME_ROW, col, b.therapistName);
+    set(NAME_ROW, col + 1, "きっかけ");
+    set(NAME_ROW, col + 2, "チェック");
   }
 
-  // 時間ラベル / 休憩
+  // 時間ラベル / 休憩（A列は時間を表示。休憩は本文を「休憩」で塗りつぶし対象に）
   const rowOfMin = new Map<number, number>();
   slotTimes.forEach((s, i) => {
     const row = FIRST_TIME_ROW + i * 2;
     rowOfMin.set(s.m, row);
+    set(row, 1, s.t);
     if (isBreak(s.m)) {
-      set(row, 1, "休憩");
-      for (const b of beds) set(row, bedColumn(b.bedNumber), "休憩");
-    } else {
-      set(row, 1, s.t);
+      for (let c = 2; c <= lastCol; c++) {
+        set(row, c, "休憩");
+        set(row + 1, c, "休憩");
+      }
     }
   });
 
@@ -190,5 +196,13 @@ export async function regenerateDailyTab(channelId: string, dateIso: string): Pr
   const [, mo, da] = dateIso.split("-");
   await writeRange(spreadsheetId, `${tab}!A1`, [[`${Number(mo)}/${Number(da)}(${DAYS_JP[dow]})`]]);
   await writeRange(spreadsheetId, `${tab}!A${NEW_ROW}:${lastColL}${lastRow}`, grid);
-  await applyDailyTabFormatting(spreadsheetId, tab, NAME_ROW, FIRST_TIME_ROW, lastRow, lastCol);
+  await applyDailyTabFormatting(
+    spreadsheetId,
+    tab,
+    NAME_ROW,
+    FIRST_TIME_ROW,
+    lastRow,
+    lastCol,
+    beds.map((b) => bedColumn(b.bedNumber)),
+  );
 }

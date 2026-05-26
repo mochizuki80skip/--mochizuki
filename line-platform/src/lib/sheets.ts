@@ -314,7 +314,7 @@ export async function clearReservationBody(
   });
 }
 
-// 当日タブのグリッドに罫線・施術者名行の強調・固定・休憩行の塗りつぶし（条件付き書式）を適用
+// 当日タブのグリッドに罫線・施術者名行の強調・固定・休憩塗りつぶし・新規対応チェックボックスを適用
 export async function applyDailyTabFormatting(
   spreadsheetId: string,
   tabName: string,
@@ -322,6 +322,7 @@ export async function applyDailyTabFormatting(
   firstTimeRow1: number,
   lastRow1: number,
   lastCol1: number,
+  bedCols: number[] = [],
 ): Promise<void> {
   const sheets = getSheetsClient();
   const meta = await sheets.spreadsheets.get({
@@ -364,16 +365,16 @@ export async function applyDailyTabFormatting(
         fields: "userEnteredFormat(horizontalAlignment,textFormat)",
       },
     },
-    // グリッドに罫線
+    // グリッドに黒の細い罫線
     {
       updateBorders: {
         range: { sheetId, startRowIndex: nameRow1 - 1, endRowIndex: lastRow1, startColumnIndex: 0, endColumnIndex: lastCol1 },
-        innerHorizontal: { style: "SOLID", color: { red: 0.8, green: 0.8, blue: 0.8 } },
-        innerVertical: { style: "SOLID", color: { red: 0.8, green: 0.8, blue: 0.8 } },
-        top: { style: "SOLID" },
-        bottom: { style: "SOLID" },
-        left: { style: "SOLID" },
-        right: { style: "SOLID" },
+        innerHorizontal: { style: "SOLID", color: { red: 0, green: 0, blue: 0 } },
+        innerVertical: { style: "SOLID", color: { red: 0, green: 0, blue: 0 } },
+        top: { style: "SOLID", color: { red: 0, green: 0, blue: 0 } },
+        bottom: { style: "SOLID", color: { red: 0, green: 0, blue: 0 } },
+        left: { style: "SOLID", color: { red: 0, green: 0, blue: 0 } },
+        right: { style: "SOLID", color: { red: 0, green: 0, blue: 0 } },
       },
     },
     // 見出し行＋時間列を固定
@@ -385,24 +386,31 @@ export async function applyDailyTabFormatting(
     },
   ];
 
+  // 新規対応行（5行目）の各ベッド列をチェックボックスに
+  for (const bc of bedCols) {
+    requests.push({
+      setDataValidation: {
+        range: { sheetId, startRowIndex: nameRow1 - 2, endRowIndex: nameRow1 - 1, startColumnIndex: bc - 1, endColumnIndex: bc },
+        rule: { condition: { type: "BOOLEAN" }, showCustomUi: true },
+      },
+    });
+  }
+
   // 既存の条件付き書式を全削除（毎回1つだけ付け直す）
   for (let i = 0; i < cfCount; i++) {
     requests.push({ deleteConditionalFormatRule: { sheetId, index: 0 } });
   }
-  // A列が「休憩」の行を塗りつぶし
+  // 「休憩」のセルを塗りつぶし、文字色を背景と同じにして見えなくする
   requests.push({
     addConditionalFormatRule: {
       index: 0,
       rule: {
         ranges: [gridRange],
         booleanRule: {
-          condition: {
-            type: "CUSTOM_FORMULA",
-            values: [{ userEnteredValue: `=$A${firstTimeRow1}="休憩"` }],
-          },
+          condition: { type: "TEXT_EQ", values: [{ userEnteredValue: "休憩" }] },
           format: {
             backgroundColor: { red: 0.82, green: 0.82, blue: 0.82 },
-            textFormat: { foregroundColor: { red: 0.4, green: 0.4, blue: 0.4 } },
+            textFormat: { foregroundColor: { red: 0.82, green: 0.82, blue: 0.82 } },
           },
         },
       },
