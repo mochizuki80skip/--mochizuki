@@ -23,6 +23,7 @@ const Body = z.object({
   sheetTabInquiry: z.string().max(120).optional(),
   newPatientDurationMinutes: z.number().int().min(5).max(240).optional(),
   returningDurationMinutes: z.number().int().min(5).max(240).optional(),
+  lowStockThreshold: z.number().int().min(0).max(50).optional(),
   inquiryReplyMessage: z.string().max(1000).nullable().optional(),
 });
 

@@ -136,10 +136,24 @@
   cursor: pointer; color: var(--ink-faint);
 }
 .slot.avail { color: var(--turquoise-deep); }
+.slot.avail.low { color: #d98a00; }
 .slot.full { color: var(--ink-faint); }
 .slot.closed { color: var(--ink-faint); cursor: not-allowed; background: #f5f5f5; }
 .slot:active.avail { background: var(--turquoise-soft); }
-.slot.selected { background: var(--turquoise); color: #fff; }
+.slot.selected { background: var(--turquoise); color: #fff; font-size: 12px; font-weight: 700; }
+
+/* 複数希望 */
+.multi-hint { font-size: 12px; color: var(--ink-soft); margin: 4px 0 8px; }
+.pref-list { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.pref-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--turquoise-soft); color: var(--turquoise-deep);
+  border-radius: 999px; padding: 4px 10px; font-size: 12px; font-weight: 600;
+}
+.pref-chip button {
+  border: 0; background: transparent; color: var(--turquoise-deep);
+  cursor: pointer; font-size: 14px; line-height: 1; padding: 0;
+}
 
 .legend {
   display: flex; justify-content: center; gap: 20px;

@@ -18,8 +18,10 @@ const DbBody = z.object({
 
 const SheetBody = z.object({
   visitType: z.enum(["new", "returning"]),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time: z.string().regex(/^\d{1,2}:\d{2}$/),
+  preferences: z
+    .array(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), time: z.string().regex(/^\d{1,2}:\d{2}$/) }))
+    .min(1)
+    .max(3),
   customerName: z.string().min(1).max(120),
   customerPhone: z.string().max(50).optional().default(""),
   referralSource: z.string().max(120).nullable().optional(),
@@ -54,8 +56,7 @@ export async function POST(
     }
     const result = await submitInquiry({
       channelId,
-      date: b.date,
-      time: b.time,
+      preferences: b.preferences,
       visitType: b.visitType,
       customerName: b.customerName,
       customerPhone: b.customerPhone,

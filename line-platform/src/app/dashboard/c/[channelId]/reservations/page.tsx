@@ -106,12 +106,22 @@ export default async function ReservationsPage({
               </tr>
             </thead>
             <tbody>
-              {inquiries.map((q) => (
+              {inquiries.map((q) => {
+                const prefs = (q.preferences as { date: string; time: string }[] | null) ?? [
+                  { date: q.date, time: q.time },
+                ];
+                return (
                 <tr key={q.id} className="border-t">
                   <td className="px-4 py-2 text-gray-500 text-xs">
                     {new Date(q.createdAt).toLocaleString("ja-JP", { timeZone: "Asia/Tokyo", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}
                   </td>
-                  <td className="px-4 py-2">{q.date.slice(5).replace("-", "/")} {q.time}</td>
+                  <td className="px-4 py-2">
+                    {prefs.map((p, i) => (
+                      <div key={i} className={i === 0 ? "font-medium" : "text-xs text-gray-500"}>
+                        第{i + 1}: {p.date.slice(5).replace("-", "/")} {p.time}
+                      </div>
+                    ))}
+                  </td>
                   <td className="px-4 py-2">{VISIT[q.visitType] ?? q.visitType}</td>
                   <td className="px-4 py-2">{q.customerName}</td>
                   <td className="px-4 py-2">{q.customerPhone || "-"}</td>
@@ -121,7 +131,8 @@ export default async function ReservationsPage({
                     <InquiryStatusButtons channelId={channelId} inquiryId={q.id} status={q.status} />
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {inquiries.length === 0 && (
                 <tr><td colSpan={8} className="px-4 py-6 text-sm text-gray-500 text-center">該当するリクエストはありません。</td></tr>
               )}

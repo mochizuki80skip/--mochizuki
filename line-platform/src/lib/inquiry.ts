@@ -1,5 +1,5 @@
 // シート連動モードの予約リクエスト処理：
-// 「問い合わせ一覧」に追記 + LINE で「確認中」メッセージ送信。
+// 「問い合わせ一覧」に追記 + LINE で「確認中」メッセージ送信 + DB 控え。
 // 当日シートには書き込まない（スタッフが手動で確定）。
 
 import { prisma } from "@/lib/prisma";
@@ -8,7 +8,7 @@ import { pushTo } from "@/lib/line";
 import type { Message } from "@line/bot-sdk";
 
 const INQUIRY_HEADERS = [
-  "受付日時", "希望日", "希望時間", "区分", "メニュー",
+  "受付日時", "区分", "メニュー", "第1希望", "第2希望", "第3希望",
   "お名前", "電話番号", "きっかけ", "LINE userId", "ステータス",
 ];
 
@@ -18,15 +18,15 @@ function nowJst(): string {
 
 export async function ensureInquiryHeader(spreadsheetId: string, tab: string) {
   await ensureSheetTabs(spreadsheetId, [tab]);
-  // ヘッダーが無ければ書く（1行目を確認）
-  await writeRange(spreadsheetId, `${tab}!A1:J1`, [INQUIRY_HEADERS]);
+  await writeRange(spreadsheetId, `${tab}!A1:K1`, [INQUIRY_HEADERS]);
   await applyTabFormatting(spreadsheetId, tab, INQUIRY_HEADERS.length);
 }
 
+export type Preference = { date: string; time: string };
+
 export type InquiryInput = {
   channelId: string;
-  date: string; // YYYY-MM-DD
-  time: string; // H:MM
+  preferences: Preference[]; // 1〜3 件、[0]=第1希望
   visitType: "new" | "returning";
   customerName: string;
   customerPhone: string;
@@ -36,6 +36,17 @@ export type InquiryInput = {
 
 const VISIT_LABEL = { new: "新規", returning: "2回目以降" } as const;
 
+function formatDateJp(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const w = ["日", "月", "火", "水", "木", "金", "土"][dt.getUTCDay()];
+  return `${m}月${d}日(${w})`;
+}
+
+function prefLabel(p?: Preference): string {
+  return p ? `${formatDateJp(p.date)} ${p.time}` : "";
+}
+
 export async function submitInquiry(
   input: InquiryInput,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
@@ -44,20 +55,23 @@ export async function submitInquiry(
   });
   if (!settings) return { ok: false, error: "予約設定が未作成です" };
   if (!settings.spreadsheetId) return { ok: false, error: "スプレッドシート未設定" };
+  if (input.preferences.length === 0) return { ok: false, error: "希望日時がありません" };
 
   const duration =
     input.visitType === "new"
       ? settings.newPatientDurationMinutes
       : settings.returningDurationMinutes;
   const menuLabel = `${VISIT_LABEL[input.visitType]}（${duration}分）`;
+  const p = input.preferences;
 
-  // 0. DB 控えを作成（アプリ内でも一覧表示できるように）
+  // 0. DB 控え
   await prisma.inquiry
     .create({
       data: {
         lineChannelId: input.channelId,
-        date: input.date,
-        time: input.time,
+        date: p[0].date,
+        time: p[0].time,
+        preferences: p,
         visitType: input.visitType,
         customerName: input.customerName,
         customerPhone: input.customerPhone,
@@ -73,10 +87,11 @@ export async function submitInquiry(
     await ensureInquiryHeader(settings.spreadsheetId, settings.sheetTabInquiry);
     await appendRow(settings.spreadsheetId, settings.sheetTabInquiry, [
       nowJst(),
-      input.date,
-      input.time,
       VISIT_LABEL[input.visitType],
       menuLabel,
+      prefLabel(p[0]),
+      prefLabel(p[1]),
+      prefLabel(p[2]),
       input.customerName,
       input.customerPhone,
       input.referralSource ?? "",
@@ -87,38 +102,28 @@ export async function submitInquiry(
     return { ok: false, error: e instanceof Error ? e.message : "問い合わせ一覧への記録に失敗" };
   }
 
-  // 2. DeliveryLog 記録（任意・失敗無視）
   await prisma.deliveryLog
-    .create({
-      data: { lineChannelId: input.channelId, channel: "inquiry", status: "success" },
-    })
+    .create({ data: { lineChannelId: input.channelId, channel: "inquiry", status: "success" } })
     .catch(() => null);
 
-  // 3. LINE で「確認中」メッセージ送信（lineUserId があれば）
+  // 2. 「確認中」メッセージ送信
   if (input.lineUserId) {
-    const dateLabel = formatDateJp(input.date);
+    const prefLines = p.map((pref, i) => `第${i + 1}希望: ${prefLabel(pref)}`).join("\n");
     const template =
       settings.inquiryReplyMessage ??
-      "ご予約リクエストありがとうございます。\n内容を確認のうえ、改めてご連絡いたします。少々お待ちくださいませ。\n\n▼ご希望\n日時: {date} {time}\nメニュー: {menu}\nお名前: {name}";
+      "ご予約リクエストありがとうございます。\n内容を確認のうえ、改めてご連絡いたします。少々お待ちくださいませ。\n\n▼ご希望\n{prefs}\nメニュー: {menu}\nお名前: {name}";
     const text = template
-      .replace(/\{date\}/g, dateLabel)
-      .replace(/\{time\}/g, input.time)
+      .replace(/\{prefs\}/g, prefLines)
+      .replace(/\{date\}/g, prefLabel(p[0]))
+      .replace(/\{time\}/g, p[0].time)
       .replace(/\{menu\}/g, menuLabel)
       .replace(/\{name\}/g, input.customerName);
     try {
       await pushTo(input.channelId, input.lineUserId, [{ type: "text", text } as Message]);
     } catch (e) {
       console.error("[inquiry] LINE push failed:", e);
-      // メッセージ失敗でもリクエスト自体は成功扱い
     }
   }
 
   return { ok: true };
-}
-
-function formatDateJp(iso: string): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  const w = ["日", "月", "火", "水", "木", "金", "土"][dt.getUTCDay()];
-  return `${m}月${d}日(${w})`;
 }
