@@ -94,6 +94,17 @@ export async function computeDbAvailability(params: {
   });
   const holidaySet = new Set(holidays.map((h) => isoDate(h.date)));
 
+  // 期間内の休憩時間
+  const breaks = await prisma.dailyBreak.findMany({
+    where: { lineChannelId: channelId, date: { gte: params.fromDate, lte: params.toDate } },
+  });
+  const breaksByDate = new Map<string, { s: number; e: number }[]>();
+  for (const b of breaks) {
+    const arr = breaksByDate.get(b.date) ?? [];
+    arr.push({ s: tToM(b.startTime), e: tToM(b.endTime) });
+    breaksByDate.set(b.date, arr);
+  }
+
   const days: DbDay[] = [];
   for (let d = new Date(from); d <= to; d = new Date(d.getTime() + 86400_000)) {
     const dateStr = isoDate(d);
@@ -111,11 +122,15 @@ export async function computeDbAvailability(params: {
 
     const openM = tToM(hours.open);
     const closeM = tToM(hours.close);
+    const dayBreaks = breaksByDate.get(dateStr) ?? [];
     const slots: DbSlot[] = [];
 
     for (let m = openM; m + duration <= closeM; m += slotMin) {
       // 新規は :00 / :30 起点のみ
       if (visitType === "new" && m % 30 !== 0) continue;
+
+      // 休憩時間と重なる枠は除外
+      if (dayBreaks.some((br) => m < br.e && m + duration > br.s)) continue;
 
       const time = mToT(m);
       const slotStart = jstDateTime(dateStr, time);

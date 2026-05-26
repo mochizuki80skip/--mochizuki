@@ -6,6 +6,7 @@ import { requireChannel } from "@/lib/permissions";
 import { regenerateDailyTab } from "@/lib/dailyTab";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const TIME = /^\d{1,2}:\d{2}$/;
 
 const Body = z.object({
   date: z.string().regex(DATE),
@@ -16,6 +17,14 @@ const Body = z.object({
       acceptsNew: z.boolean(),
     }),
   ),
+  breaks: z
+    .array(
+      z.object({
+        startTime: z.string().regex(TIME),
+        endTime: z.string().regex(TIME),
+      }),
+    )
+    .optional(),
 });
 
 // GET ?date=YYYY-MM-DD … その日のベッド一覧
@@ -30,11 +39,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!date || !DATE.test(date)) {
     return NextResponse.json({ error: "missing date" }, { status: 400 });
   }
-  const beds = await prisma.dailyBed.findMany({
-    where: { lineChannelId: id, date },
-    orderBy: { bedNumber: "asc" },
-  });
-  return NextResponse.json({ date, beds });
+  const [beds, breaks] = await Promise.all([
+    prisma.dailyBed.findMany({
+      where: { lineChannelId: id, date },
+      orderBy: { bedNumber: "asc" },
+    }),
+    prisma.dailyBreak.findMany({
+      where: { lineChannelId: id, date },
+      orderBy: { startTime: "asc" },
+    }),
+  ]);
+  return NextResponse.json({ date, beds, breaks });
 }
 
 // PUT … その日のベッド一覧を置き換え（空名は削除扱い）
@@ -45,11 +60,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 403 });
   }
-  const { date, beds } = Body.parse(await req.json());
+  const { date, beds, breaks } = Body.parse(await req.json());
 
   // 名前のあるベッドのみ残す
   const keep = beds.filter((b) => b.therapistName.length > 0);
   const keepNumbers = keep.map((b) => b.bedNumber);
+  // 開始 < 終了 の休憩のみ残す
+  const keepBreaks = (breaks ?? []).filter((b) => b.startTime < b.endTime);
 
   await prisma.$transaction([
     // この日の、今回残さないベッドを削除
@@ -73,6 +90,20 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         update: { therapistName: b.therapistName, acceptsNew: b.acceptsNew },
       }),
     ),
+    // 休憩は全削除 → 再作成（置き換え）
+    prisma.dailyBreak.deleteMany({ where: { lineChannelId: id, date } }),
+    ...(keepBreaks.length > 0
+      ? [
+          prisma.dailyBreak.createMany({
+            data: keepBreaks.map((b) => ({
+              lineChannelId: id,
+              date,
+              startTime: b.startTime,
+              endTime: b.endTime,
+            })),
+          }),
+        ]
+      : []),
   ]);
 
   // スプレッドシート当日タブを再生成（best effort）

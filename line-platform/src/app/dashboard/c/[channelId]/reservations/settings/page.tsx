@@ -87,6 +87,7 @@ export default async function ReservationSettingsPage({
         initial={{
           sheetLinkedMode: settings.sheetLinkedMode,
           sheetTabInquiry: settings.sheetTabInquiry,
+          slotMinutes: settings.slotMinutes,
           newPatientDurationMinutes: settings.newPatientDurationMinutes,
           returningDurationMinutes: settings.returningDurationMinutes,
           lowStockThreshold: settings.lowStockThreshold,
