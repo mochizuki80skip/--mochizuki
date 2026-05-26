@@ -25,6 +25,9 @@ const Body = z.object({
       }),
     )
     .optional(),
+  // その日の営業時間（曜日既定を上書き）。両方空なら既定に戻す
+  openTime: z.string().regex(TIME).or(z.literal("")).optional(),
+  closeTime: z.string().regex(TIME).or(z.literal("")).optional(),
 });
 
 // GET ?date=YYYY-MM-DD … その日のベッド一覧
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!date || !DATE.test(date)) {
     return NextResponse.json({ error: "missing date" }, { status: 400 });
   }
-  const [beds, breaks] = await Promise.all([
+  const [beds, breaks, hours] = await Promise.all([
     prisma.dailyBed.findMany({
       where: { lineChannelId: id, date },
       orderBy: { bedNumber: "asc" },
@@ -48,8 +51,17 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       where: { lineChannelId: id, date },
       orderBy: { startTime: "asc" },
     }),
+    prisma.dailyHours.findUnique({
+      where: { lineChannelId_date: { lineChannelId: id, date } },
+    }),
   ]);
-  return NextResponse.json({ date, beds, breaks });
+  return NextResponse.json({
+    date,
+    beds,
+    breaks,
+    openTime: hours?.openTime ?? "",
+    closeTime: hours?.closeTime ?? "",
+  });
 }
 
 // PUT … その日のベッド一覧を置き換え（空名は削除扱い）
@@ -60,13 +72,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 403 });
   }
-  const { date, beds, breaks } = Body.parse(await req.json());
+  const { date, beds, breaks, openTime, closeTime } = Body.parse(await req.json());
 
   // 名前のあるベッドのみ残す
   const keep = beds.filter((b) => b.therapistName.length > 0);
   const keepNumbers = keep.map((b) => b.bedNumber);
   // 開始 < 終了 の休憩のみ残す
   const keepBreaks = (breaks ?? []).filter((b) => b.startTime < b.endTime);
+  // 営業時間：両方入っていて開始 < 終了 のときだけ保存。それ以外は曜日既定に戻す
+  const hasHours = !!openTime && !!closeTime && openTime < closeTime;
 
   await prisma.$transaction([
     // この日の、今回残さないベッドを削除
@@ -104,6 +118,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
           }),
         ]
       : []),
+    // 営業時間：上書きを保存 or 既定に戻す（削除）
+    hasHours
+      ? prisma.dailyHours.upsert({
+          where: { lineChannelId_date: { lineChannelId: id, date } },
+          create: { lineChannelId: id, date, openTime: openTime!, closeTime: closeTime! },
+          update: { openTime: openTime!, closeTime: closeTime! },
+        })
+      : prisma.dailyHours.deleteMany({ where: { lineChannelId: id, date } }),
   ]);
 
   // スプレッドシート当日タブを再生成（best effort）

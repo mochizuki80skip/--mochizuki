@@ -28,6 +28,8 @@ export function RosterEditor({
   const [date, setDate] = useState(todayJst());
   const [rows, setRows] = useState<Bed[]>(blankRows(Math.max(1, defaultBedCount)));
   const [breaks, setBreaks] = useState<Break[]>([]);
+  const [openTime, setOpenTime] = useState("");
+  const [closeTime, setCloseTime] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -55,6 +57,8 @@ export function RosterEditor({
       setBreaks(
         (data.breaks ?? []).map((b: Break) => ({ startTime: b.startTime, endTime: b.endTime })),
       );
+      setOpenTime(data.openTime ?? "");
+      setCloseTime(data.closeTime ?? "");
     } finally {
       setLoading(false);
     }
@@ -92,7 +96,7 @@ export function RosterEditor({
       const res = await fetch(`/api/channels/${channelId}/reservations/beds`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ date, beds: rows, breaks }),
+        body: JSON.stringify({ date, beds: rows, breaks, openTime, closeTime }),
       });
       const data = await res.json();
       setMsg(res.ok ? `保存しました（${data.count}ベッド）` : `エラー: ${data.error}`);
@@ -112,6 +116,28 @@ export function RosterEditor({
           className="border rounded px-3 py-1.5 text-sm"
         />
         {loading && <span className="text-xs text-gray-400">読み込み中…</span>}
+      </div>
+
+      <div className="bg-white border rounded p-4 space-y-2">
+        <div className="text-sm font-medium">この日の営業時間</div>
+        <div className="flex items-center gap-2">
+          <input
+            type="time"
+            value={openTime}
+            onChange={(e) => setOpenTime(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          />
+          <span className="text-gray-400">〜</span>
+          <input
+            type="time"
+            value={closeTime}
+            onChange={(e) => setCloseTime(e.target.value)}
+            className="border rounded px-2 py-1 text-sm"
+          />
+        </div>
+        <p className="text-xs text-gray-500">
+          空欄のままなら「予約設定 → 営業時間」の曜日設定を使います。入力すると、この日だけその時間で空き状況を計算します。
+        </p>
       </div>
 
       <div className="bg-white border rounded overflow-hidden">
