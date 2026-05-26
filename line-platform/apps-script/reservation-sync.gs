@@ -342,18 +342,18 @@ function transfer(sh, row, dateVal, timeStr, bed) {
   var kikkake = sh.getRange(row, C.きっかけ).getValue();
   var isNew   = String(sh.getRange(row, C.区分).getValue()).indexOf('新規') >= 0;
 
-  tab.getRange(timeRow, col).setValue(name);        // 名前
-  tab.getRange(timeRow + 1, col).setValue(phone);   // 電話（名前の下）
-  if (isNew && kikkake) tab.getRange(timeRow, col + 1).setValue(kikkake); // きっかけ（新規のみ）
+  tab.getRange(timeRow, col).clearDataValidations().setValue(name);        // 名前
+  tab.getRange(timeRow + 1, col).clearDataValidations().setValue(phone);   // 電話（名前の下）
+  if (isNew && kikkake) tab.getRange(timeRow, col + 1).clearDataValidations().setValue(kikkake); // きっかけ（新規のみ）
 
   var slot2 = '';
   if (isNew) { // 次の15分枠：名前・電話・きっかけ欄に斜め線（濃い黒）
     var nr = nextTimeRow(tab, timeRow);
     if (nr > 0) {
-      tab.getRange(nr, col).setFormula(DIAG);
-      tab.getRange(nr + 1, col).setFormula(DIAG);
-      tab.getRange(nr, col + 1).setFormula(DIAG);
-      tab.getRange(nr + 1, col + 1).setFormula(DIAG);
+      tab.getRange(nr, col).clearDataValidations().setFormula(DIAG);
+      tab.getRange(nr + 1, col).clearDataValidations().setFormula(DIAG);
+      tab.getRange(nr, col + 1).clearDataValidations().setFormula(DIAG);
+      tab.getRange(nr + 1, col + 1).clearDataValidations().setFormula(DIAG);
       slot2 = nr;
     }
   }
