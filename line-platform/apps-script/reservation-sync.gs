@@ -31,6 +31,71 @@ var DAILY_NEW_ROW  = 5; // 当日タブ：新規対応(TRUE/FALSE)の行
 var MAX_BEDS = 8;
 var DIAG = '=SPARKLINE({1,0},{"charttype","line";"color","#000000";"linewidth",1})';
 
+// ===== LINE 送信（アプリ経由）設定 =====
+var APP_URL = 'https://line-platform-skip.vercel.app'; // 本番URL
+var CHANNEL_ID = 'cmp6adwyo0000mor0liuxc7ab';          // 接骨院チャネルID
+var NEW_DURATION = 30, RETURN_DURATION = 15;            // 所要分（表示用）
+
+function getPushSecret_() {
+  return PropertiesService.getDocumentProperties().getProperty('PUSH_SECRET') || '';
+}
+
+// メニュー「送信用の合言葉を設定」
+function setPushSecret() {
+  var ui = SpreadsheetApp.getUi();
+  var res = ui.prompt('LINE送信の合言葉（CRON_SECRET）を貼り付けてください', ui.ButtonSet.OK_CANCEL);
+  if (res.getSelectedButton() !== ui.Button.OK) return;
+  PropertiesService.getDocumentProperties().setProperty('PUSH_SECRET', res.getResponseText().trim());
+  ui.alert('保存しました。');
+}
+
+// メニュー「選択行に確認メッセージを送信」
+function sendConfirmation() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getActiveSheet();
+  if (sh.getName() !== INQUIRY_SHEET) { ss.toast('問い合わせ一覧シートで実行してください', '予約連携', 6); return; }
+  var row = sh.getActiveRange().getRow();
+  if (row < 2) { ss.toast('お客様の行を選択してください', '予約連携', 6); return; }
+
+  var secret = getPushSecret_();
+  if (!secret) { SpreadsheetApp.getUi().alert('先にメニュー「送信用の合言葉を設定」を実行してください。'); return; }
+
+  var userId  = String(sh.getRange(row, C.userId).getValue() || '').trim();
+  var name    = String(sh.getRange(row, C.名前).getValue() || '').trim();
+  var kubun   = String(sh.getRange(row, C.区分).getValue() || '');
+  var dateStr = sh.getRange(row, C.確定日).getDisplayValue();
+  var timeStr = sh.getRange(row, C.確定時間).getDisplayValue();
+  if (!userId) { ss.toast('この行に LINE userId がありません（LINE経由の予約のみ送信可）', '予約連携', 7); return; }
+  if (!dateStr || !timeStr) { ss.toast('確定日・確定時間を先に入力してください', '予約連携', 7); return; }
+
+  var isNew = kubun.indexOf('新規') >= 0;
+  var dur = isNew ? NEW_DURATION : RETURN_DURATION;
+  var msg = name + '様\n'
+    + 'ご予約ありがとうございます。\n'
+    + '下記の日時で確定いたしました。\n\n'
+    + '日時: ' + dateStr + ' ' + timeStr + '\n'
+    + 'メニュー: ' + (isNew ? '新規' : '2回目以降') + '（' + dur + '分）\n\n'
+    + '当日お待ちしております。';
+
+  try {
+    var resp = UrlFetchApp.fetch(APP_URL + '/api/integrations/line-push', {
+      method: 'post',
+      contentType: 'application/json',
+      headers: { 'Authorization': 'Bearer ' + secret },
+      payload: JSON.stringify({ channelId: CHANNEL_ID, lineUserId: userId, message: msg }),
+      muteHttpExceptions: true,
+    });
+    var code = resp.getResponseCode();
+    if (code === 200) {
+      ss.toast(name + ' さんに確認メッセージを送信しました', '予約連携', 6);
+    } else {
+      ss.toast('送信失敗 (' + code + '): ' + resp.getContentText().slice(0, 120), '予約連携', 9);
+    }
+  } catch (err) {
+    ss.toast('送信エラー: ' + err.message, '予約連携', 9);
+  }
+}
+
 function bedNameCol(n) { return 2 + (n - 1) * 3; } // B,E,H,...
 
 // ===== メニュー =====
@@ -39,6 +104,9 @@ function onOpen() {
     .createMenu('予約連携')
     .addItem('初期設定（列・プルダウン）', 'setupInquiry')
     .addItem('確定日リストを更新', 'refreshDateDropdown')
+    .addSeparator()
+    .addItem('選択行に確認メッセージを送信', 'sendConfirmation')
+    .addItem('送信用の合言葉を設定', 'setPushSecret')
     .addToUi();
   try { refreshDateDropdown(); } catch (e) {}
 }
