@@ -99,11 +99,18 @@ export async function regenerateDailyTab(channelId: string, dateIso: string): Pr
     return;
   }
 
-  const slotMin = settings.returningDurationMinutes || 15;
+  const slotMin = settings.slotMinutes || 15;
   const openM = tToM(hours.openTime);
   const closeM = tToM(hours.closeTime);
   const slotTimes: string[] = [];
   for (let m = openM; m < closeM; m += slotMin) slotTimes.push(mToT(m));
+
+  // 休憩時間
+  const breaks = await prisma.dailyBreak.findMany({
+    where: { lineChannelId: channelId, date: dateIso },
+  });
+  const breakWindows = breaks.map((b) => ({ s: tToM(b.startTime), e: tToM(b.endTime) }));
+  const isBreakMin = (m: number) => breakWindows.some((br) => m < br.e && m + slotMin > br.s);
 
   const lastCol = bedColumn(beds[beds.length - 1].bedNumber) + 1;
   const lastColL = columnLetter(lastCol);
@@ -127,11 +134,17 @@ export async function regenerateDailyTab(channelId: string, dateIso: string): Pr
     set(NAME_ROW, col, b.therapistName);
   }
 
-  // 時間ラベル（2行で1枠、上の行にだけ時間）
+  // 時間ラベル（2行で1枠、上の行にだけ時間）。休憩枠は "休憩" 表示
   const rowOfSlot = new Map<string, number>();
   slotTimes.forEach((t, i) => {
     const row = FIRST_TIME_ROW + i * 2;
-    set(row, 1, t);
+    const m = tToM(t);
+    if (isBreakMin(m)) {
+      set(row, 1, "休憩");
+      for (const b of beds) set(row, bedColumn(b.bedNumber), "休憩");
+    } else {
+      set(row, 1, t);
+    }
     rowOfSlot.set(t, row);
   });
 

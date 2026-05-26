@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 type Bed = { bedNumber: number; therapistName: string; acceptsNew: boolean };
+type Break = { startTime: string; endTime: string };
 
 function todayJst(): string {
   const now = new Date();
@@ -26,6 +27,7 @@ export function RosterEditor({
 }) {
   const [date, setDate] = useState(todayJst());
   const [rows, setRows] = useState<Bed[]>(blankRows(Math.max(1, defaultBedCount)));
+  const [breaks, setBreaks] = useState<Break[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -50,6 +52,9 @@ export function RosterEditor({
       } else {
         setRows(blankRows(Math.max(1, defaultBedCount)));
       }
+      setBreaks(
+        (data.breaks ?? []).map((b: Break) => ({ startTime: b.startTime, endTime: b.endTime })),
+      );
     } finally {
       setLoading(false);
     }
@@ -70,6 +75,16 @@ export function RosterEditor({
     ]);
   }
 
+  function updateBreak(i: number, patch: Partial<Break>) {
+    setBreaks((bs) => bs.map((b, idx) => (idx === i ? { ...b, ...patch } : b)));
+  }
+  function addBreak() {
+    setBreaks((bs) => [...bs, { startTime: "13:00", endTime: "14:00" }]);
+  }
+  function removeBreak(i: number) {
+    setBreaks((bs) => bs.filter((_, idx) => idx !== i));
+  }
+
   async function save() {
     setSaving(true);
     setMsg(null);
@@ -77,7 +92,7 @@ export function RosterEditor({
       const res = await fetch(`/api/channels/${channelId}/reservations/beds`, {
         method: "PUT",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ date, beds: rows }),
+        body: JSON.stringify({ date, beds: rows, breaks }),
       });
       const data = await res.json();
       setMsg(res.ok ? `保存しました（${data.count}ベッド）` : `エラー: ${data.error}`);
@@ -134,16 +149,53 @@ export function RosterEditor({
         </table>
       </div>
 
-      <div className="flex items-center gap-3">
-        <button onClick={addRow} className="border px-3 py-1.5 rounded text-sm">
-          ＋ ベッドを追加
+      <button onClick={addRow} className="border px-3 py-1.5 rounded text-sm">
+        ＋ ベッドを追加
+      </button>
+
+      <div className="bg-white border rounded p-4 space-y-3">
+        <div className="text-sm font-medium">休憩時間（この日）</div>
+        <p className="text-xs text-gray-500">
+          設定した時間帯は予約を受け付けず、当日タブには「休憩」と表示されます。1日に複数設定できます。
+        </p>
+        {breaks.length === 0 && (
+          <p className="text-xs text-gray-400">休憩はありません。</p>
+        )}
+        {breaks.map((b, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              type="time"
+              value={b.startTime}
+              onChange={(e) => updateBreak(i, { startTime: e.target.value })}
+              className="border rounded px-2 py-1 text-sm"
+            />
+            <span className="text-gray-400">〜</span>
+            <input
+              type="time"
+              value={b.endTime}
+              onChange={(e) => updateBreak(i, { endTime: e.target.value })}
+              className="border rounded px-2 py-1 text-sm"
+            />
+            <button
+              onClick={() => removeBreak(i)}
+              className="text-xs text-red-600 border border-red-200 rounded px-2 py-1"
+            >
+              削除
+            </button>
+          </div>
+        ))}
+        <button onClick={addBreak} className="border px-3 py-1.5 rounded text-sm">
+          ＋ 休憩を追加
         </button>
+      </div>
+
+      <div className="flex items-center gap-3">
         <button
           onClick={save}
           disabled={saving}
           className="bg-line text-white px-4 py-1.5 rounded text-sm disabled:opacity-50"
         >
-          {saving ? "保存中…" : "この日の担当を保存"}
+          {saving ? "保存中…" : "この日の担当・休憩を保存"}
         </button>
         {msg && <span className="text-sm text-gray-600">{msg}</span>}
       </div>

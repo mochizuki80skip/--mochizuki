@@ -11,6 +11,7 @@ export function SheetLinkedSettings({
   initial: {
     sheetLinkedMode: boolean;
     sheetTabInquiry: string;
+    slotMinutes: number;
     newPatientDurationMinutes: number;
     returningDurationMinutes: number;
     lowStockThreshold: number;
@@ -75,6 +76,21 @@ export function SheetLinkedSettings({
 
       {v.sheetLinkedMode && (
         <>
+          <div>
+            <label className="block text-sm font-medium">予約枠の刻み幅（分）</label>
+            <input
+              type="number"
+              min={5}
+              step={5}
+              value={v.slotMinutes}
+              onChange={(e) => update("slotMinutes", Number(e.target.value))}
+              className="mt-1 w-32 border rounded px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              営業時間をこの幅で区切って予約枠を作ります（例: 15 → 15分刻み）。当日タブの行もこの幅になります。
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium">新規の所要時間（分）</label>

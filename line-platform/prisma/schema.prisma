@@ -50,6 +50,7 @@ model LineChannel {
   reservations        Reservation[]
   inquiries           Inquiry[]
   dailyBeds           DailyBed[]
+  dailyBreaks         DailyBreak[]
   richMenu            RichMenu?
 
   @@index([isActive])
@@ -234,6 +235,20 @@ model DailyBed {
   lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
 
   @@unique([lineChannelId, date, bedNumber])
+  @@index([lineChannelId, date])
+}
+
+// 日次の休憩時間（1日に複数可）
+model DailyBreak {
+  id            String   @id @default(cuid())
+  lineChannelId String
+  date          String   // YYYY-MM-DD
+  startTime     String   // "HH:MM"
+  endTime       String   // "HH:MM"
+  createdAt     DateTime @default(now())
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+
   @@index([lineChannelId, date])
 }
 
