@@ -13,6 +13,7 @@ export function SheetLinkedSettings({
     sheetTabInquiry: string;
     newPatientDurationMinutes: number;
     returningDurationMinutes: number;
+    lowStockThreshold: number;
     inquiryReplyMessage: string;
   };
 }) {
@@ -97,6 +98,20 @@ export function SheetLinkedSettings({
                 className="mt-1 w-full border rounded px-3 py-2 text-sm"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium">△（残りわずか）の閾値</label>
+            <input
+              type="number"
+              min={0}
+              value={v.lowStockThreshold}
+              onChange={(e) => update("lowStockThreshold", Number(e.target.value))}
+              className="mt-1 w-32 border rounded px-3 py-2 text-sm"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              残り枠がこの数以下のとき、カレンダーに △ を表示します（0 で △ 無効）。例: 1 → 残り1枠で △
+            </p>
           </div>
 
           <div>

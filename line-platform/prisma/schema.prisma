@@ -87,6 +87,7 @@ model ReservationSettings {
   sheetLinkedMode          Boolean @default(false)
   newPatientDurationMinutes Int    @default(30)
   returningDurationMinutes  Int    @default(15)
+  lowStockThreshold         Int    @default(1)
   inquiryReplyMessage       String?
   // 予約ルール
   slotMinutes            Int      @default(20)
@@ -214,8 +215,9 @@ model Reservation {
 model Inquiry {
   id             String   @id @default(cuid())
   lineChannelId  String
-  date           String   // 希望日 YYYY-MM-DD
-  time           String   // 希望時間 H:MM
+  date           String   // 第1希望日 YYYY-MM-DD
+  time           String   // 第1希望時間 H:MM
+  preferences    Json?    // [{date, time}, ...] 第1〜第3希望
   visitType      String   // new / returning
   customerName   String
   customerPhone  String

@@ -34,6 +34,7 @@ export default async function LiffPage({
         {...common}
         newDurationMin={settings.newPatientDurationMinutes}
         returningDurationMin={settings.returningDurationMinutes}
+        lowStockThreshold={settings.lowStockThreshold}
       />
     );
   }

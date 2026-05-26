@@ -41,6 +41,7 @@ declare global {
       getProfile: () => Promise<LiffProfile>;
       closeWindow: () => void;
       isInClient: () => boolean;
+      sendMessages?: (messages: { type: string; text: string }[]) => Promise<void>;
     };
   }
 }

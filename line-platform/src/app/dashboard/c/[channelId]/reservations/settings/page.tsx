@@ -88,6 +88,7 @@ export default async function ReservationSettingsPage({
           sheetTabInquiry: settings.sheetTabInquiry,
           newPatientDurationMinutes: settings.newPatientDurationMinutes,
           returningDurationMinutes: settings.returningDurationMinutes,
+          lowStockThreshold: settings.lowStockThreshold,
           inquiryReplyMessage: settings.inquiryReplyMessage ?? "",
         }}
       />
