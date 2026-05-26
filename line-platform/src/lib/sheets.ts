@@ -267,93 +267,46 @@ export async function applyScheduleFormatting(
   });
 }
 
-// 当日タブ（予約表）の書式：施術者名行を強調、見出し固定、グリッドに枠線
-export async function applyDailyTabFormatting(
+// 当日タブの「本文（予約記入域）」だけを消す：値とデータ検証を削除し、枠線・列Aの時間・見出しは残す
+function colLetter(col1: number): string {
+  let s = "";
+  let col = col1;
+  while (col > 0) {
+    const r = (col - 1) % 26;
+    s = String.fromCharCode(65 + r) + s;
+    col = Math.floor((col - 1) / 26);
+  }
+  return s;
+}
+
+export async function clearReservationBody(
   spreadsheetId: string,
   tabName: string,
-  nameRow1based: number,
-  firstTimeRow1based: number,
-  totalRows: number,
-  bedCols: number[], // 各ベッドの名前列（1-based）
+  firstRow1: number,
+  lastRow1: number,
+  firstCol1: number,
+  lastCol1: number,
 ): Promise<void> {
   const sheets = getSheetsClient();
+  const range = `${tabName}!${colLetter(firstCol1)}${firstRow1}:${colLetter(lastCol1)}${lastRow1}`;
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range });
+
   const sheetId = await getSheetIdByTitle(spreadsheetId, tabName);
-  if (sheetId === null || bedCols.length === 0) return;
-
-  const lastCol = Math.max(...bedCols) + 1;
-
+  if (sheetId === null) return;
+  // データ検証（プルダウン等）を解除してから書けるようにする
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     requestBody: {
       requests: [
-        // 日付（A1）を大きく太字
         {
-          repeatCell: {
-            range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
-            cell: { userEnteredFormat: { textFormat: { bold: true, fontSize: 14 } } },
-            fields: "userEnteredFormat.textFormat",
-          },
-        },
-        // 施術者名行を強調
-        {
-          repeatCell: {
+          setDataValidation: {
             range: {
               sheetId,
-              startRowIndex: nameRow1based - 2,
-              endRowIndex: nameRow1based,
-              startColumnIndex: 0,
-              endColumnIndex: lastCol,
+              startRowIndex: firstRow1 - 1,
+              endRowIndex: lastRow1,
+              startColumnIndex: firstCol1 - 1,
+              endColumnIndex: lastCol1,
             },
-            cell: {
-              userEnteredFormat: {
-                backgroundColor: { red: 0.86, green: 0.97, blue: 0.94 },
-                textFormat: { bold: true },
-                horizontalAlignment: "CENTER",
-              },
-            },
-            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
-          },
-        },
-        // 時間列を中央寄せ
-        {
-          repeatCell: {
-            range: {
-              sheetId,
-              startRowIndex: firstTimeRow1based - 1,
-              endRowIndex: totalRows,
-              startColumnIndex: 0,
-              endColumnIndex: 1,
-            },
-            cell: { userEnteredFormat: { horizontalAlignment: "CENTER", textFormat: { bold: true } } },
-            fields: "userEnteredFormat(horizontalAlignment,textFormat)",
-          },
-        },
-        // グリッドに枠線
-        {
-          updateBorders: {
-            range: {
-              sheetId,
-              startRowIndex: nameRow1based - 1,
-              endRowIndex: totalRows,
-              startColumnIndex: 0,
-              endColumnIndex: lastCol,
-            },
-            innerHorizontal: { style: "SOLID", color: { red: 0.8, green: 0.8, blue: 0.8 } },
-            innerVertical: { style: "SOLID", color: { red: 0.8, green: 0.8, blue: 0.8 } },
-            top: { style: "SOLID" },
-            bottom: { style: "SOLID" },
-            left: { style: "SOLID" },
-            right: { style: "SOLID" },
-          },
-        },
-        // 見出し行＋時間列を固定
-        {
-          updateSheetProperties: {
-            properties: {
-              sheetId,
-              gridProperties: { frozenRowCount: nameRow1based, frozenColumnCount: 1 },
-            },
-            fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount",
           },
         },
       ],
