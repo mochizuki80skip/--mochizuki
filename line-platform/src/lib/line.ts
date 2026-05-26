@@ -80,6 +80,32 @@ export async function getProfile(channelId: string, userId: string) {
   }
 }
 
+// Bot の基本情報（basicId など）
+export async function getBotInfo(channelId: string) {
+  const { client } = await getClientByChannelId(channelId);
+  return client.getBotInfo();
+}
+
+// 基本ID を取得して未保存なら DB に保存
+export async function ensureBasicId(channelId: string): Promise<string | null> {
+  const ch = await prisma.lineChannel.findUnique({
+    where: { id: channelId },
+    select: { lineBasicId: true },
+  });
+  if (ch?.lineBasicId) return ch.lineBasicId;
+  try {
+    const info = await getBotInfo(channelId);
+    const basicId = info.basicId ?? null;
+    if (basicId) {
+      await prisma.lineChannel.update({ where: { id: channelId }, data: { lineBasicId: basicId } });
+    }
+    return basicId;
+  } catch (e) {
+    console.warn("[line] getBotInfo failed", channelId, e);
+    return null;
+  }
+}
+
 // トークン検証用：与えられたトークン/シークレットで profile を取得できるか
 export async function verifyChannelCredentials(channelAccessToken: string, channelSecret: string) {
   const c = new Client({ channelAccessToken, channelSecret });

@@ -30,6 +30,7 @@ model LineChannel {
   color               String   @default("#06C755") // 管理画面のアクセントカラー
   channelAccessToken  String   // LINE Messaging API のチャネルアクセストークン
   channelSecret       String   // LINE Messaging API のチャネルシークレット
+  lineBasicId         String?  // 公式アカウントの基本ID（@xxxx）oaMessage 用
   isActive            Boolean  @default(true)
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
