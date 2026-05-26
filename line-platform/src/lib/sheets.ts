@@ -314,6 +314,69 @@ export async function clearReservationBody(
   });
 }
 
+// 当日タブのグリッドに罫線・施術者名行の強調・固定を適用
+export async function applyDailyTabFormatting(
+  spreadsheetId: string,
+  tabName: string,
+  nameRow1: number,
+  firstTimeRow1: number,
+  lastRow1: number,
+  lastCol1: number,
+): Promise<void> {
+  const sheets = getSheetsClient();
+  const sheetId = await getSheetIdByTitle(spreadsheetId, tabName);
+  if (sheetId === null) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        // 施術者名行を強調
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: nameRow1 - 1, endRowIndex: nameRow1, startColumnIndex: 0, endColumnIndex: lastCol1 },
+            cell: {
+              userEnteredFormat: {
+                backgroundColor: { red: 0.86, green: 0.97, blue: 0.94 },
+                textFormat: { bold: true },
+                horizontalAlignment: "CENTER",
+              },
+            },
+            fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)",
+          },
+        },
+        // 時間列（A）を中央・太字
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: firstTimeRow1 - 1, endRowIndex: lastRow1, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: { userEnteredFormat: { horizontalAlignment: "CENTER", textFormat: { bold: true } } },
+            fields: "userEnteredFormat(horizontalAlignment,textFormat)",
+          },
+        },
+        // グリッドに罫線
+        {
+          updateBorders: {
+            range: { sheetId, startRowIndex: nameRow1 - 1, endRowIndex: lastRow1, startColumnIndex: 0, endColumnIndex: lastCol1 },
+            innerHorizontal: { style: "SOLID", color: { red: 0.8, green: 0.8, blue: 0.8 } },
+            innerVertical: { style: "SOLID", color: { red: 0.8, green: 0.8, blue: 0.8 } },
+            top: { style: "SOLID" },
+            bottom: { style: "SOLID" },
+            left: { style: "SOLID" },
+            right: { style: "SOLID" },
+          },
+        },
+        // 見出し行＋時間列を固定
+        {
+          updateSheetProperties: {
+            properties: { sheetId, gridProperties: { frozenRowCount: nameRow1, frozenColumnCount: 1 } },
+            fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount",
+          },
+        },
+      ],
+    },
+  });
+}
+
 export async function readRange(
   spreadsheetId: string,
   range: string,

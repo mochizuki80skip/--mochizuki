@@ -1,17 +1,26 @@
-// 当日タブ（予約表）を「埋める」方式で更新する。
-// スタッフが使い慣れたタブの書式・枠線・列Aの時間はそのまま残し、
-// 施術者名(行6)・新規対応(行5)・確定予約・休憩だけを管理画面の内容で書き換える。
+// 当日タブ（予約表）を管理画面のデータから生成する。
+// A列の時間・休憩行・施術者名・確定予約をすべて「営業時間＋枠幅＋休憩＋ベッド担当」から組み立てる。
+// 見出し（1〜4行目）は既存タブのものを残し、5行目以降を作り直す。手入力は不要。
 import { prisma } from "@/lib/prisma";
-import { listTabs, readRange, writeRange, clearReservationBody } from "@/lib/sheets";
+import {
+  listTabs,
+  ensureSheetTabs,
+  writeRange,
+  clearReservationBody,
+  applyDailyTabFormatting,
+} from "@/lib/sheets";
 
-const NAME_ROW = 6; // 施術者名の行（1-based）
-const NEW_ROW = 5; // 新規対応の行（1-based）
-const FIRST_TIME_ROW = 7; // 時間枠の開始行（1-based）。列Aの時間を実際に読んで行位置を決める
+const NEW_ROW = 5; // 新規対応
+const NAME_ROW = 6; // 施術者名
+const FIRST_TIME_ROW = 7; // 時間枠の開始行（2行で1枠）
+const DAYS_JP = ["日", "月", "火", "水", "木", "金", "土"];
+const CLEAR_LAST_COL = 52; // AZ まで（古い行・列の残骸を消す）
+const CLEAR_LAST_ROW = 300;
 // 新規枠の2枠目に引く斜め線（黒）
 const DIAG = '=SPARKLINE({1,0},{"charttype","line";"color","#000000";"linewidth",1})';
 
 function bedColumn(bedNumber: number): number {
-  return 2 + (bedNumber - 1) * 3; // 1-based: bed1=B(2), bed2=E(5), bed3=H(8)...
+  return 2 + (bedNumber - 1) * 3; // bed1=B(2), bed2=E(5), bed3=H(8)...
 }
 function columnLetter(col: number): string {
   let s = "";
@@ -26,17 +35,16 @@ function tToM(t: string): number {
   const [h, m] = t.split(":").map(Number);
   return h * 60 + m;
 }
-function normTime(s: string): string {
-  const m = String(s).trim().match(/^(\d{1,2}):(\d{2})/);
-  return m ? `${parseInt(m[1], 10)}:${m[2]}` : "";
+function mToT(m: number): string {
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`;
 }
 function jstHM(d: Date): string {
   const jst = new Date(d.getTime() + 9 * 3600_000);
   return `${jst.getUTCHours()}:${String(jst.getUTCMinutes()).padStart(2, "0")}`;
 }
 
-// 既存の "M/D" 始まりタブを探す（無ければ null）
-async function findDayTab(spreadsheetId: string, dateIso: string): Promise<string | null> {
+// 既存の "M/D" 始まりタブを探す。無ければ作成して名前を返す。
+async function findOrCreateDayTab(spreadsheetId: string, dateIso: string): Promise<string> {
   const [, mo, da] = dateIso.split("-");
   const m = Number(mo);
   const d = Number(da);
@@ -54,10 +62,34 @@ async function findDayTab(spreadsheetId: string, dateIso: string): Promise<strin
       if (after === "" || !/\d/.test(after)) return tab;
     }
   }
+  const dow = new Date(`${dateIso}T00:00:00+09:00`).getUTCDay();
+  const name = `${m}/${d}(${DAYS_JP[dow]})`;
+  await ensureSheetTabs(spreadsheetId, [name]);
+  return name;
+}
+
+// 日付の営業時間（日次設定 > 曜日既定）
+async function resolveHours(
+  channelId: string,
+  dateIso: string,
+  dow: number,
+): Promise<{ openM: number; closeM: number } | null> {
+  const daily = await prisma.dailyHours.findUnique({
+    where: { lineChannelId_date: { lineChannelId: channelId, date: dateIso } },
+  });
+  if (daily?.openTime && daily.closeTime) {
+    return { openM: tToM(daily.openTime), closeM: tToM(daily.closeTime) };
+  }
+  const wk = await prisma.businessHours.findUnique({
+    where: { lineChannelId_dayOfWeek: { lineChannelId: channelId, dayOfWeek: dow } },
+  });
+  if (wk && !wk.isClosed && wk.openTime && wk.closeTime) {
+    return { openM: tToM(wk.openTime), closeM: tToM(wk.closeTime) };
+  }
   return null;
 }
 
-// 指定日の当日タブを、ベッド担当＋確定予約＋休憩で「埋める」（書式は維持）
+// 指定日の当日タブを生成（A列の時間・休憩・施術者名・予約）
 export async function regenerateDailyTab(channelId: string, dateIso: string): Promise<void> {
   const settings = await prisma.reservationSettings.findUnique({
     where: { lineChannelId: channelId },
@@ -69,48 +101,64 @@ export async function regenerateDailyTab(channelId: string, dateIso: string): Pr
     where: { lineChannelId: channelId, date: dateIso },
     orderBy: { bedNumber: "asc" },
   });
-  if (beds.length === 0) return; // 担当未登録の日はシートに触れない（誤消去防止）
+  if (beds.length === 0) return; // 担当未登録の日はシートに触れない
 
-  const tab = await findDayTab(spreadsheetId, dateIso);
-  if (!tab) return; // 当日タブが無ければ何もしない（テンプレートを上書きしない）
+  const dow = new Date(`${dateIso}T00:00:00+09:00`).getUTCDay();
+  const hours = await resolveHours(channelId, dateIso, dow);
+  if (!hours) return; // 営業時間が未設定なら触れない（誤消去防止）
 
-  // 列A から「時間 → 行番号(1-based)」を読み取る（テンプレートの実際の行位置に合わせる）
-  const colA = await readRange(spreadsheetId, `${tab}!A1:A400`);
-  const rowOfTime = new Map<string, number>();
-  let lastTimeRow = FIRST_TIME_ROW;
-  for (let i = FIRST_TIME_ROW - 1; i < colA.length; i++) {
-    const t = normTime(colA[i]?.[0] ?? "");
-    if (t) {
-      rowOfTime.set(t, i + 1);
-      lastTimeRow = i + 1;
-    }
-  }
-
-  const maxBedCol = Math.max(...beds.map((b) => bedColumn(b.bedNumber)));
-  const lastCol = maxBedCol + 1; // きっかけ列ぶん +1
-  const lastColL = columnLetter(lastCol);
-  const bodyLastRow = lastTimeRow + 1; // 電話は時間行の1つ下
-  const width = lastCol - 1; // 列B(2) から
-
-  // 本文（予約記入域）の値とデータ検証だけを消す（列Aの時間・枠線・見出しは残す）
-  await clearReservationBody(spreadsheetId, tab, FIRST_TIME_ROW, bodyLastRow, 2, lastCol);
-
-  // 施術者名(行6)・新規対応(行5) を書き換え
-  const row5: string[] = Array(width).fill("");
-  const row6: string[] = Array(width).fill("");
-  for (const b of beds) {
-    const idx = bedColumn(b.bedNumber) - 2;
-    row5[idx] = b.acceptsNew ? "TRUE" : "FALSE";
-    row6[idx] = b.therapistName;
-  }
-  await writeRange(spreadsheetId, `${tab}!B${NEW_ROW}:${lastColL}${NEW_ROW}`, [row5]);
-  await writeRange(spreadsheetId, `${tab}!B${NAME_ROW}:${lastColL}${NAME_ROW}`, [row6]);
+  const slotMin = settings.slotMinutes || 15;
+  const slotTimes: { m: number; t: string }[] = [];
+  for (let m = hours.openM; m < hours.closeM; m += slotMin) slotTimes.push({ m, t: mToT(m) });
+  if (slotTimes.length === 0) return;
 
   // 休憩帯
   const breaks = await prisma.dailyBreak.findMany({
     where: { lineChannelId: channelId, date: dateIso },
   });
   const breakWin = breaks.map((b) => ({ s: tToM(b.startTime), e: tToM(b.endTime) }));
+  const isBreak = (m: number) => breakWin.some((br) => m >= br.s && m < br.e);
+
+  const tab = await findOrCreateDayTab(spreadsheetId, dateIso);
+
+  const maxBedCol = Math.max(...beds.map((b) => bedColumn(b.bedNumber)));
+  const lastCol = maxBedCol + 1; // きっかけ列ぶん +1
+  const lastColL = columnLetter(lastCol);
+  const lastRow = FIRST_TIME_ROW + slotTimes.length * 2 - 1; // 最終枠の電話行まで
+
+  // 5行目以降の古い内容（値とデータ検証）を広めに消す。1〜4行目の見出しは残す
+  await clearReservationBody(spreadsheetId, tab, NEW_ROW, CLEAR_LAST_ROW, 1, CLEAR_LAST_COL);
+
+  // グリッド構築（5行目〜lastRow × A〜lastCol）
+  const rowCount = lastRow - NEW_ROW + 1;
+  const grid: string[][] = Array.from({ length: rowCount }, () => Array(lastCol).fill(""));
+  const set = (row1: number, col1: number, val: string) => {
+    const r = row1 - NEW_ROW;
+    const c = col1 - 1;
+    if (r >= 0 && r < rowCount && c >= 0 && c < lastCol) grid[r][c] = val;
+  };
+
+  // 見出しラベルとベッド担当
+  set(NEW_ROW, 1, "新規対応");
+  set(NAME_ROW, 1, "施術者");
+  for (const b of beds) {
+    const col = bedColumn(b.bedNumber);
+    set(NEW_ROW, col, b.acceptsNew ? "TRUE" : "FALSE");
+    set(NAME_ROW, col, b.therapistName);
+  }
+
+  // 時間ラベル / 休憩
+  const rowOfMin = new Map<number, number>();
+  slotTimes.forEach((s, i) => {
+    const row = FIRST_TIME_ROW + i * 2;
+    rowOfMin.set(s.m, row);
+    if (isBreak(s.m)) {
+      set(row, 1, "休憩");
+      for (const b of beds) set(row, bedColumn(b.bedNumber), "休憩");
+    } else {
+      set(row, 1, s.t);
+    }
+  });
 
   // 確定予約
   const from = new Date(`${dateIso}T00:00:00+09:00`);
@@ -119,39 +167,28 @@ export async function regenerateDailyTab(channelId: string, dateIso: string): Pr
     where: { lineChannelId: channelId, status: "confirmed", startAt: { gte: from, lte: to } },
   });
   const bedNums = new Set(beds.map((b) => b.bedNumber));
+  const span = Math.max(1, Math.ceil(30 / slotMin)); // 新規が占有する枠数
 
-  // 本文グリッド（行 FIRST_TIME_ROW..bodyLastRow × 列 B..lastCol）
-  const bodyRows = bodyLastRow - FIRST_TIME_ROW + 1;
-  const grid: string[][] = Array.from({ length: bodyRows }, () => Array(width).fill(""));
-  const setBody = (row1: number, col1: number, val: string) => {
-    const r = row1 - FIRST_TIME_ROW;
-    const c = col1 - 2;
-    if (r >= 0 && r < bodyRows && c >= 0 && c < width) grid[r][c] = val;
-  };
-
-  // 休憩マーク
-  for (const [t, row] of rowOfTime) {
-    const m = tToM(t);
-    if (breakWin.some((br) => m >= br.s && m < br.e)) {
-      for (const b of beds) setBody(row, bedColumn(b.bedNumber), "休憩");
-    }
-  }
-
-  // 予約記入
   for (const r of reservations) {
     if (r.bedNumber == null || !bedNums.has(r.bedNumber)) continue;
-    const row = rowOfTime.get(normTime(jstHM(r.startAt)));
+    const startM = tToM(jstHM(r.startAt));
+    const row = rowOfMin.get(startM);
     if (row === undefined) continue;
     const col = bedColumn(r.bedNumber);
-    setBody(row, col, r.customerName);
-    setBody(row + 1, col, r.customerPhone);
-    if (r.visitType === "new" && r.referralSource) setBody(row, col + 1, r.referralSource);
-    // 新規(30分)は次の時間枠（2行下）を斜め線でブロック
+    set(row, col, r.customerName);
+    set(row + 1, col, r.customerPhone);
+    if (r.visitType === "new" && r.referralSource) set(row, col + 1, r.referralSource);
     if (r.visitType === "new") {
-      setBody(row + 2, col, DIAG);
-      setBody(row + 3, col, DIAG);
+      for (let k = 1; k < span; k++) {
+        set(row + k * 2, col, DIAG);
+        set(row + k * 2 + 1, col, DIAG);
+      }
     }
   }
 
-  await writeRange(spreadsheetId, `${tab}!B${FIRST_TIME_ROW}:${lastColL}${bodyLastRow}`, grid);
+  // 書き込み（A1の日付は別途）＋本文
+  const [, mo, da] = dateIso.split("-");
+  await writeRange(spreadsheetId, `${tab}!A1`, [[`${Number(mo)}/${Number(da)}(${DAYS_JP[dow]})`]]);
+  await writeRange(spreadsheetId, `${tab}!A${NEW_ROW}:${lastColL}${lastRow}`, grid);
+  await applyDailyTabFormatting(spreadsheetId, tab, NAME_ROW, FIRST_TIME_ROW, lastRow, lastCol);
 }
