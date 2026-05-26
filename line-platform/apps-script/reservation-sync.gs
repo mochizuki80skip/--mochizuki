@@ -83,6 +83,19 @@ function sendConfirmRow_(sh, row) {
     + 'メニュー: ' + (isNew ? '新規' : '2回目以降') + '（' + dur + '分）\n\n'
     + '当日お待ちしております。';
 
+  // 押し間違い防止：送信前に確認ダイアログ
+  try {
+    var ui = SpreadsheetApp.getUi();
+    var conf = ui.alert('LINE送信の確認',
+      name + ' 様に下記の確定案内を送信します。よろしいですか？\n\n' + msg,
+      ui.ButtonSet.OK_CANCEL);
+    if (conf !== ui.Button.OK) { ss.toast('送信をキャンセルしました', '予約連携', 4); return false; }
+  } catch (uiErr) {
+    // ダイアログを表示できない状況（稀）では安全のため送信しない
+    ss.toast('確認ダイアログを表示できませんでした。メニューから送信してください', '予約連携', 8);
+    return false;
+  }
+
   try {
     var resp = UrlFetchApp.fetch(APP_URL + '/api/integrations/line-push', {
       method: 'post',
