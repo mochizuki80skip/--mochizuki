@@ -101,6 +101,7 @@ model ReservationSettings {
   clinicName             String?
   clinicAddress          String?
   clinicPhone            String?
+  clinicPhotoUrl         String?  // 店舗写真（data URL or 外部URL）
   themeColor             String   @default("#1ABC9C")
   // 予約完了時の挙動
   sendConfirmMessage     Boolean  @default(false)

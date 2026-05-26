@@ -3,7 +3,6 @@ import { prisma } from "@/lib/prisma";
 import { CalendarApp } from "./CalendarApp";
 import { ClinicCalendarApp } from "./ClinicCalendarApp";
 import { ensureBasicId } from "@/lib/line";
-import { ensureDefaultReferrals } from "@/lib/defaultReferrals";
 
 export const dynamic = "force-dynamic";
 
@@ -20,13 +19,10 @@ export default async function LiffPage({
 
   if (!settings || !settings.isEnabled) notFound();
 
-  // シート連動モードなら：基本ID取得 + きっかけ既定投入（初回のみ）
+  // シート連動モードなら基本IDを取得（oaMessage/送信判定用）
   let lineBasicId = settings.lineChannel.lineBasicId;
-  if (settings.sheetLinkedMode) {
-    if (!lineBasicId) {
-      lineBasicId = await ensureBasicId(channelId).catch(() => null);
-    }
-    await ensureDefaultReferrals(channelId).catch(() => {});
+  if (settings.sheetLinkedMode && !lineBasicId) {
+    lineBasicId = await ensureBasicId(channelId).catch(() => null);
   }
 
   const common = {
@@ -43,6 +39,7 @@ export default async function LiffPage({
     return (
       <ClinicCalendarApp
         {...common}
+        clinicPhotoUrl={settings.clinicPhotoUrl ?? ""}
         newDurationMin={settings.newPatientDurationMinutes}
         returningDurationMin={settings.returningDurationMinutes}
         lowStockThreshold={settings.lowStockThreshold}
