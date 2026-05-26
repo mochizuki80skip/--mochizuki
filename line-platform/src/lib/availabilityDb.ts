@@ -94,6 +94,12 @@ export async function computeDbAvailability(params: {
   });
   const holidaySet = new Set(holidays.map((h) => isoDate(h.date)));
 
+  // 期間内の日次営業時間（曜日既定を上書き）
+  const dailyHours = await prisma.dailyHours.findMany({
+    where: { lineChannelId: channelId, date: { gte: params.fromDate, lte: params.toDate } },
+  });
+  const dhByDate = new Map(dailyHours.map((h) => [h.date, { open: h.openTime, close: h.closeTime }]));
+
   // 期間内の休憩時間
   const breaks = await prisma.dailyBreak.findMany({
     where: { lineChannelId: channelId, date: { gte: params.fromDate, lte: params.toDate } },
@@ -110,7 +116,7 @@ export async function computeDbAvailability(params: {
     const dateStr = isoDate(d);
     const dow = jstDow(d);
     const dayBeds = bedsByDate.get(dateStr) ?? [];
-    const hours = await getDayHours(channelId, dow);
+    const hours = dhByDate.get(dateStr) ?? (await getDayHours(channelId, dow));
 
     if (dayBeds.length === 0 || !hours || holidaySet.has(dateStr)) {
       days.push({ date: dateStr, dayOfWeek: dow, isClosed: true, slots: [] });
