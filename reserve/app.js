@@ -1051,7 +1051,7 @@
             } else if (imminent) {
               // 直前枠（現時刻〜+30分）は 📞 として、お電話ご案内パネルへ誘導
               cls.push('imminent');
-              html += `<button class="${cls.join(' ')}" data-imminent-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 直前のためお電話で"><span class="phone-mark">📞</span></button>`;
+              html += `<button class="${cls.join(' ')}" data-imminent-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 空きあり（直前のためお電話で）"><span class="phone-mark">📞</span><span class="phone-mark-sub">空き</span></button>`;
             } else {
               cls.push('avail');
               const priorityIdx = state.selectedIsos.indexOf(iso);
