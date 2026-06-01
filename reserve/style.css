@@ -642,10 +642,7 @@ html, body {
 }
 .slot.imminent:hover { background: #efe6c8; }
 .slot.imminent:active { transform: scale(0.92); }
-.phone-mark {
-  font-size: 14px;
-  display: inline-block;
-}
+.slot.imminent .icon-phone { width: 14px; height: 14px; }
 .phone-mark-sub {
   font-size: 9px;
   font-weight: 700;
@@ -653,6 +650,15 @@ html, body {
   margin-top: 2px;
   letter-spacing: 0.02em;
 }
+
+/* 電話ピクトグラム（凡例・カレンダーセル・案内パネル共通） */
+.icon-phone {
+  display: inline-block;
+  vertical-align: middle;
+  width: 1em;
+  height: 1em;
+}
+.legend-mark .icon-phone { width: 14px; height: 14px; }
 .slot.unknown.is-loading {
   background: #fbf6e8;
   pointer-events: none;
