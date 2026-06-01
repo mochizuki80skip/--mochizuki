@@ -97,6 +97,7 @@
           <span class="legend-item"><span class="legend-mark mark-avail">〇</span>予約可</span>
           <span class="legend-item"><span class="legend-mark mark-none">―</span>満員 / 受付外</span>
           <span class="legend-item"><span class="legend-mark mark-unknown">?</span>タップで再取得</span>
+          <span class="legend-item"><span class="legend-mark mark-phone">📞</span>直前のためお電話で</span>
         </div>
         <p class="multi-hint">第1〜第3希望まで選択できます（任意）。同じ枠を再タップで取消。</p>
 
@@ -163,6 +164,25 @@
       </div>
     </section>
 
+    <!-- 直前枠（30分以内）専用：お電話のご案内パネル -->
+    <section class="phone-help" id="phone-help" hidden>
+      <h2 class="phone-help-title">📞 直前のご予約はお電話で</h2>
+      <p class="phone-help-msg">
+        施術開始まで <strong>30分</strong> を切っているお時間は、LINE での
+        ご返信が間に合わない可能性があります。直接お電話でのご連絡をお願いします。
+      </p>
+      <div class="phone-help-card">
+        <div class="phone-help-clinic" id="phone-help-clinic">—</div>
+        <a class="phone-help-link" id="phone-help-link" href="#" hidden>
+          <span class="phone-help-icon" aria-hidden="true">📞</span>
+          <span class="phone-help-number" id="phone-help-number"></span>
+        </a>
+        <p class="phone-help-fallback" id="phone-help-fallback" hidden>
+          お電話番号は院にお問合せください。
+        </p>
+      </div>
+    </section>
+
     <p class="disclaimer">
       ※ 表示は当院の予約システムから数分単位で取得しています。実際の予約状況は LINE 受付時に最終確認させていただきます。
     </p>
@@ -173,6 +193,6 @@
     <small>リカバリー鍼灸院</small>
   </footer>
 
-  <script src="app.js?v=20260520g"></script>
+  <script src="app.js?v=20260520h"></script>
 </body>
 </html>

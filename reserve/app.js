@@ -13,6 +13,7 @@
       lineBasicId: '@714hycwt',
       address: '〒411-0943 静岡県駿東郡長泉町下土狩382-12',
       photo: 'img/clinic-mishima.jpg',
+      phone: '', // 直前のお問合せ用。例: '055-XXX-XXXX'
     },
     '193': {
       name: 'リカバリー鍼灸院 裾野長泉院',
@@ -21,8 +22,12 @@
       lineBasicId: '@579erouy',
       address: '〒410-1123 静岡県裾野市伊豆島田825-7',
       photo: 'img/clinic-susono.jpg',
+      phone: '', // 直前のお問合せ用。例: '055-XXX-XXXX'
     },
   };
+
+  // 「直前のためLINEでは受付できない」枠の閾値（分）
+  const IMMINENT_MIN = 30;
 
   // 営業（電話受付）時間: JS の getUTCDay() インデックス（0=日, 6=土）
   // 月-金: 10:00-19:00 / 土-日: 9:00-18:00
@@ -477,6 +482,19 @@
         + `<span class="pin-slot-val">${iso ? escapeHtml(fmtDateTimeJp(iso)) : '未選択'}</span>`;
       ul.appendChild(li);
     }
+  }
+
+  // 「直前枠」判定：iso が現時刻〜現時刻+IMMINENT_MIN 分の範囲なら true。
+  // それ以前（過去）は false（呼び出し側で「過去枠」として扱う）。
+  function isImminentIso(iso, nowMs) {
+    const t = new Date(iso).getTime();
+    if (!Number.isFinite(t)) return false;
+    if (t <= nowMs) return false;
+    return t < nowMs + IMMINENT_MIN * 60 * 1000;
+  }
+  function isPastIso(iso, nowMs) {
+    const t = new Date(iso).getTime();
+    return Number.isFinite(t) && t <= nowMs;
   }
 
   function renderFirstTimeNameField() {
@@ -1013,6 +1031,7 @@
       }
       html += '</div>';
 
+      const nowMs = Date.now();
       for (const t of times) {
         html += '<div class="grid-row" role="row">';
         html += `<div class="cell time-label-cell" role="rowheader">${t}</div>`;
@@ -1023,16 +1042,28 @@
           if (d.wIdx === 0) cls.push('is-sun');
           if (d.wIdx === 6) cls.push('is-sat');
           if (iso) {
-            cls.push('avail');
-            const priorityIdx = state.selectedIsos.indexOf(iso);
-            if (priorityIdx >= 0) {
-              cls.push('is-selected');
-              cls.push('is-priority-' + (priorityIdx + 1));
+            const past = isPastIso(iso, nowMs);
+            const imminent = !past && isImminentIso(iso, nowMs);
+            if (past) {
+              // 既に開始時刻を過ぎた枠は「―」扱いにする
+              cls.push('none');
+              html += `<div class="${cls.join(' ')}" aria-label="${d.monthDay} ${d.weekday} ${t} 受付外">―</div>`;
+            } else if (imminent) {
+              // 直前枠（現時刻〜+30分）は 📞 として、お電話ご案内パネルへ誘導
+              cls.push('imminent');
+              html += `<button class="${cls.join(' ')}" data-imminent-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 直前のためお電話で"><span class="phone-mark">📞</span></button>`;
+            } else {
+              cls.push('avail');
+              const priorityIdx = state.selectedIsos.indexOf(iso);
+              if (priorityIdx >= 0) {
+                cls.push('is-selected');
+                cls.push('is-priority-' + (priorityIdx + 1));
+              }
+              const badge = priorityIdx >= 0
+                ? `<span class="priority-badge">第${priorityIdx + 1}希望</span>`
+                : '<span class="avail-mark">〇</span>';
+              html += `<button class="${cls.join(' ')}" data-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 予約可">${badge}</button>`;
             }
-            const badge = priorityIdx >= 0
-              ? `<span class="priority-badge">第${priorityIdx + 1}希望</span>`
-              : '<span class="avail-mark">〇</span>';
-            html += `<button class="${cls.join(' ')}" data-iso="${iso}" aria-label="${d.monthDay} ${d.weekday} ${t} 予約可">${badge}</button>`;
           } else {
             const um = unknownByDate.get(d.ymd);
             const unknownIso = um ? um.get(t) : null;
@@ -1052,7 +1083,46 @@
     });
 
     grid.innerHTML = html;
+    updatePhoneHelp();
     updateUpdatedAt();
+  }
+
+  // 直前枠のためのお電話ご案内パネルの表示を更新する。
+  //   ・院名と電話番号（あれば tel: リンク）を最新に
+  //   ・現在の available 一覧に直前枠（30分以内）があるときだけ表示
+  function updatePhoneHelp() {
+    const section = document.getElementById('phone-help');
+    if (!section) return;
+    const clinic = CLINICS[state.clinic];
+    const nameEl = document.getElementById('phone-help-clinic');
+    const linkEl = document.getElementById('phone-help-link');
+    const numberEl = document.getElementById('phone-help-number');
+    const fallbackEl = document.getElementById('phone-help-fallback');
+    if (nameEl) nameEl.textContent = clinic.name;
+    if (clinic.phone) {
+      if (linkEl) {
+        linkEl.href = `tel:${clinic.phone.replace(/[^\d+]/g, '')}`;
+        linkEl.hidden = false;
+      }
+      if (numberEl) numberEl.textContent = clinic.phone;
+      if (fallbackEl) fallbackEl.hidden = true;
+    } else {
+      if (linkEl) linkEl.hidden = true;
+      if (fallbackEl) fallbackEl.hidden = false;
+    }
+    const nowMs = Date.now();
+    const hasImminent = state.availability && Array.isArray(state.availability.available)
+      && state.availability.available.some((s) => isImminentIso(s.iso, nowMs));
+    section.hidden = !hasImminent;
+  }
+
+  function scrollToPhoneHelp() {
+    const section = document.getElementById('phone-help');
+    if (!section || section.hidden) return;
+    section.classList.remove('is-flash');
+    void section.offsetWidth; // force reflow to restart animation
+    section.classList.add('is-flash');
+    smoothScrollToElement(section, { offset: -8, duration: 700 });
   }
 
   function updateUpdatedAt() {
@@ -1316,6 +1386,13 @@ ${dtLines}${promoLine}${nameLine}${cfLine}
       return;
     }
 
+    // Step 3: imminent slot — guide to the phone-help section
+    const imminentBtn = e.target.closest('.slot.imminent');
+    if (imminentBtn) {
+      scrollToPhoneHelp();
+      return;
+    }
+
     // Step 3: time slot (multi-select up to 3, in priority order)
     const slot = e.target.closest('.slot.avail');
     if (slot && slot.dataset.iso) {
@@ -1407,4 +1484,9 @@ ${dtLines}${promoLine}${nameLine}${cfLine}
   if (state.promoCode) fetchPromoMenus();
 
   recomputeStepStates();
+
+  // 60秒ごとにグリッドを再描画し、時間経過で 〇 → 📞 への遷移を反映する。
+  setInterval(() => {
+    if (state.availability && state.courseId != null) renderGrid();
+  }, 60 * 1000);
 })();

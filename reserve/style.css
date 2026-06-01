@@ -331,6 +331,7 @@ html, body {
 }
 .mark-avail { color: #c2342a; }
 .mark-none { color: var(--ink-faint); }
+.mark-phone { color: var(--gold-deep); }
 
 /* ---- Status messages ---- */
 .status {
@@ -623,6 +624,22 @@ html, body {
 }
 .slot.unknown:hover { background: #f4f0e6; color: var(--ink-soft); }
 .slot.unknown:active { transform: scale(0.92); }
+.slot.imminent {
+  appearance: none;
+  background: #f6f0df;
+  color: var(--gold-deep);
+  cursor: pointer;
+  border-left: 1px solid var(--line);
+  font-family: inherit;
+  padding: 0;
+  transition: background .12s;
+}
+.slot.imminent:hover { background: #efe6c8; }
+.slot.imminent:active { transform: scale(0.92); }
+.phone-mark {
+  font-size: 15px;
+  display: inline-block;
+}
 .slot.unknown.is-loading {
   background: #fbf6e8;
   pointer-events: none;
@@ -884,6 +901,71 @@ html, body {
   text-align: center;
   margin: 0;
   line-height: 1.7;
+}
+
+/* ---- 直前のお電話ご案内パネル ---- */
+.phone-help {
+  margin: 14px 0 6px;
+  padding: 18px 16px;
+  border: 1.5px solid var(--gold-deep);
+  border-radius: 12px;
+  background: #fbf7eb;
+}
+.phone-help[hidden] { display: none !important; }
+.phone-help-title {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--gold-deep);
+}
+.phone-help-msg {
+  margin: 0 0 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.phone-help-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 12px;
+  background: var(--white);
+  border-radius: 10px;
+}
+.phone-help-clinic {
+  font-size: 13px;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+.phone-help-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  background: var(--gold-deep);
+  color: var(--white);
+  border-radius: 999px;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  -webkit-tap-highlight-color: transparent;
+}
+.phone-help-link:active { transform: scale(0.97); }
+.phone-help-icon { font-size: 18px; }
+.phone-help-fallback {
+  margin: 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+@keyframes phoneHelpFlash {
+  0%   { box-shadow: 0 0 0 0 rgba(178, 138, 56, 0); }
+  30%  { box-shadow: 0 0 0 12px rgba(178, 138, 56, 0.35); }
+  100% { box-shadow: 0 0 0 0 rgba(178, 138, 56, 0); }
+}
+.phone-help.is-flash {
+  animation: phoneHelpFlash 1.2s ease-out;
 }
 .footer {
   padding: 16px;
