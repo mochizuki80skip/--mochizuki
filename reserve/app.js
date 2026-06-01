@@ -13,7 +13,7 @@
       lineBasicId: '@714hycwt',
       address: '〒411-0943 静岡県駿東郡長泉町下土狩382-12',
       photo: 'img/clinic-mishima.jpg',
-      phone: '', // 直前のお問合せ用。例: '055-XXX-XXXX'
+      phone: '055-950-8703',
     },
     '193': {
       name: 'リカバリー鍼灸院 裾野長泉院',
@@ -22,7 +22,7 @@
       lineBasicId: '@579erouy',
       address: '〒410-1123 静岡県裾野市伊豆島田825-7',
       photo: 'img/clinic-susono.jpg',
-      phone: '', // 直前のお問合せ用。例: '055-XXX-XXXX'
+      phone: '055-993-6877',
     },
   };
 
