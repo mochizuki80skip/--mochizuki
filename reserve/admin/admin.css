@@ -492,3 +492,63 @@
   width: 100%;
   font-family: inherit;
 }
+
+/* ============================================================
+   PC（広い画面）向け最適化
+   ・コンテナ幅を 640px → 1180px へ拡大
+   ・「新規追加」と「現在のキャンペーン」を左右2カラムに
+   ・編集時のフォームは sticky で画面に残るので、右の一覧から
+     編集ボタンを押した直後にフォームが視界内にある
+   ============================================================ */
+@media (min-width: 1024px) {
+  .admin-wrap {
+    max-width: 1180px;
+    padding: 24px 28px 48px;
+  }
+  .admin-card {
+    padding: 22px 24px 24px;
+  }
+  .admin-card h2 {
+    font-size: 17px;
+  }
+  .admin-help { font-size: 13px; }
+
+  .admin-2col {
+    display: grid;
+    grid-template-columns: minmax(420px, 1fr) minmax(520px, 1.3fr);
+    gap: 20px;
+    align-items: start;
+  }
+  /* 左カラム（フォーム）は sticky にして、右の一覧をスクロール
+     しながらでも常にフォームが見えるようにする */
+  .admin-2col > .admin-card:first-child {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+  }
+  .admin-2col > .admin-card { margin-bottom: 0; }
+
+  /* PC では一覧の URL 行を一段組のままでも文字に余裕が出る */
+  .promo-item-url-row input {
+    font-size: 13px;
+  }
+
+  /* ボトムアクションは横並びに */
+  .admin-bottom-actions {
+    flex-direction: row;
+    justify-content: center;
+    gap: 12px;
+  }
+  .admin-bottom-btn { width: auto; padding: 11px 24px; }
+  .admin-logout { width: auto; padding: 11px 24px; }
+}
+
+/* もう少し広い画面ではさらに余裕を */
+@media (min-width: 1280px) {
+  .admin-wrap { max-width: 1280px; }
+  .admin-2col {
+    grid-template-columns: minmax(440px, 480px) minmax(560px, 1fr);
+    gap: 24px;
+  }
+}
