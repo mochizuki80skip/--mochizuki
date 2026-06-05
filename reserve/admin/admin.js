@@ -11,8 +11,28 @@
     applyKindUI();
     refreshTargetCourseOptions();
     bindPromoFilters();
+    bindAdminNav();
     loadPromos();
     loadStats();
+  }
+
+  // サイドバーのナビ: 「キャンペーン管理」「通信ログ」をクリックで切替（PC向け）。
+  // モバイルでは CSS で常に全セクション表示にしているのでナビは飾り扱い。
+  let _adminNavBound = false;
+  function bindAdminNav() {
+    if (_adminNavBound) return;
+    _adminNavBound = true;
+    document.querySelectorAll('.admin-nav-item[data-section]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const target = btn.dataset.section;
+        document.querySelectorAll('.admin-section').forEach((s) => {
+          s.hidden = s.dataset.section !== target;
+        });
+        document.querySelectorAll('.admin-nav-item[data-section]').forEach((b) => {
+          b.classList.toggle('is-active', b === btn);
+        });
+      });
+    });
   }
 
   async function loadStats() {

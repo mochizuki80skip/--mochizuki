@@ -8,7 +8,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>管理画面 | リカバリー鍼灸院</title>
   <link rel="stylesheet" href="/style.css?v=20260520k">
-  <link rel="stylesheet" href="/admin/admin.css?v=20260520k">
+  <link rel="stylesheet" href="/admin/admin.css?v=20260520l">
 </head>
 <body>
   <header class="topbar">
@@ -33,7 +33,29 @@
 
     <!-- Authenticated views -->
     <div id="auth-view" hidden>
+      <div class="admin-layout">
+        <aside class="admin-sidebar">
+          <div class="admin-sidebar-brand">管理メニュー</div>
+          <nav class="admin-nav">
+            <button type="button" class="admin-nav-item is-active" data-section="campaigns">
+              <span class="admin-nav-icon">🎯</span>キャンペーン管理
+            </button>
+            <button type="button" class="admin-nav-item" data-section="stats">
+              <span class="admin-nav-icon">📊</span>通信ログ
+            </button>
+            <a class="admin-nav-item" href="/manual.html" target="_blank" rel="noopener">
+              <span class="admin-nav-icon">📖</span>運用マニュアル
+              <span class="admin-nav-ext" aria-hidden="true">↗</span>
+            </a>
+          </nav>
+          <div class="admin-sidebar-footer">
+            <button class="admin-logout" id="logout-btn">ログアウト</button>
+          </div>
+        </aside>
 
+        <div class="admin-main">
+
+      <section class="admin-section" data-section="stats" hidden>
       <section class="admin-card">
         <h2>📊 通信ログ（直近3日）</h2>
         <p class="admin-help">「上流成功率」は threease を実際に叩いた呼び出しの成功割合（キャッシュ命中は除外）。「キャッシュ率」が高いほど threease への負荷が軽く、失敗・遅延が起きにくくなります。失敗が多い時はカレンダーに「?」枠が出やすくなります。</p>
@@ -41,7 +63,9 @@
           <p class="admin-help">読み込み中…</p>
         </div>
       </section>
+      </section>
 
+      <section class="admin-section" data-section="campaigns">
       <div class="admin-2col">
 
       <section class="admin-card">
@@ -222,17 +246,14 @@
       </section>
 
       </div> <!-- /.admin-2col -->
+      </section> <!-- /.admin-section campaigns -->
 
-      <div class="admin-bottom-actions">
-        <a class="admin-bottom-btn" href="/manual.html" target="_blank" rel="noopener">
-          📖 運用マニュアルを開く
-        </a>
-        <button class="admin-logout" id="logout-btn">ログアウト</button>
-      </div>
+        </div> <!-- /.admin-main -->
+      </div> <!-- /.admin-layout -->
     </div>
 
   </main>
 
-  <script src="/admin/admin.js?v=20260520d"></script>
+  <script src="/admin/admin.js?v=20260520l"></script>
 </body>
 </html>
