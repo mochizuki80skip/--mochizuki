@@ -165,7 +165,11 @@
     // Pre-select the target course only when the configured level allows it.
     if (hasCourse && Array.isArray(state._coursesList)
         && state._coursesList.some((c) => c.id === auto.targetCourseId)) {
-      state.courseId = auto.targetCourseId;
+      // 「通常メニューも残す」キャンペーンでは、通常コースではなく
+      // 割引バリアント（合成ID）の方を選択する。
+      state.courseId = auto.keepOriginalMenu
+        ? `${auto.id}@${auto.targetCourseId}`
+        : auto.targetCourseId;
     }
 
     renderCourses();
