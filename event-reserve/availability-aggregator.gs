@@ -99,10 +99,14 @@ function buildAvailability_(ss) {
     }
     const board = readBoard_(sh);
     const slots = computeSlots_(board, day);
+    const mins = Object.keys(board.timeRowByMin).map(Number).sort((a, b) => a - b);
     days.push({ date: day.date, tab: day.tab, stepMin: day.stepMin,
                 beds: board.beds.length,
                 activeBeds: board.beds.filter((b) => b.active).length,
                 newBeds: board.beds.filter((b) => b.active && b.newOk).length,
+                timeRows: mins.length,
+                timeFrom: mins.length ? fromMinutes_(mins[0]) : '-',
+                timeTo: mins.length ? fromMinutes_(mins[mins.length - 1]) : '-',
                 slots });
   }
   return { generatedAt: new Date().toISOString(), days };
@@ -174,7 +178,6 @@ function readBoard_(sh) {
 /** その日の営業時間・刻みに沿って、各開始時刻の空き数とステータスを計算 */
 function computeSlots_(board, day) {
   const slots = [];
-  const span = Math.max(1, Math.round(CONFIG.treatmentMin / 15)); // 施術は何行ぶんか(15分=1行前提)
   for (const [open, close] of day.hours) {
     const openMin = toMinutes_(open);
     const closeMin = toMinutes_(close);
@@ -183,7 +186,7 @@ function computeSlots_(board, day) {
       let freeAll = 0, freeNew = 0;
       for (const bed of board.beds) {
         if (!bed.active) continue;
-        if (isBedFree_(board, bed, t, span)) {
+        if (isBedFree_(board, bed, t)) {
           freeAll++;
           if (bed.newOk) freeNew++;
         }
@@ -198,14 +201,18 @@ function computeSlots_(board, day) {
   return slots;
 }
 
-/** ベッドが開始時刻 t から施術時間ぶん、連続で空いているか
- *  判定は「各ベッドの1列目（名前欄）」のみを見る。
- *  名前欄が空 → 空き。来院済みチェックや来院きっかけ欄(2・3列目)は無視。 */
-function isBedFree_(board, bed, startMin, span) {
-  for (let k = 0; k < span; k++) {
-    const r = board.timeRowByMin[startMin + k * 15];
-    if (r === undefined) return false;            // その行が存在しない＝取れない
-    if (isBookedCell_(board.values[r][bed.col])) return false; // 名前欄(1列目)が埋まり
+/** ベッドが開始時刻 t から施術時間ぶん、空いているか
+ *  判定は「各ベッドの1列目（名前欄）」のみ。
+ *  [t, t+施術時間) に入るボードの時刻行すべてで名前欄が空なら空き。
+ *  ※ 15分刻み・30分刻み・空行ありの全パターンに対応。 */
+function isBedFree_(board, bed, startMin) {
+  if (board.timeRowByMin[startMin] === undefined) return false; // 開始行が無い＝取れない
+  const endMin = startMin + CONFIG.treatmentMin;
+  for (const key in board.timeRowByMin) {
+    const m = Number(key);
+    if (m >= startMin && m < endMin) {
+      if (isBookedCell_(board.values[board.timeRowByMin[m]][bed.col])) return false;
+    }
   }
   return true;
 }
@@ -261,8 +268,20 @@ function writePublishSheet_(ss, result) {
       rule('×', '#fbe7e7', '#b33636'),
     ]));
   });
-  sh.getRange(1, 8).setValue('最終更新: ' + new Date().toLocaleString('ja-JP'));
-  sh.autoResizeColumns(1, header.length);
+  // --- 診断ブロック（H列〜）: 各日で何台・何時刻を検出したかを表示 ---
+  const diag = [['日付', 'ベッド', '稼働', '新患可', '時刻行', '時刻範囲', 'メモ']];
+  for (const d of result.days) {
+    diag.push([
+      d.date, d.beds || 0, d.activeBeds || 0, d.newBeds || 0,
+      d.timeRows || 0, `${d.timeFrom || '-'}〜${d.timeTo || '-'}`, d.error || '',
+    ]);
+  }
+  sh.getRange(1, 8, diag.length, diag[0].length).setValues(diag);
+  sh.getRange(1, 8, 1, diag[0].length)
+    .setBackground('#444').setFontColor('#fff').setFontWeight('bold');
+  sh.getRange(diag.length + 2, 8)
+    .setValue('最終更新: ' + new Date().toLocaleString('ja-JP'));
+  sh.autoResizeColumns(1, 14);
 }
 
 /* ======================= 構造の診断（補助） ======================= */
@@ -287,12 +306,16 @@ function diagnoseStructure() {
 }
 
 /* =========================== ユーティリティ =========================== */
-/** Date(時刻) / "9:00" / シリアル値 → 0:00からの分。該当なしは null */
+/** Date(時刻) / "9:00" / "9：00" / "9:00:00" / シリアル値 → 0:00からの分。該当なしは null */
 function toMinutes_(v) {
   if (v instanceof Date) return v.getHours() * 60 + v.getMinutes();
-  if (typeof v === 'number' && v > 0 && v < 1) return Math.round(v * 24 * 60);
+  if (typeof v === 'number') {
+    if (v > 0 && v < 1) return Math.round(v * 1440); // 時刻シリアル(0〜1)
+    return null;
+  }
   if (typeof v === 'string') {
-    const m = v.match(/^\s*(\d{1,2}):(\d{2})\s*$/);
+    const s = v.replace(/：/g, ':').trim();         // 全角コロン対応
+    const m = s.match(/^(\d{1,2}):(\d{2})/);          // 末尾の :SS 等は無視
     if (m) return Number(m[1]) * 60 + Number(m[2]);
   }
   return null;
