@@ -35,7 +35,6 @@ const CONFIG = {
   ],
   treatmentMin: 30,       // 1施術の長さ（=何分ぶんの行を占有するか）
   fewLeftThreshold: 1,    // 残り枠がこの数以下なら △
-  nameColOffset: 0,       // ベッド列グループの先頭から名前列までのオフセット（0=先頭列）
   publishSheet: 'サイト公開用',
 };
 
@@ -109,39 +108,52 @@ function readBoard_(sh) {
     const min = toMinutes_(values[r][0]) ?? toMinutes_(values[r][1]);
     if (min != null && timeRowByMin[min] === undefined) timeRowByMin[min] = r;
   }
+  const firstTimeRow = Math.min.apply(null, Object.values(timeRowByMin).concat([nRows]));
 
   // --- ベッドヘッダ行（No.x が3つ以上並ぶ行）を検出 ---
   let headerRow = -1;
-  const bedCols = [];
-  for (let r = 0; r < Math.min(nRows, 12); r++) {
+  let heads = [];
+  for (let r = 0; r < Math.min(nRows, firstTimeRow); r++) {
     const cols = [];
     for (let c = 0; c < nCols; c++) {
       const m = String(values[r][c]).match(/^No\.?\s*(\d+)/);
       if (m) cols.push({ no: Number(m[1]), col: c });
     }
-    if (cols.length >= 3) { headerRow = r; bedCols.push(...cols); break; }
+    if (cols.length >= 3) { headerRow = r; heads = cols; break; }
   }
+  heads.sort((a, b) => a.col - b.col);
+  // 各ベッドの列範囲 [col, endCol)（次のベッド列の手前まで／最後は3列ぶん）
+  const beds0 = heads.map((b, i) => ({
+    no: b.no, col: b.col,
+    endCol: i + 1 < heads.length ? heads[i + 1].col : b.col + 3,
+  }));
 
-  // --- 新規対応行（boolean が並ぶ）と施術者行（文字列が並ぶ）を検出 ---
+  // --- 新規対応行(boolean)・施術者行(文字列) をベッド範囲全体から検出 ---
   let newRow = -1, therRow = -1;
-  const firstTimeRow = Math.min(...Object.values(timeRowByMin).concat([nRows]));
   for (let r = headerRow + 1; r < firstTimeRow; r++) {
     let bools = 0, texts = 0;
-    for (const b of bedCols) {
-      const v = values[r][b.col];
-      if (typeof v === 'boolean') bools++;
-      else if (typeof v === 'string' && v.trim() !== '') texts++;
+    for (const b of beds0) {
+      for (let c = b.col; c < b.endCol; c++) {
+        const v = values[r][c];
+        if (typeof v === 'boolean') bools++;
+        else if (typeof v === 'string' && v.trim() !== '') texts++;
+      }
     }
     if (bools >= 2 && newRow === -1) newRow = r;
     else if (texts >= 2 && therRow === -1) therRow = r;
   }
 
-  // --- ベッド定義 ---
-  const beds = bedCols.map((b) => {
-    const nameCol = b.col + CONFIG.nameColOffset;
-    const therapist = therRow >= 0 ? String(values[therRow][b.col] || '').trim() : '';
-    const newOk = newRow >= 0 ? values[newRow][b.col] === true : false;
-    return { no: b.no, col: b.col, nameCol, therapist, newOk, active: therapist !== '' };
+  // --- ベッド定義（3列まとめて読む）---
+  const beds = beds0.map((b) => {
+    let therapist = '', newOk = false;
+    for (let c = b.col; c < b.endCol; c++) {
+      if (therRow >= 0 && !therapist) {
+        const tv = values[therRow][c];
+        if (typeof tv === 'string' && tv.trim() !== '') therapist = tv.trim();
+      }
+      if (newRow >= 0 && values[newRow][c] === true) newOk = true;
+    }
+    return { no: b.no, col: b.col, endCol: b.endCol, therapist, newOk, active: therapist !== '' };
   });
 
   return { values, beds, timeRowByMin };
@@ -174,13 +186,17 @@ function computeSlots_(board, day) {
   return slots;
 }
 
-/** ベッドが開始時刻 t から施術時間ぶん、連続で空いているか */
+/** ベッドが開始時刻 t から施術時間ぶん、連続で空いているか
+ *  ベッドの3列を走査し、名前/連絡先など文字情報があれば埋まりと判定。
+ *  来院済みチェック等の boolean は占有とみなさない。 */
 function isBedFree_(board, bed, startMin, span) {
   for (let k = 0; k < span; k++) {
     const r = board.timeRowByMin[startMin + k * 15];
     if (r === undefined) return false;            // その行が存在しない＝取れない
-    const v = board.values[r][bed.nameCol];
-    if (v !== '' && v != null && typeof v !== 'boolean') return false; // 名前/連絡先あり＝埋まり
+    for (let c = bed.col; c < bed.endCol; c++) {
+      const v = board.values[r][c];
+      if (v !== '' && v != null && typeof v !== 'boolean') return false; // 名前/連絡先あり＝埋まり
+    }
   }
   return true;
 }
