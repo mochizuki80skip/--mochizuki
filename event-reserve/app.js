@@ -287,8 +287,8 @@ function fmtChoice(c) {
 function buildMessage() {
   const name = document.getElementById('nameInput').value.trim();
   const tel = document.getElementById('telInput').value.trim();
-  const visitor = state.visitor === 'new' ? 'はじめて' : '2回目以降';
-  const lines = [`【${CONFIG.clinicName} ${CONFIG.eventName} 予約希望】`];
+  const visitor = state.visitor === 'new' ? '初回' : '2回目以降';
+  const lines = ['【予約希望】'];
   lines.push(`お名前：${name}`);
   lines.push(`電話番号：${tel}`);
   lines.push(`来院区分：${visitor}`);
