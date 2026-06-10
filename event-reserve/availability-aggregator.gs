@@ -12,7 +12,7 @@
  *   なら、そのベッドはその時刻に空き。
  *   - 施術者が未割当のベッドは数えない
  *   - 新患向けは「新規対応 ☑」のベッドだけ数える
- *   - 空き数 0→×, 1〜閾値→△, それ以上→〇
+ *   - 空き数 0→×, 1〜2→△, 8以上→〇, 3〜7→CONFIG.midStatus
  *
  * 【使い方】
  *   1. 予約ボードのスプレッドシートで 拡張機能 → Apps Script
@@ -34,7 +34,11 @@ const CONFIG = {
       hours: [['09:00', '17:00']] },
   ],
   treatmentMin: 30,       // 1施術の長さ（=何分ぶんの行を占有するか）
-  fewLeftThreshold: 1,    // 残り枠がこの数以下なら △
+  // 空き枠数 → 〇△× の判定しきい値
+  okMin: 8,               // 空きが 8 以上 → 〇（空きあり）
+  fewMax: 2,              // 空きが 1〜2 → △（残り枠少／要問合せ）
+  midStatus: '〇',        // 空きが 3〜7 のときの表示（'〇' か '△'）
+  // ×（空き無し）は 0
   publishSheet: 'サイト公開用',
 };
 
@@ -188,23 +192,34 @@ function computeSlots_(board, day) {
 
 /** ベッドが開始時刻 t から施術時間ぶん、連続で空いているか
  *  ベッドの3列を走査し、名前/連絡先など文字情報があれば埋まりと判定。
- *  来院済みチェック等の boolean は占有とみなさない。 */
+ *  来院済みチェック（TRUE/FALSE）は占有とみなさない。 */
 function isBedFree_(board, bed, startMin, span) {
   for (let k = 0; k < span; k++) {
     const r = board.timeRowByMin[startMin + k * 15];
     if (r === undefined) return false;            // その行が存在しない＝取れない
     for (let c = bed.col; c < bed.endCol; c++) {
-      const v = board.values[r][c];
-      if (v !== '' && v != null && typeof v !== 'boolean') return false; // 名前/連絡先あり＝埋まり
+      if (isBookedCell_(board.values[r][c])) return false; // 名前/連絡先あり＝埋まり
     }
   }
   return true;
 }
 
+/** そのセルが「予約で埋まっている」入力か。
+ *  空欄・boolean・チェックボックスの "TRUE"/"FALSE" 文字列は埋まりとみなさない。 */
+function isBookedCell_(v) {
+  if (v == null || v === '') return false;
+  if (typeof v === 'boolean') return false;
+  const s = String(v).trim();
+  if (s === '') return false;
+  if (/^(true|false)$/i.test(s)) return false; // 来院済みチェック等
+  return true;
+}
+
 function statusOf_(free) {
-  if (free <= 0) return '×';
-  if (free <= CONFIG.fewLeftThreshold) return '△';
-  return '〇';
+  if (free <= 0) return '×';                 // 空き無し
+  if (free <= CONFIG.fewMax) return '△';     // 残り 1〜2
+  if (free >= CONFIG.okMin) return '〇';      // 8 以上
+  return CONFIG.midStatus;                    // 3〜7
 }
 
 /* ===================== 公開用シートへ書き出し ===================== */
