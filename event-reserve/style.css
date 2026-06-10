@@ -21,16 +21,17 @@ body {
   background: var(--bg);
   color: var(--ink);
   line-height: 1.6;
-  padding-bottom: 220px; /* トレイぶん */
+  padding-bottom: 250px; /* トレイぶん */
 }
 
 .site-header {
   background: var(--ink);
   color: #fff;
-  padding: 20px 16px 18px;
+  padding: 18px 16px 16px;
   text-align: center;
 }
-.site-header h1 { margin: 0; font-size: 1.2rem; letter-spacing: .04em; }
+.clinic { margin: 0 0 4px; font-size: .82rem; color: var(--gold); letter-spacing: .06em; font-weight: 700; }
+.site-header h1 { margin: 0; font-size: 1.22rem; letter-spacing: .04em; }
 .venue { margin: 4px 0 0; font-size: .82rem; color: #d8cdb6; }
 
 .wrap { max-width: 640px; margin: 0 auto; padding: 14px 12px 0; }
@@ -51,6 +52,7 @@ body {
   cursor: pointer; transition: .15s;
 }
 .seg-btn.is-active { background: #fff; color: var(--ink); box-shadow: var(--shadow); }
+.seg-btn:disabled { opacity: .4; cursor: not-allowed; }
 .hint { margin: 8px 2px 0; font-size: .76rem; color: var(--muted); }
 
 /* 凡例 */
@@ -101,19 +103,20 @@ body {
   box-shadow: 0 -4px 18px rgba(0,0,0,.08);
   padding: 12px 12px calc(12px + env(safe-area-inset-bottom));
 }
-.tray-choices { display: flex; gap: 8px; max-width: 616px; margin: 0 auto 8px; }
+.tray-choices { display: flex; gap: 6px; max-width: 616px; margin: 0 auto 8px; }
 .choice {
   flex: 1; text-align: left; border: 1.5px dashed #d8cfbd; background: #fbf8f1;
-  border-radius: 12px; padding: 8px 10px; cursor: pointer; min-width: 0;
+  border-radius: 12px; padding: 7px 9px; cursor: pointer; min-width: 0;
 }
 .choice.filled { border-style: solid; border-color: var(--gold); background: #fff; }
 .choice.active { border-color: var(--gold-deep); box-shadow: 0 0 0 2px rgba(191,165,114,.25); }
-.choice-label { display: block; font-size: .68rem; color: var(--muted); font-weight: 700; }
-.choice-val { display: block; font-size: .92rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.choice-label { display: block; font-size: .64rem; color: var(--muted); font-weight: 700; }
+.choice-val { display: block; font-size: .84rem; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .choice.filled .choice-val::after { content: " ✕"; color: var(--muted); font-size: .8rem; }
 
-.name-input {
-  width: 100%; max-width: 616px; display: block; margin: 0 auto 8px;
+.tray-inputs { display: flex; gap: 8px; max-width: 616px; margin: 0 auto 8px; }
+.ti {
+  flex: 1; min-width: 0;
   border: 1px solid #e3dccd; border-radius: 10px; padding: 10px 12px; font-size: .95rem;
 }
 .line-btn {

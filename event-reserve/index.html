@@ -9,7 +9,8 @@
 </head>
 <body>
   <header class="site-header">
-    <h1 id="eventName">出店イベント ご予約</h1>
+    <p id="clinicName" class="clinic"></p>
+    <h1 id="eventName">チャリティー施術会のご予約</h1>
     <p id="venue" class="venue"></p>
   </header>
 
@@ -25,7 +26,7 @@
 
     <!-- 凡例 -->
     <section class="legend" aria-label="記号の説明">
-      <span><b class="mk ok">〇</b> 空きあり</span>
+      <span><b class="mk ok">〇</b> 複数空きあり</span>
       <span><b class="mk few">△</b> 残りわずか（要問合せ）</span>
       <span><b class="mk full">×</b> 満員</span>
     </section>
@@ -52,8 +53,15 @@
         <span class="choice-label">第2希望</span>
         <span class="choice-val">タップして選択</span>
       </button>
+      <button class="choice" data-idx="2" id="choice2">
+        <span class="choice-label">第3希望（任意）</span>
+        <span class="choice-val">タップして選択</span>
+      </button>
     </div>
-    <input type="text" id="nameInput" class="name-input" placeholder="お名前（任意）" autocomplete="name" />
+    <div class="tray-inputs">
+      <input type="text" id="nameInput" class="ti" placeholder="お名前（必須）" autocomplete="name" />
+      <input type="tel" id="telInput" class="ti" placeholder="電話番号（必須）" inputmode="tel" autocomplete="tel" />
+    </div>
     <button class="line-btn" id="lineBtn" disabled>LINEで予約を送る</button>
     <p class="confirm-note">※ ご予約はLINEでの最終確認をもって確定します</p>
   </div>

@@ -14,14 +14,18 @@ const CONFIG = {
   lineOaId: '@403dfbnt',              // 例: '@123abcde'
   lineUrl: 'https://lin.ee/XXXXXXX',  // 友だち追加 / トークURL（oaId が無い場合に使用）
 
-  eventName: '出店イベント ご予約',
+  clinicName: 'なつめ接骨院　島田市店',
+  eventName: 'チャリティー施術会のご予約',
   venue: '',   // 例: '○○マルシェ 特設ブース'
+
+  // この曜日は「はじめての方」専用（2回目以降を選べない）。0=日 1=月 … 5=金 6=土
+  newOnlyWeekdays: [5],
 
   refreshMinutes: 10,  // この分数ごとに空き状況を自動再取得（0で無効）
 };
 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
-const state = { data: null, visitor: 'new', activeDate: null, choices: [null, null], activeChoice: 0 };
+const state = { data: null, visitor: 'new', activeDate: null, choices: [null, null, null], activeChoice: 0 };
 let lastFetch = 0;
 
 /* ----------------------------- 初期化 ----------------------------- */
@@ -29,6 +33,7 @@ document.addEventListener('DOMContentLoaded', init);
 
 async function init() {
   document.getElementById('eventName').textContent = CONFIG.eventName;
+  if (CONFIG.clinicName) document.getElementById('clinicName').textContent = CONFIG.clinicName;
   if (CONFIG.venue) document.getElementById('venue').textContent = CONFIG.venue;
 
   bindVisitorToggle();
@@ -73,10 +78,46 @@ async function refresh(initial = false) {
 }
 
 function finishRender() {
+  applyDateConstraints();
   renderTabs();
   renderGrid();
   renderChoices();
   showUpdated();
+}
+
+/** 日付を切り替える（曜日制約を反映してから再描画） */
+function switchDate(date) {
+  state.activeDate = date;
+  applyDateConstraints();
+  renderTabs();
+  renderGrid();
+  renderChoices();
+}
+
+/** その日が「はじめての方」専用か（金曜など） */
+function isNewOnly(iso) {
+  if (!iso) return false;
+  const [y, m, d] = iso.split('-').map(Number);
+  const wd = new Date(y, m - 1, d).getDay();
+  return (CONFIG.newOnlyWeekdays || []).includes(wd);
+}
+
+/** 専用日のとき「2回目以降の方」を選べないようにする */
+function applyDateConstraints() {
+  const allBtn = document.querySelector('#visitorType .seg-btn[data-type="all"]');
+  const hint = document.getElementById('visitorHint');
+  if (isNewOnly(state.activeDate)) {
+    state.visitor = 'new';
+    document.querySelectorAll('#visitorType .seg-btn')
+      .forEach((x) => x.classList.toggle('is-active', x.dataset.type === 'new'));
+    if (allBtn) allBtn.disabled = true;
+    hint.textContent = '※ この日は「はじめての方」専用です';
+  } else {
+    if (allBtn) allBtn.disabled = false;
+    hint.textContent = state.visitor === 'new'
+      ? '※ 新規対応できる枠の空き状況を表示しています'
+      : '※ 全体の空き状況を表示しています';
+  }
 }
 
 /** 一定間隔で自動再取得 */
@@ -136,7 +177,7 @@ function renderTabs() {
     const btn = document.createElement('button');
     btn.className = 'tab' + (day.date === state.activeDate ? ' is-active' : '');
     btn.innerHTML = `${md}<small>${wd}</small>`;
-    btn.addEventListener('click', () => { state.activeDate = day.date; renderTabs(); renderGrid(); });
+    btn.addEventListener('click', () => switchDate(day.date));
     nav.appendChild(btn);
   }
 }
@@ -178,11 +219,15 @@ function onSlotTap(date, time, mark) {
   // すでに選択済みなら解除
   const existing = state.choices.findIndex((c) => c && c.date === date && c.time === time);
   if (existing >= 0) { state.choices[existing] = null; state.activeChoice = existing; afterChoiceChange(); return; }
-  // アクティブな希望枠に入れる（埋まっていれば空いている方へ）
+  // アクティブな希望枠に入れる（埋まっていれば空いている枠へ）
   let idx = state.activeChoice;
-  if (state.choices[idx]) idx = state.choices[0] ? (state.choices[1] ? idx : 1) : 0;
+  if (state.choices[idx]) {
+    const empty = state.choices.findIndex((c) => !c);
+    idx = empty >= 0 ? empty : state.activeChoice;
+  }
   state.choices[idx] = { date, time, mark };
-  state.activeChoice = idx === 0 && !state.choices[1] ? 1 : idx;
+  const next = state.choices.findIndex((c) => !c);
+  state.activeChoice = next >= 0 ? next : idx;
   afterChoiceChange();
 }
 
@@ -210,7 +255,7 @@ function renderChoices() {
 }
 
 function bindChoices() {
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     document.getElementById('choice' + i).addEventListener('click', () => {
       if (state.choices[i]) { state.choices[i] = null; }  // ✕ で解除
       state.activeChoice = i;
@@ -222,20 +267,12 @@ function bindChoices() {
 function bindVisitorToggle() {
   document.querySelectorAll('#visitorType .seg-btn').forEach((b) => {
     b.addEventListener('click', () => {
+      if (b.disabled) return;  // 専用日は「2回目以降」を選べない
       document.querySelectorAll('#visitorType .seg-btn').forEach((x) => x.classList.remove('is-active'));
       b.classList.add('is-active');
       state.visitor = b.dataset.type;
-      document.getElementById('visitorHint').textContent = state.visitor === 'new'
-        ? '※ 新規対応できる枠の空き状況を表示しています'
-        : '※ 全体の空き状況を表示しています';
-      // 表示が変わるので、満員になった選択は外す
-      state.choices = state.choices.map((c) => {
-        if (!c) return c;
-        const day = state.data.days.find((d) => d.date === c.date);
-        const slot = day && day.slots.find((s) => s.time === c.time);
-        if (!slot) return null;
-        return statusOf(slot).mark === '×' ? null : c;
-      });
+      applyDateConstraints();   // ヒント更新
+      pruneChoices();           // 表示が変わって満員になった選択は外す
       renderGrid(); renderChoices();
     });
   });
@@ -249,18 +286,25 @@ function fmtChoice(c) {
 
 function buildMessage() {
   const name = document.getElementById('nameInput').value.trim();
+  const tel = document.getElementById('telInput').value.trim();
   const visitor = state.visitor === 'new' ? 'はじめて' : '2回目以降';
-  const lines = ['【出店イベント 予約希望】'];
-  if (name) lines.push(`お名前：${name}`);
+  const lines = [`【${CONFIG.clinicName} ${CONFIG.eventName} 予約希望】`];
+  lines.push(`お名前：${name}`);
+  lines.push(`電話番号：${tel}`);
   lines.push(`来院区分：${visitor}`);
   lines.push(`第1希望：${fmtChoice(state.choices[0])}`);
   lines.push(`第2希望：${fmtChoice(state.choices[1])}`);
+  if (state.choices[2]) lines.push(`第3希望：${fmtChoice(state.choices[2])}`);
   lines.push('', 'こちらの内容で予約をお願いします。');
   return lines.join('\n');
 }
 
 async function sendToLine() {
   if (!(state.choices[0] && state.choices[1])) return;
+  const name = document.getElementById('nameInput').value.trim();
+  const tel = document.getElementById('telInput').value.trim();
+  if (!name) { toast('お名前を入力してください'); document.getElementById('nameInput').focus(); return; }
+  if (!tel) { toast('電話番号を入力してください'); document.getElementById('telInput').focus(); return; }
   const msg = buildMessage();
 
   // oaId があれば LINE のトークにメッセージを自動入力して開く
