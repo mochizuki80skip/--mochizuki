@@ -44,11 +44,19 @@ const CONFIG = {
 
 /* ============================ メニュー ============================ */
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('▶ 空き集計')
-    .addItem('いますぐ集計', 'aggregateAvailability')
-    .addItem('構造を診断', 'diagnoseStructure')
-    .addToUi();
+  try {
+    SpreadsheetApp.getUi()
+      .createMenu('▶ 空き集計')
+      .addItem('いますぐ集計', 'aggregateAvailability')
+      .addItem('構造を診断', 'diagnoseStructure')
+      .addToUi();
+  } catch (e) { /* エディタからの手動実行など UI が無い場合は無視 */ }
+}
+
+/** UI があればダイアログ、無ければログに出す（エディタ実行でも落ちない） */
+function notify_(msg) {
+  try { SpreadsheetApp.getUi().alert(msg); }
+  catch (e) { Logger.log(msg); }
 }
 
 /* ===================== 集計本体（メニュー用） ===================== */
@@ -57,7 +65,7 @@ function aggregateAvailability() {
   const result = buildAvailability_(ss);
   writePublishSheet_(ss, result);
   const total = result.days.reduce((n, d) => n + d.slots.length, 0);
-  SpreadsheetApp.getUi().alert(
+  notify_(
     `集計完了。「${CONFIG.publishSheet}」を更新しました（${result.days.length}日分 / ${total}枠）。`
   );
 }
@@ -275,7 +283,7 @@ function diagnoseStructure() {
       `  ${bedInfo}`
     );
   }
-  SpreadsheetApp.getUi().alert('構造診断\n\n' + lines.join('\n\n'));
+  notify_('構造診断\n\n' + lines.join('\n\n'));
 }
 
 /* =========================== ユーティリティ =========================== */
