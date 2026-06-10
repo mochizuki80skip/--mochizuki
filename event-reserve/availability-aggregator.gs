@@ -118,18 +118,10 @@ function readBoard_(sh) {
   const nRows = values.length;
   const nCols = values.length ? values[0].length : 0;
 
-  // --- 時刻行を検出（A列〜B列に HH:MM がある行）---
-  const timeRowByMin = {}; // 分 -> 行index
-  for (let r = 0; r < nRows; r++) {
-    const min = toMinutes_(values[r][0]) ?? toMinutes_(values[r][1]);
-    if (min != null && timeRowByMin[min] === undefined) timeRowByMin[min] = r;
-  }
-  const firstTimeRow = Math.min.apply(null, Object.values(timeRowByMin).concat([nRows]));
-
-  // --- ベッドヘッダ行（No.x が3つ以上並ぶ行）を検出 ---
+  // --- ① ベッドヘッダ行（No.x が3つ以上並ぶ行）を先に検出 ---
   let headerRow = -1;
   let heads = [];
-  for (let r = 0; r < Math.min(nRows, firstTimeRow); r++) {
+  for (let r = 0; r < Math.min(nRows, 20); r++) {
     const cols = [];
     for (let c = 0; c < nCols; c++) {
       const m = String(values[r][c]).match(/^No\.?\s*(\d+)/);
@@ -144,9 +136,9 @@ function readBoard_(sh) {
     endCol: i + 1 < heads.length ? heads[i + 1].col : b.col + 3,
   }));
 
-  // --- 新規対応行(boolean)・施術者行(文字列) をベッド範囲全体から検出 ---
+  // --- ② ヘッダ直後の数行から 新規対応行(boolean)・施術者行(文字列) を検出 ---
   let newRow = -1, therRow = -1;
-  for (let r = headerRow + 1; r < firstTimeRow; r++) {
+  for (let r = headerRow + 1; r < Math.min(nRows, headerRow + 6); r++) {
     let bools = 0, texts = 0;
     for (const b of beds0) {
       for (let c = b.col; c < b.endCol; c++) {
@@ -159,7 +151,16 @@ function readBoard_(sh) {
     else if (texts >= 2 && therRow === -1) therRow = r;
   }
 
-  // --- ベッド定義（3列まとめて読む）---
+  // --- ③ 時刻行はヘッダ（施術者行）より下だけを対象に検出 ---
+  //  上部の集計セル(0 など)を 00:00 と誤認識しないため。
+  const startScan = Math.max(headerRow, newRow, therRow) + 1;
+  const timeRowByMin = {}; // 分 -> 行index
+  for (let r = startScan; r < nRows; r++) {
+    const min = toMinutes_(values[r][0]) ?? toMinutes_(values[r][1]);
+    if (min != null && timeRowByMin[min] === undefined) timeRowByMin[min] = r;
+  }
+
+  // --- ④ ベッド定義（1列目=名前欄、範囲内に施術者名・新規対応チェック）---
   const beds = beds0.map((b) => {
     let therapist = '', newOk = false;
     for (let c = b.col; c < b.endCol; c++) {
