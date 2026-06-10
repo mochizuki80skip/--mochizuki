@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>出店イベント ご予約 空き状況</title>
+  <meta name="description" content="出店イベントの予約空き状況。希望日時を第2希望まで選んでLINEで送れます。" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1 id="eventName">出店イベント ご予約</h1>
+    <p id="venue" class="venue"></p>
+  </header>
+
+  <main class="wrap">
+    <!-- 来院区分 -->
+    <section class="card">
+      <div class="seg" id="visitorType" role="tablist" aria-label="来院区分">
+        <button class="seg-btn is-active" data-type="new">はじめての方</button>
+        <button class="seg-btn" data-type="all">2回目以降の方</button>
+      </div>
+      <p class="hint" id="visitorHint">※ 新規対応できる枠の空き状況を表示しています</p>
+    </section>
+
+    <!-- 凡例 -->
+    <section class="legend" aria-label="記号の説明">
+      <span><b class="mk ok">〇</b> 空きあり</span>
+      <span><b class="mk few">△</b> 残りわずか（要問合せ）</span>
+      <span><b class="mk full">×</b> 満員</span>
+    </section>
+
+    <!-- 日付タブ -->
+    <nav class="tabs" id="dateTabs" aria-label="開催日"></nav>
+
+    <!-- 時間グリッド -->
+    <section class="card">
+      <p class="grid-note" id="gridNote"></p>
+      <div class="grid" id="slotGrid"></div>
+      <p class="loading" id="loading">空き状況を読み込み中…</p>
+    </section>
+  </main>
+
+  <!-- 選択トレイ（下部固定） -->
+  <div class="tray" id="tray">
+    <div class="tray-choices">
+      <button class="choice" data-idx="0" id="choice0">
+        <span class="choice-label">第1希望</span>
+        <span class="choice-val">タップして選択</span>
+      </button>
+      <button class="choice" data-idx="1" id="choice1">
+        <span class="choice-label">第2希望</span>
+        <span class="choice-val">タップして選択</span>
+      </button>
+    </div>
+    <input type="text" id="nameInput" class="name-input" placeholder="お名前（任意）" autocomplete="name" />
+    <button class="line-btn" id="lineBtn" disabled>LINEで予約を送る</button>
+    <p class="confirm-note">※ ご予約はLINEでの最終確認をもって確定します</p>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
