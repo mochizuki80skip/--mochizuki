@@ -191,15 +191,13 @@ function computeSlots_(board, day) {
 }
 
 /** ベッドが開始時刻 t から施術時間ぶん、連続で空いているか
- *  ベッドの3列を走査し、名前/連絡先など文字情報があれば埋まりと判定。
- *  来院済みチェック（TRUE/FALSE）は占有とみなさない。 */
+ *  判定は「各ベッドの1列目（名前欄）」のみを見る。
+ *  名前欄が空 → 空き。来院済みチェックや来院きっかけ欄(2・3列目)は無視。 */
 function isBedFree_(board, bed, startMin, span) {
   for (let k = 0; k < span; k++) {
     const r = board.timeRowByMin[startMin + k * 15];
     if (r === undefined) return false;            // その行が存在しない＝取れない
-    for (let c = bed.col; c < bed.endCol; c++) {
-      if (isBookedCell_(board.values[r][c])) return false; // 名前/連絡先あり＝埋まり
-    }
+    if (isBookedCell_(board.values[r][bed.col])) return false; // 名前欄(1列目)が埋まり
   }
   return true;
 }
