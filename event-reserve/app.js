@@ -16,10 +16,13 @@ const CONFIG = {
 
   eventName: '出店イベント ご予約',
   venue: '',   // 例: '○○マルシェ 特設ブース'
+
+  refreshMinutes: 10,  // この分数ごとに空き状況を自動再取得（0で無効）
 };
 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
 const state = { data: null, visitor: 'new', activeDate: null, choices: [null, null], activeChoice: 0 };
+let lastFetch = 0;
 
 /* ----------------------------- 初期化 ----------------------------- */
 document.addEventListener('DOMContentLoaded', init);
@@ -32,24 +35,89 @@ async function init() {
   bindChoices();
   document.getElementById('lineBtn').addEventListener('click', sendToLine);
 
-  try {
-    state.data = await loadData();
-  } catch (e) {
-    state.data = sampleData();
-    toast('サンプル表示中（接続設定が未完了です）');
-  }
-  document.getElementById('loading').style.display = 'none';
-  const days = state.data.days.filter((d) => (d.slots || []).length);
-  state.activeDate = days.length ? days[0].date : null;
-  renderTabs();
-  renderGrid();
+  await refresh(true);
+  startAutoRefresh();
+  bindVisibilityRefresh();
 }
 
 async function loadData() {
   if (!CONFIG.apiUrl) return sampleData();
-  const res = await fetch(CONFIG.apiUrl, { redirect: 'follow' });
+  const res = await fetch(CONFIG.apiUrl, { redirect: 'follow', cache: 'no-store' });
   if (!res.ok) throw new Error('fetch failed');
   return res.json();
+}
+
+/** 空き状況を再取得して再描画（選択は保持。満員になった希望は外す）。 */
+async function refresh(initial = false) {
+  let data;
+  try {
+    data = await loadData();
+  } catch (e) {
+    if (initial) {
+      state.data = sampleData();
+      toast('サンプル表示中（接続設定が未完了です）');
+    }
+    // 再取得の失敗時は、既存の表示をそのまま維持（黙って次回に任せる）
+    if (initial) finishRender();
+    return;
+  }
+  state.data = data;
+  lastFetch = Date.now();
+  // アクティブ日が無効なら、最初の有効な日へ
+  const valid = data.days.filter((d) => (d.slots || []).length);
+  if (!state.activeDate || !valid.some((d) => d.date === state.activeDate)) {
+    state.activeDate = valid.length ? valid[0].date : null;
+  }
+  if (!initial) pruneChoices();
+  finishRender();
+}
+
+function finishRender() {
+  renderTabs();
+  renderGrid();
+  renderChoices();
+  showUpdated();
+}
+
+/** 一定間隔で自動再取得 */
+function startAutoRefresh() {
+  const min = Number(CONFIG.refreshMinutes) || 0;
+  if (min > 0) setInterval(() => refresh(false), min * 60 * 1000);
+}
+
+/** 画面に戻ってきた / フォーカスが当たったら再取得（直近30秒以内は省略） */
+function bindVisibilityRefresh() {
+  const maybe = () => {
+    if (document.visibilityState === 'visible' && Date.now() - lastFetch > 30 * 1000) {
+      refresh(false);
+    }
+  };
+  document.addEventListener('visibilitychange', maybe);
+  window.addEventListener('focus', maybe);
+}
+
+/** 選択済みの希望が、最新データで満員/消滅していたら外して通知 */
+function pruneChoices() {
+  let removed = false;
+  state.choices = state.choices.map((c) => {
+    if (!c) return c;
+    const day = state.data.days.find((d) => d.date === c.date);
+    const slot = day && (day.slots || []).find((s) => s.time === c.time);
+    if (!slot || statusOf(slot).mark === '×') { removed = true; return null; }
+    return c;
+  });
+  if (removed) toast('選択していた枠が満員になりました。別の時間をお選びください');
+}
+
+/** 最終更新時刻を表示 */
+function showUpdated() {
+  const el = document.getElementById('loading');
+  if (!el) return;
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, '0');
+  const mm = String(now.getMinutes()).padStart(2, '0');
+  el.textContent = `空き状況 最終更新 ${hh}:${mm}`;
+  el.style.display = 'block';
 }
 
 /* ----------------------------- 描画 ----------------------------- */
