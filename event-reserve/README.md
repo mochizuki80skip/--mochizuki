@@ -70,8 +70,30 @@
 - 「LINEで予約を送る」で、予約内容のテキストを公式LINEへ送信
 - 個人情報（名前・連絡先・来院きっかけ）は公開用シートに出ないのでサイトに漏れない
 
+## 公開（Vercel ※ reserve と同じやり方）
+
+`reserve/` と同様に Vercel で静的サイトとして公開する。サーバー関数は無い
+（空き状況は GAS ウェブアプリから取得）ので、ファイルを置くだけで動く。
+
+1. Vercel にログイン → **Add New → Project** → リポジトリ `mochizuki80skip/--mochizuki` を選択
+2. **Root Directory** を **`event-reserve`** に設定（重要）
+3. Framework Preset：**Other**（Build/Output は空欄でOK）
+4. **Deploy**
+5. プロジェクト Settings → **Git → Production Branch** を、この作業ブランチ
+   （`claude/festive-sagan-2hkas3`）に設定すると、その内容が本番公開される
+6. 発行された `https://<project>.vercel.app/` を QR コード化してチラシ等に使える
+
+> デプロイ前に `app.js` の `CONFIG.apiUrl`（GASウェブアプリURL）と
+> `CONFIG.lineOaId`／`lineUrl` を設定しておくこと。未設定でもサンプル表示は出る。
+
+### GitHub Pages で公開する場合（代替）
+
+Pages の「Deploy from a branch」はサブフォルダを直接配信できないため、
+`event-reserve` の中身を `/docs`（リポジトリ直下）にコピーし、
+Settings → Pages → Branch=作業ブランチ / Folder=`/docs` を選ぶ。
+
 ## このあと（任意の改善）
 
-1. 集計GASを時間主導トリガーで自動更新（5分〜1時間ごと）
+1. 集計GASを時間主導トリガーで自動更新（10〜15分ごと）
 2. ロゴ画像・会場情報・配色の調整
 3. 〇△× のしきい値（`CONFIG.okMin` / `fewMax`）を運用台数に合わせて調整
