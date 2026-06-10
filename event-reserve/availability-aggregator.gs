@@ -179,11 +179,14 @@ function readBoard_(sh) {
 /** その日の営業時間・刻みに沿って、各開始時刻の空き数とステータスを計算 */
 function computeSlots_(board, day) {
   const slots = [];
-  for (const [open, close] of day.hours) {
+  day.hours.forEach(([open, close], bi) => {
     const openMin = toMinutes_(open);
     const closeMin = toMinutes_(close);
-    // 施術が閉店までに収まる開始時刻のみ
-    for (let t = openMin; t + CONFIG.treatmentMin <= closeMin; t += day.stepMin) {
+    const isLast = bi === day.hours.length - 1;
+    // 最後の営業ブロックは「営業終了時刻ぴったり」まで予約可。
+    // それ以外（昼休み前など）は施術が収まる開始時刻まで。
+    const limit = isLast ? closeMin : closeMin - CONFIG.treatmentMin;
+    for (let t = openMin; t <= limit; t += day.stepMin) {
       let freeAll = 0, freeNew = 0;
       for (const bed of board.beds) {
         if (!bed.active) continue;
@@ -198,18 +201,20 @@ function computeSlots_(board, day) {
         newFree: freeNew, newStatus: statusOf_(freeNew),
       });
     }
-  }
+  });
   return slots;
 }
 
 /** ベッドが開始時刻 t から施術時間ぶん、空いているか
  *  判定は「各ベッドの1列目（名前欄）」のみ。
  *  [t, t+施術時間) に入るボードの時刻行すべてで名前欄が空なら空き。
+ *  営業終了ぴったりの枠などボードに該当行が無い場合は、窓内の行で判断。
  *  ※ 15分刻み・30分刻み・空行ありの全パターンに対応。 */
 function isBedFree_(board, bed, startMin) {
-  if (board.timeRowByMin[startMin] === undefined) return false; // 開始行が無い＝取れない
+  const keys = Object.keys(board.timeRowByMin);
+  if (keys.length === 0) return false; // ボードの時刻が全く読めない時は安全側で×
   const endMin = startMin + CONFIG.treatmentMin;
-  for (const key in board.timeRowByMin) {
+  for (const key of keys) {
     const m = Number(key);
     if (m >= startMin && m < endMin) {
       if (isBookedCell_(board.values[board.timeRowByMin[m]][bed.col])) return false;
