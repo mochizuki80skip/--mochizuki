@@ -8,10 +8,10 @@
 const CONFIG = {
   // GAS（availability-aggregator.gs）をウェブアプリとしてデプロイした URL。
   // 空のままだとサンプル表示になります（見た目確認用）。
-  apiUrl: '',
+  apiUrl: 'https://script.google.com/macros/s/AKfycbwEq0PBegfe0dNRX1O0zma-1sB0tlRpH1jGYbMRrOaJZd0Ajf3fya5VHbjpBOxpmzjwAQ/exec',
 
   // 公式LINE。lineOaId（@から始まるID）があるとメッセージが自動入力されます。
-  lineOaId: '',                       // 例: '@123abcde'
+  lineOaId: '@403dfbnt',              // 例: '@123abcde'
   lineUrl: 'https://lin.ee/XXXXXXX',  // 友だち追加 / トークURL（oaId が無い場合に使用）
 
   eventName: '出店イベント ご予約',
