@@ -366,7 +366,6 @@ function buildMessage() {
   lines.push(`第1希望：${fmtChoice(state.choices[0])}`);
   lines.push(`第2希望：${fmtChoice(state.choices[1])}`);
   if (state.choices[2]) lines.push(`第3希望：${fmtChoice(state.choices[2])}`);
-  lines.push('', 'こちらの内容で予約をお願いします。');
   return lines.join('\n');
 }
 
