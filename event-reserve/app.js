@@ -25,7 +25,7 @@ const CONFIG = {
 };
 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
-const state = { data: null, visitor: 'new', activeDate: null, choices: [null, null, null], activeChoice: 0 };
+const state = { data: null, visitor: 'new', party: 1, activeDate: null, choices: [null, null, null], activeChoice: 0 };
 let lastFetch = 0;
 
 /* ----------------------------- 初期化 ----------------------------- */
@@ -38,6 +38,7 @@ async function init() {
 
   bindVisitorToggle();
   bindChoices();
+  bindParty();
   document.getElementById('lineBtn').addEventListener('click', sendToLine);
 
   await refresh(true);
@@ -203,9 +204,11 @@ function renderTabs() {
 }
 
 function statusOf(slot) {
-  return state.visitor === 'new'
-    ? { mark: slot.newStatus, free: slot.newFree }
-    : { mark: slot.allStatus, free: slot.allFree };
+  const free = state.visitor === 'new' ? slot.newFree : slot.allFree;
+  const base = state.visitor === 'new' ? slot.newStatus : slot.allStatus;
+  // 人数ぶん空いていなければ×（お連れ様の人数に満たない時間は選べない）
+  const mark = free < state.party ? '×' : base;
+  return { mark, free };
 }
 function klass(mark) { return mark === '〇' ? 'ok' : mark === '△' ? 'few' : 'full'; }
 
@@ -216,7 +219,8 @@ function renderGrid() {
   const day = state.data.days.find((d) => d.date === state.activeDate);
   if (!day) { note.textContent = ''; return; }
   const { md, wd } = dateLabel(day.date);
-  note.textContent = `${md}${wd} の空き状況（タップして希望時間を選択）`;
+  const partyNote = state.party > 1 ? `（${state.party}名で入れる時間のみ）` : '';
+  note.textContent = `${md}${wd} の空き状況${partyNote}（タップして希望時間を選択）`;
 
   for (const slot of day.slots) {
     const { mark } = statusOf(slot);
@@ -284,6 +288,23 @@ function bindChoices() {
   }
 }
 
+/** ご予約人数。人数を変えると空き判定（×）と選択済みの希望を更新 */
+function bindParty() {
+  const inp = document.getElementById('partyInput');
+  if (!inp) return;
+  const update = (clamp) => {
+    let n = parseInt(inp.value, 10);
+    if (!Number.isFinite(n) || n < 1) n = 1;
+    if (clamp) inp.value = n;
+    state.party = n;
+    pruneChoices();
+    renderGrid();
+    renderChoices();
+  };
+  inp.addEventListener('input', () => update(false));
+  inp.addEventListener('change', () => update(true));
+}
+
 function bindVisitorToggle() {
   document.querySelectorAll('#visitorType .seg-btn').forEach((b) => {
     b.addEventListener('click', () => {
@@ -314,6 +335,9 @@ function buildMessage() {
   lines.push(`電話番号：${tel}`);
   if (channel) lines.push(`ご予約のきっかけ：${channel}`);
   lines.push(`来院区分：${visitor}`);
+  lines.push(state.party > 1
+    ? `人数：${state.party}名（本人＋お連れ様${state.party - 1}名）`
+    : '人数：1名');
   lines.push(`第1希望：${fmtChoice(state.choices[0])}`);
   lines.push(`第2希望：${fmtChoice(state.choices[1])}`);
   if (state.choices[2]) lines.push(`第3希望：${fmtChoice(state.choices[2])}`);
