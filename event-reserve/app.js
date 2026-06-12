@@ -289,22 +289,22 @@ function bindChoices() {
   }
 }
 
-/** ご予約人数。人数を変えると空き判定（×）と選択済みの希望を更新 */
+/** ご予約人数（− / ＋ ボタン）。＋を押すたびにお連れ様の氏名欄が1つずつ増える。 */
 function bindParty() {
-  const inp = document.getElementById('partyInput');
-  if (!inp) return;
-  const update = (clamp) => {
-    let n = parseInt(inp.value, 10);
-    if (!Number.isFinite(n) || n < 1) n = 1;
-    if (clamp) inp.value = n;
-    state.party = n;
+  const minus = document.getElementById('partyMinus');
+  const plus = document.getElementById('partyPlus');
+  const num = document.getElementById('partyNum');
+  if (!minus || !plus || !num) return;
+  const set = (n) => {
+    state.party = Math.max(1, n);
+    num.textContent = state.party;
     renderCompanions();
     pruneChoices();
     renderGrid();
     renderChoices();
   };
-  inp.addEventListener('input', () => update(false));
-  inp.addEventListener('change', () => update(true));
+  minus.addEventListener('click', () => set(state.party - 1));
+  plus.addEventListener('click', () => set(state.party + 1));
 }
 
 /** お連れ様（人数-1名）のお名前入力欄を人数に合わせて表示 */

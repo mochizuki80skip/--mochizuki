@@ -58,13 +58,16 @@ body {
   display: flex; align-items: center; justify-content: space-between;
   margin-top: 10px; padding-top: 10px; border-top: 1px solid #e4eef5;
 }
-.party label { font-size: .86rem; font-weight: 700; color: var(--ink); }
-.party-ctrl { display: flex; align-items: center; gap: 6px; }
-.party-ctrl input {
-  width: 64px; border: 1px solid #d4e6f1; border-radius: 8px;
-  padding: 7px 8px; font-size: 1rem; text-align: center;
+.party-label { font-size: .86rem; font-weight: 700; color: var(--ink); }
+.party-ctrl { display: flex; align-items: center; gap: 8px; }
+.step {
+  width: 38px; height: 38px; border: 1px solid #d4e6f1; background: #fff;
+  border-radius: 10px; font-size: 1.3rem; font-weight: 800; color: var(--gold-deep);
+  cursor: pointer; line-height: 1; display: flex; align-items: center; justify-content: center;
 }
-.party-ctrl span { font-size: .85rem; color: var(--muted); }
+.step:active { background: #eef6fd; }
+.party-num { min-width: 26px; text-align: center; font-size: 1.1rem; font-weight: 800; color: var(--ink); }
+.party-unit { font-size: .85rem; color: var(--muted); }
 
 /* 凡例 */
 .legend {

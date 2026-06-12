@@ -24,10 +24,12 @@
       </div>
       <p class="hint" id="visitorHint">※ 新規対応できる枠の空き状況を表示しています</p>
       <div class="party">
-        <label for="partyInput">ご予約人数（お連れ様含む）</label>
+        <span class="party-label">ご予約人数（お連れ様含む）</span>
         <div class="party-ctrl">
-          <input type="number" id="partyInput" min="1" value="1" inputmode="numeric" />
-          <span>名</span>
+          <button type="button" class="step" id="partyMinus" aria-label="人数を減らす">−</button>
+          <span class="party-num" id="partyNum">1</span>
+          <span class="party-unit">名</span>
+          <button type="button" class="step" id="partyPlus" aria-label="人数を増やす">＋</button>
         </div>
       </div>
     </section>
