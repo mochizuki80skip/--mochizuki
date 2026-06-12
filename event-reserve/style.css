@@ -157,3 +157,22 @@ body {
   max-width: 90%; text-align: center;
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* フッター（運営者情報） */
+.site-footer {
+  max-width: 640px; margin: 6px auto 0; padding: 12px 14px 20px;
+  font-size: .76rem; color: var(--muted); line-height: 1.7;
+}
+.site-footer .foot-title { font-weight: 700; color: var(--ink); margin: 0 0 4px; }
+.site-footer p { margin: 0; }
+.site-footer a { color: var(--gold-deep); font-weight: 700; }
+
+/* プライバシーポリシー等のドキュメントページ */
+.doc h2 { font-size: 1rem; margin: 0 0 8px; }
+.doc p { margin: 0 0 10px; font-size: .9rem; }
+.doc ol { padding-left: 1.2em; margin: 0; }
+.doc ol li { margin: 8px 0; font-size: .9rem; }
+.doc ul.biz { list-style: none; padding: 0; margin: 0; }
+.doc ul.biz li { font-size: .9rem; margin: 4px 0; }
+.doc .meta { font-size: .8rem; color: var(--muted); margin: 8px 0 0; }
+.back-link { display: inline-block; margin: 4px 2px 24px; color: var(--gold-deep); font-weight: 700; }
