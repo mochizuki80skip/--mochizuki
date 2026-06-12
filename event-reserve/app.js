@@ -82,7 +82,27 @@ function finishRender() {
   renderTabs();
   renderGrid();
   renderChoices();
+  renderChannels();
   showUpdated();
+}
+
+/** 集客経路（ご予約のきっかけ）の選択肢を「集客経路」タブから反映。
+ *  リストが空（タブ未作成など）のときは項目自体を隠す。 */
+function renderChannels() {
+  const sel = document.getElementById('channelInput');
+  if (!sel) return;
+  const channels = (state.data && state.data.channels) || [];
+  if (!channels.length) { sel.style.display = 'none'; return; }
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">ご予約のきっかけを選択（必須）</option>' +
+    channels.map((c) => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+  if (cur && channels.includes(cur)) sel.value = cur;
+  sel.style.display = 'block';
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"]/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
 
 /** 日付を切り替える（曜日制約を反映してから再描画） */
@@ -287,10 +307,12 @@ function fmtChoice(c) {
 function buildMessage() {
   const name = document.getElementById('nameInput').value.trim();
   const tel = document.getElementById('telInput').value.trim();
+  const channel = document.getElementById('channelInput').value.trim();
   const visitor = state.visitor === 'new' ? '初回' : '2回目以降';
   const lines = ['【予約希望】'];
   lines.push(`お名前：${name}`);
   lines.push(`電話番号：${tel}`);
+  if (channel) lines.push(`ご予約のきっかけ：${channel}`);
   lines.push(`来院区分：${visitor}`);
   lines.push(`第1希望：${fmtChoice(state.choices[0])}`);
   lines.push(`第2希望：${fmtChoice(state.choices[1])}`);
@@ -303,8 +325,13 @@ async function sendToLine() {
   if (!(state.choices[0] && state.choices[1])) return;
   const name = document.getElementById('nameInput').value.trim();
   const tel = document.getElementById('telInput').value.trim();
+  const channelSel = document.getElementById('channelInput');
   if (!name) { toast('お名前を入力してください'); document.getElementById('nameInput').focus(); return; }
   if (!tel) { toast('電話番号を入力してください'); document.getElementById('telInput').focus(); return; }
+  // 集客経路が表示されている（選択肢がある）ときは必須
+  if (channelSel.style.display !== 'none' && !channelSel.value) {
+    toast('ご予約のきっかけを選択してください'); channelSel.focus(); return;
+  }
   const msg = buildMessage();
 
   // oaId があれば LINE のトークにメッセージを自動入力して開く

@@ -40,6 +40,8 @@ const CONFIG = {
   midStatus: '〇',        // 空きが 3〜7 のときの表示（'〇' か '△'）
   // ×（空き無し）は 0
   publishSheet: 'サイト公開用',
+  // 集客経路（ご予約のきっかけ）の選択肢タブ名。A2以降を読み込んでサイトに出す。
+  channelSheet: '集客経路',
 };
 
 /* ============================ メニュー ============================ */
@@ -109,7 +111,18 @@ function buildAvailability_(ss) {
                 timeTo: mins.length ? fromMinutes_(mins[mins.length - 1]) : '-',
                 slots });
   }
-  return { generatedAt: new Date().toISOString(), days };
+  return { generatedAt: new Date().toISOString(), channels: readChannels_(ss), days };
+}
+
+/** 「集客経路」タブの A2 以降を選択肢リストとして読み込む（空欄は除外） */
+function readChannels_(ss) {
+  const sh = ss.getSheetByName(CONFIG.channelSheet);
+  if (!sh) return [];
+  const last = sh.getLastRow();
+  if (last < 2) return [];
+  return sh.getRange(2, 1, last - 1, 1).getValues()
+    .map((r) => String(r[0]).trim())
+    .filter((s) => s !== '');
 }
 
 /** タブを解析して、ベッド一覧と「時刻→占有状況」を取り出す */
