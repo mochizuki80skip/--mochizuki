@@ -192,14 +192,12 @@ function readBoard_(sh) {
 /** その日の営業時間・刻みに沿って、各開始時刻の空き数とステータスを計算 */
 function computeSlots_(board, day) {
   const slots = [];
-  day.hours.forEach(([open, close], bi) => {
+  day.hours.forEach(([open, close]) => {
     const openMin = toMinutes_(open);
     const closeMin = toMinutes_(close);
-    const isLast = bi === day.hours.length - 1;
-    // 最後の営業ブロックは「営業終了時刻ぴったり」まで予約可。
-    // それ以外（昼休み前など）は施術が収まる開始時刻まで。
-    const limit = isLast ? closeMin : closeMin - CONFIG.treatmentMin;
-    for (let t = openMin; t <= limit; t += day.stepMin) {
+    // 各営業ブロックの「終了時刻ぴったり」まで予約可
+    // （午前は昼休み前の終了時刻まで、午後は閉店時刻まで）
+    for (let t = openMin; t <= closeMin; t += day.stepMin) {
       let freeAll = 0, freeNew = 0;
       for (const bed of board.beds) {
         if (!bed.active) continue;
