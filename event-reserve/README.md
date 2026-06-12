@@ -97,3 +97,5 @@ Settings → Pages → Branch=作業ブランチ / Folder=`/docs` を選ぶ。
 1. 集計GASを時間主導トリガーで自動更新（10〜15分ごと）
 2. ロゴ画像・会場情報・配色の調整
 3. 〇△× のしきい値（`CONFIG.okMin` / `fewMax`）を運用台数に合わせて調整
+
+<!-- redeploy trigger: 2026-06-12T08:50Z -->
