@@ -132,6 +132,8 @@ body {
   font-size: .95rem; background: #fff; color: var(--ink);
 }
 .tray-inputs { display: flex; gap: 8px; max-width: 616px; margin: 0 auto 8px; }
+.companions { display: flex; flex-direction: column; gap: 6px; max-width: 616px; margin: 0 auto 8px; }
+.companions .ti { width: 100%; flex: none; }
 .ti {
   flex: 1; min-width: 0;
   border: 1px solid #d4e6f1; border-radius: 10px; padding: 10px 12px; font-size: .95rem;

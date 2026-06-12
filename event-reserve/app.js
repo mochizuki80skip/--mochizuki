@@ -25,7 +25,7 @@ const CONFIG = {
 };
 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
-const state = { data: null, visitor: 'new', party: 1, activeDate: null, choices: [null, null, null], activeChoice: 0 };
+const state = { data: null, visitor: 'new', party: 1, companions: [], activeDate: null, choices: [null, null, null], activeChoice: 0 };
 let lastFetch = 0;
 
 /* ----------------------------- 初期化 ----------------------------- */
@@ -39,6 +39,7 @@ async function init() {
   bindVisitorToggle();
   bindChoices();
   bindParty();
+  renderCompanions();
   document.getElementById('lineBtn').addEventListener('click', sendToLine);
 
   await refresh(true);
@@ -297,12 +298,33 @@ function bindParty() {
     if (!Number.isFinite(n) || n < 1) n = 1;
     if (clamp) inp.value = n;
     state.party = n;
+    renderCompanions();
     pruneChoices();
     renderGrid();
     renderChoices();
   };
   inp.addEventListener('input', () => update(false));
   inp.addEventListener('change', () => update(true));
+}
+
+/** お連れ様（人数-1名）のお名前入力欄を人数に合わせて表示 */
+function renderCompanions() {
+  const box = document.getElementById('companionFields');
+  if (!box) return;
+  const n = Math.max(0, state.party - 1);
+  state.companions.length = n; // 人数に合わせて伸縮（既存の入力は保持）
+  if (n === 0) { box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.innerHTML = '';
+  for (let i = 0; i < n; i++) {
+    const inp = document.createElement('input');
+    inp.type = 'text';
+    inp.className = 'ti companion';
+    inp.placeholder = `お連れ様${i + 1} お名前（必須）`;
+    inp.value = state.companions[i] || '';
+    inp.addEventListener('input', () => { state.companions[i] = inp.value; });
+    box.appendChild(inp);
+  }
+  box.style.display = 'flex';
 }
 
 function bindVisitorToggle() {
@@ -338,6 +360,9 @@ function buildMessage() {
   lines.push(state.party > 1
     ? `人数：${state.party}名（本人＋お連れ様${state.party - 1}名）`
     : '人数：1名');
+  for (let i = 0; i < state.party - 1; i++) {
+    lines.push(`お連れ様${i + 1}：${(state.companions[i] || '').trim()}`);
+  }
   lines.push(`第1希望：${fmtChoice(state.choices[0])}`);
   lines.push(`第2希望：${fmtChoice(state.choices[1])}`);
   if (state.choices[2]) lines.push(`第3希望：${fmtChoice(state.choices[2])}`);
@@ -352,6 +377,15 @@ async function sendToLine() {
   const channelSel = document.getElementById('channelInput');
   if (!name) { toast('お名前を入力してください'); document.getElementById('nameInput').focus(); return; }
   if (!tel) { toast('電話番号を入力してください'); document.getElementById('telInput').focus(); return; }
+  // お連れ様がいる場合は全員のお名前を必須に
+  for (let i = 0; i < state.party - 1; i++) {
+    if (!(state.companions[i] || '').trim()) {
+      toast(`お連れ様${i + 1}のお名前を入力してください`);
+      const inp = document.querySelectorAll('#companionFields .companion')[i];
+      if (inp) inp.focus();
+      return;
+    }
+  }
   // 集客経路が表示されている（選択肢がある）ときは必須
   if (channelSel.style.display !== 'none' && !channelSel.value) {
     toast('ご予約のきっかけを選択してください'); channelSel.focus(); return;
