@@ -351,12 +351,12 @@ function buildMessage() {
   const name = document.getElementById('nameInput').value.trim();
   const tel = document.getElementById('telInput').value.trim();
   const channel = document.getElementById('channelInput').value.trim();
-  const visitor = state.visitor === 'new' ? '初回' : '2回目以降';
+  const visitor = state.visitor === 'new' ? 'はじめて' : '2回目以降';
   const lines = ['【予約希望】'];
   lines.push(`お名前：${name}`);
   lines.push(`電話番号：${tel}`);
   if (channel) lines.push(`ご予約のきっかけ：${channel}`);
-  lines.push(`来院区分：${visitor}`);
+  lines.push(`ご来院：${visitor}`);
   lines.push(state.party > 1
     ? `人数：${state.party}名（本人＋お連れ様${state.party - 1}名）`
     : '人数：1名');
