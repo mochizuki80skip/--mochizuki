@@ -33,7 +33,8 @@ const CONFIG = {
     { date: '2026-07-26', tab: '7/26', stepMin: 15,
       hours: [['09:00', '17:00']] },
   ],
-  treatmentMin: 30,       // 1施術の長さ（=何分ぶんの行を占有するか）
+  treatmentMin: 30,       // 初回（新患）の施術時間＝必要な連続枠(30分=15分×2)
+  repeatTreatmentMin: 15, // 2回目以降の施術時間（15分＝1枠空いていればOK）
   // 空き枠数 → 〇△× の判定しきい値
   okMin: 8,               // 空きが 8 以上 → 〇（空きあり）
   fewMax: 2,              // 空きが 1〜2 → △（残り枠少／要問合せ）
@@ -201,10 +202,10 @@ function computeSlots_(board, day) {
       let freeAll = 0, freeNew = 0;
       for (const bed of board.beds) {
         if (!bed.active) continue;
-        if (isBedFree_(board, bed, t)) {
-          freeAll++;
-          if (bed.newOk) freeNew++;
-        }
+        // 2回目以降：15分（1枠）空いていればOK（全ベッド対象）
+        if (isBedFree_(board, bed, t, CONFIG.repeatTreatmentMin)) freeAll++;
+        // 初回：30分（15分×2連続）が取れる新規対応ベッドのみ
+        if (bed.newOk && isBedFree_(board, bed, t, CONFIG.treatmentMin)) freeNew++;
       }
       slots.push({
         time: fromMinutes_(t),
@@ -216,15 +217,16 @@ function computeSlots_(board, day) {
   return slots;
 }
 
-/** ベッドが開始時刻 t から施術時間ぶん、空いているか
+/** ベッドが開始時刻 t から durationMin 分、空いているか
  *  判定は「各ベッドの1列目（名前欄）」のみ。
- *  [t, t+施術時間) に入るボードの時刻行すべてで名前欄が空なら空き。
+ *  [t, t+durationMin) に入るボードの時刻行すべてで名前欄が空なら空き。
+ *  （初回=30分→15分×2連続、2回目=15分→1枠）
  *  営業終了ぴったりの枠などボードに該当行が無い場合は、窓内の行で判断。
  *  ※ 15分刻み・30分刻み・空行ありの全パターンに対応。 */
-function isBedFree_(board, bed, startMin) {
+function isBedFree_(board, bed, startMin, durationMin) {
   const keys = Object.keys(board.timeRowByMin);
   if (keys.length === 0) return false; // ボードの時刻が全く読めない時は安全側で×
-  const endMin = startMin + CONFIG.treatmentMin;
+  const endMin = startMin + durationMin;
   for (const key of keys) {
     const m = Number(key);
     if (m >= startMin && m < endMin) {
