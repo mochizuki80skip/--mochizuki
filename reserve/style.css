@@ -528,6 +528,37 @@ html, body {
   font-size: 12px;
 }
 
+.notes-field {
+  display: block;
+  margin: 4px 0 14px;
+}
+.notes-field-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.notes-field-label small {
+  font-weight: 400;
+  color: var(--ink-soft);
+  margin-left: 4px;
+}
+.notes-field textarea {
+  width: 100%;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 15px;
+  font-family: inherit;
+  background: #fdfbf3;
+  color: var(--ink);
+  resize: vertical;
+  line-height: 1.5;
+  min-height: 70px;
+  -webkit-appearance: none;
+}
+
 .week-block + .week-block { margin-top: 18px; }
 .week-block-title {
   display: flex;

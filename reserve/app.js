@@ -1193,13 +1193,16 @@
       const cfInput = document.getElementById('custom-field-input');
       const cfVal = cfInput ? cfInput.value.trim() : '';
       const cfLine = (cf && cf.label) ? `\n${cf.label}: ${cfVal}` : '';
+      const notesInput = document.getElementById('m-notes');
+      const notesVal = notesInput ? notesInput.value.trim() : '';
+      const notesLine = notesVal ? `\n備考: ${notesVal}` : '';
       ta.value =
 `【予約希望】
 院: ${clinic.name}
 来院: ${visitModeLabel()}
 ${courseLine}
 日時:
-${dtLines}${promoLine}${nameLine}${cfLine}
+${dtLines}${promoLine}${nameLine}${cfLine}${notesLine}
 ————————————————
 コチラからの返信で予約が確定になります。
 メッセージはこのまま送信してください。`;
@@ -1479,6 +1482,12 @@ ${dtLines}${promoLine}${nameLine}${cfLine}
       if (wrap) wrap.classList.remove('is-error');
       updateBookingPanel();
     });
+  }
+
+  // 備考欄: 入力するたびに LINE 文面を即時更新
+  const notesInputEl = document.getElementById('m-notes');
+  if (notesInputEl) {
+    notesInputEl.addEventListener('input', () => updateBookingPanel());
   }
 
   // Fire prefetches immediately so STEP2 & STEP3 are instant
