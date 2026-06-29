@@ -150,14 +150,15 @@ function readBoard_(sh) {
     endCol: i + 1 < heads.length ? heads[i + 1].col : b.col + 3,
   }));
 
-  // --- ② ヘッダ直後の数行から 新規対応行(boolean)・施術者行(文字列) を検出 ---
+  // --- ② ヘッダ直後の数行から 新規対応行(チェック/TRUE)・施術者行(文字列) を検出 ---
   let newRow = -1, therRow = -1;
   for (let r = headerRow + 1; r < Math.min(nRows, headerRow + 6); r++) {
     let bools = 0, texts = 0;
     for (const b of beds0) {
       for (let c = b.col; c < b.endCol; c++) {
         const v = values[r][c];
-        if (typeof v === 'boolean') bools++;
+        // チェックボックス(boolean) でも、文字の "TRUE"/"FALSE" でも新規対応行として数える
+        if (typeof v === 'boolean' || /^(true|false)$/i.test(String(v).trim())) bools++;
         else if (typeof v === 'string' && v.trim() !== '') texts++;
       }
     }
@@ -182,7 +183,11 @@ function readBoard_(sh) {
         const tv = values[therRow][c];
         if (typeof tv === 'string' && tv.trim() !== '') therapist = tv.trim();
       }
-      if (newRow >= 0 && values[newRow][c] === true) newOk = true;
+      // 新規対応可：チェックボックスのTRUE でも 文字の "TRUE" でもOK
+      if (newRow >= 0) {
+        const nv = values[newRow][c];
+        if (nv === true || /^true$/i.test(String(nv).trim())) newOk = true;
+      }
     }
     return { no: b.no, col: b.col, endCol: b.endCol, therapist, newOk, active: therapist !== '' };
   });
