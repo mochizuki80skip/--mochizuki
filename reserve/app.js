@@ -1179,9 +1179,9 @@
     if (state.selectedIsos.length > 0 && card) {
       const courseLine = buildCourseLine(card);
       const promoLine = card.isPromo
-        ? `\n※ ${card.name.replace(/^【.*?】/, '')}（チラシご持参）`
+        ? `\n※ ${card.name.replace(/^【.*?】/, '')}`
         : (card._isPromoOverride
-          ? `\n※ キャンペーン価格 ${fmtPrice(card.price)}（チラシご持参）`
+          ? `\n※ キャンペーン価格 ${fmtPrice(card.price)}`
           : '');
       const dtLines = [0, 1, 2]
         .map((i) => `  第${i + 1}希望: ${state.selectedIsos[i] ? fmtDateTimeJp(state.selectedIsos[i]) : ''}`)
