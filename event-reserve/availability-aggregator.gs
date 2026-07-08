@@ -62,11 +62,56 @@ function notify_(msg) {
   catch (e) { Logger.log(msg); }
 }
 
+/* ============ 午前/午後の患者数カウント（B3=午前・F3=午後）============ */
+/** 入力するたびに、その日付シートの患者数を数えて B3/F3 に反映（onEdit簡易トリガー） */
+function onEdit(e) {
+  try {
+    if (!e || !e.range) return;
+    const sh = e.range.getSheet();
+    if (CONFIG.days.map((d) => d.tab).indexOf(sh.getName()) < 0) return; // 日付シートのみ
+    updateCounts_(sh);
+  } catch (err) { /* onEdit は静かに失敗させる */ }
+}
+
+/** 各ベッドの1列目（名前欄）で「氏名の数」を数える。
+ *  12:00以前=午前(B3)／12:15以降=午後(F3)。7/26の通し営業もこの基準で分割。
+ *  初回(氏名+電話の2行)も2/3回目(氏名のみ)も、氏名セル=1人としてカウント。
+ *  電話番号(数字・記号のみ)や空欄は数えない。 */
+function updateCounts_(sh) {
+  const board = readBoard_(sh);
+  let am = 0, pm = 0;
+  for (const key in board.timeRowByMin) {
+    const min = Number(key);
+    const r = board.timeRowByMin[key];
+    for (const bed of board.beds) {
+      if (isNameCell_(board.values[r][bed.col])) {
+        if (min <= 720) am++; else pm++; // 720分 = 12:00
+      }
+    }
+  }
+  sh.getRange('B3').setValue(am);  // 午前
+  sh.getRange('F3').setValue(pm);  // 午後
+}
+
+/** 氏名セルか（電話番号=数字・記号のみ、空欄は除外）。漢字/カナ/かな/ローマ字名はOK。 */
+function isNameCell_(v) {
+  if (v == null) return false;
+  const s = String(v).trim();
+  if (s === '') return false;
+  if (/^[0-9０-９\s()（）\-－＋+.]+$/.test(s)) return false; // 電話番号など数字・記号のみ
+  return true;
+}
+
 /* ===================== 集計本体（メニュー用） ===================== */
 function aggregateAvailability() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const result = buildAvailability_(ss);
   writePublishSheet_(ss, result);
+  // 各日付シートの午前/午後の患者数（B3/F3）も更新
+  CONFIG.days.forEach((d) => {
+    const sh = ss.getSheetByName(d.tab);
+    if (sh) updateCounts_(sh);
+  });
   const total = result.days.reduce((n, d) => n + d.slots.length, 0);
   notify_(
     `集計完了。「${CONFIG.publishSheet}」を更新しました（${result.days.length}日分 / ${total}枠）。`
