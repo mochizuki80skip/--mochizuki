@@ -75,17 +75,24 @@ function onEdit(e) {
 
 /** 各ベッドの1列目（名前欄）で「氏名の数」を数える。
  *  12:00以前=午前(B3)／12:15以降=午後(F3)。7/26の通し営業もこの基準で分割。
- *  初回(氏名+電話の2行)も2/3回目(氏名のみ)も、氏名セル=1人としてカウント。
- *  電話番号(数字・記号のみ)や空欄は数えない。 */
+ *  ・各時刻は2行1組（1行目=氏名/2行目=電話 や 上下2段の別患者）なので、
+ *    時刻行から下の“全行”を走査し、時刻は上の行から引き継いで午前/午後を判定。
+ *  ・氏名セル=1人。電話番号(数字・記号のみ)や空欄は数えない。 */
 function updateCounts_(sh) {
   const board = readBoard_(sh);
-  let am = 0, pm = 0;
-  for (const key in board.timeRowByMin) {
-    const min = Number(key);
-    const r = board.timeRowByMin[key];
+  const values = board.values;
+  const nRows = values.length;
+  const timeRows = Object.values(board.timeRowByMin);
+  if (!timeRows.length) return;
+  const startRow = Math.min.apply(null, timeRows); // 最初の時刻行
+  let am = 0, pm = 0, curMin = null;
+  for (let r = startRow; r < nRows; r++) {
+    const t = toMinutes_(values[r][0]);
+    if (t != null) curMin = t;          // 時刻ラベル行で更新（以降の行は継承）
+    if (curMin == null) continue;
     for (const bed of board.beds) {
-      if (isNameCell_(board.values[r][bed.col])) {
-        if (min <= 720) am++; else pm++; // 720分 = 12:00
+      if (isNameCell_(values[r][bed.col])) {
+        if (curMin <= 720) am++; else pm++; // 720分 = 12:00
       }
     }
   }
