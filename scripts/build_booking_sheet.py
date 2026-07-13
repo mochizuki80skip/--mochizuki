@@ -260,7 +260,7 @@ def experience_formula():
         for nm, staff, ch in rooms:
             blocks.append(
                 f'HSTACK('
-                f'IF(\'{t}\'!${nm}$5:${nm}$22<>"","{label}",""),'
+                f'ARRAYFORMULA(IF(\'{t}\'!${nm}$5:${nm}$22<>"","{label}","")),'
                 f'\'{t}\'!${nm}$5:${nm}$22,'
                 f'\'{t}\'!${staff}$5:${staff}$22,'
                 f'\'{t}\'!${ch}$5:${ch}$22)'
