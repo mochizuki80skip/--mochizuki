@@ -57,6 +57,10 @@ C = Alignment(horizontal="center", vertical="center", wrap_text=True)
 L = Alignment(horizontal="left", vertical="center", wrap_text=True)
 
 
+def day_sheet_title(d):
+    return f"{d.month}月{d.day}日（{WD[d.weekday()]}）"
+
+
 def build_settings(wb):
     ws = wb.create_sheet("設定")
     ws["A1"] = "担当者リスト"
@@ -67,12 +71,39 @@ def build_settings(wb):
     ws["C1"].font = Font(bold=True)
     for i, s in enumerate(CHANNELS, start=2):
         ws.cell(row=i, column=3, value=s)
-    ws["E1"] = "チェック"
-    ws["E1"].font = Font(bold=True)
-    ws["E2"] = "✅"
+
+    # ---- 集客経路 集計（28/29/30を別々に）----
+    # 行: C2:C8 の集客経路を見出しに使用 / 列: E=28日, F=29日, G=30日
+    n = len(CHANNELS)                      # チャネル数（=7）
+    first_r, last_r = 2, 1 + n             # C2:C8
+    total_r = last_r + 1                   # 合計行
+    src_cols = ["E", "J", "O", "T"]        # ルームA〜Dの集客経路列
+
+    hdr_fill = PatternFill("solid", fgColor="D9D9D9")
+    ws.cell(row=1, column=4, value="集計").font = Font(bold=True)  # D1 見出し
+    for di, d in enumerate(DATES):
+        col = 5 + di                       # E, F, G
+        col_l = get_column_letter(col)
+        t = day_sheet_title(d)
+        h = ws.cell(row=1, column=col, value=f"{d.month}/{d.day}")
+        h.font = Font(bold=True)
+        h.alignment = Alignment(horizontal="center")
+        h.fill = hdr_fill
+        for r in range(first_r, last_r + 1):
+            parts = [f"COUNTIF('{t}'!${c}$5:${c}$22,$C{r})" for c in src_cols]
+            ws.cell(row=r, column=col, value="=" + "+".join(parts)).alignment = \
+                Alignment(horizontal="center")
+        # 合計
+        tot = ws.cell(row=total_r, column=col,
+                      value=f"=SUM({col_l}{first_r}:{col_l}{last_r})")
+        tot.font = Font(bold=True)
+        tot.alignment = Alignment(horizontal="center")
+    ws.cell(row=total_r, column=3, value="合計").font = Font(bold=True)
+
     ws.column_dimensions["A"].width = 16
     ws.column_dimensions["C"].width = 16
-    ws.column_dimensions["E"].width = 8
+    for cl in ("E", "F", "G"):
+        ws.column_dimensions[cl].width = 9
     ws.sheet_properties.tabColor = "808080"
     return ws
 
