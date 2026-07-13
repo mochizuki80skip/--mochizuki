@@ -248,15 +248,58 @@ def build_day(wb, d):
     return ws
 
 
+def experience_formula():
+    """3日分の予約表から、氏名が入っている枠を縦に集約する数式（Googleスプレッドシート用）。
+    出力列: 体験日 / 氏名 / 担当者(対応者) / 集客きっかけ(集客経路)"""
+    # (氏名列, 対応者列, 集客経路列) ルームA〜D
+    rooms = [("C", "B", "E"), ("H", "G", "J"), ("M", "L", "O"), ("R", "Q", "T")]
+    blocks = []
+    for d in DATES:
+        t = day_sheet_title(d)
+        label = f"{d.month}/{d.day}"
+        for nm, staff, ch in rooms:
+            blocks.append(
+                f'HSTACK('
+                f'IF(\'{t}\'!${nm}$5:${nm}$22<>"","{label}",""),'
+                f'\'{t}\'!${nm}$5:${nm}$22,'
+                f'\'{t}\'!${staff}$5:${staff}$22,'
+                f'\'{t}\'!${ch}$5:${ch}$22)'
+            )
+    return ('=IFERROR(LET(data,VSTACK(' + ",".join(blocks) +
+            '),FILTER(data,INDEX(data,,2)<>"")),"")')
+
+
+def build_experience_list(wb):
+    ws = wb.create_sheet("体験者一覧")
+    headers = ["体験日", "氏名", "担当者", "集客きっかけ", "次回予約（〇・×）", "次回来店日"]
+    for ci, h in enumerate(headers, start=1):
+        c = ws.cell(row=1, column=ci, value=h)
+        c.font = Font(bold=True)
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.fill = PatternFill("solid", fgColor="D9D9D9")
+    # A2 に自動集約の数式（A〜D列へスピル）
+    ws["A2"] = experience_formula()
+    # E・F列（次回予約有無／次回来店日）は書式なしの空欄で手入力
+    widths = [10, 14, 12, 16, 16, 14]
+    for ci, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(ci)].width = w
+    ws.freeze_panes = "A2"
+    ws.sheet_properties.tabColor = "548235"
+    return ws
+
+
 def main():
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     for d in DATES:
         build_day(wb, d)
+    build_experience_list(wb)
     build_settings(wb)
     out = "/home/user/--mochizuki/ONE'S BODY静岡安倍川店_体験会予約表.xlsx"
     wb.save(out)
     print("saved:", out)
+    print("--- 体験者一覧 A2 数式 ---")
+    print(experience_formula())
 
 
 if __name__ == "__main__":
