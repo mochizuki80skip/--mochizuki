@@ -21,8 +21,8 @@ ROOMS = ["A", "B", "C", "D"]
 DATES = [date(2026, 8, 28), date(2026, 8, 29), date(2026, 8, 30)]
 WD = ["月", "火", "水", "木", "金", "土", "日"]
 
-# 各ルームの列（対応可 / 氏名 / 連絡先 / 集客経路 / 来店）
-ROOM_COLS = ["対応可", "氏名", "連絡先", "集客経路", "来店"]
+# 各ルームの列（対応者 / 氏名 / 連絡先 / 集客経路 / 来店）
+ROOM_COLS = ["対応者", "氏名", "連絡先", "集客経路", "来店"]
 
 # 時間枠 9:00〜18:00 の30分刻み（開始時刻ベース、計18枠）
 def time_slots():
@@ -131,16 +131,18 @@ def build_day(wb, d):
         rc.font = Font(bold=True, size=12)
         rc.alignment = C
 
-        # 担当者（ラベル1列 + ドロップダウン4列マージ）
-        lc = ws.cell(row=R_STAFF, column=c0, value="担当者")
+        # 新規対応（ラベル + ☑チェック）
+        lc = ws.cell(row=R_STAFF, column=c0, value="新規対応")
         lc.fill = fill
         lc.font = Font(bold=True)
         lc.alignment = C
-        ws.merge_cells(f"{get_column_letter(c0+1)}{R_STAFF}:{c1L}{R_STAFF}")
-        sc = ws.cell(row=R_STAFF, column=c0 + 1)
-        sc.fill = STAFF_FILL
-        sc.alignment = C
-        dv_staff.add(sc)
+        chk = ws.cell(row=R_STAFF, column=c0 + 1)
+        chk.fill = STAFF_FILL
+        chk.alignment = C
+        dv_check.add(chk)  # ☑ チェックボックス
+        # 残りの列は空欄（ルーム色）
+        ws.merge_cells(f"{get_column_letter(c0+2)}{R_STAFF}:{c1L}{R_STAFF}")
+        ws.cell(row=R_STAFF, column=c0 + 2).fill = fill
 
         # サブ見出し
         for ci, name in enumerate(ROOM_COLS):
@@ -155,7 +157,7 @@ def build_day(wb, d):
                 ws.cell(row=r, column=cc).border = border_room
 
         # 列幅
-        widths = [7, 12, 16, 12, 6]
+        widths = [10, 12, 16, 12, 6]
         for ci, w in enumerate(widths):
             ws.column_dimensions[get_column_letter(c0 + ci)].width = w
 
@@ -173,9 +175,8 @@ def build_day(wb, d):
             for ci in range(len(ROOM_COLS)):
                 cell = ws.cell(row=r, column=c0 + ci)
                 cell.border = border_thin
-                cell.alignment = C if ROOM_COLS[ci] in ("対応可", "来店") else L
-            # 対応可・来店 にチェック用DV
-            dv_check.add(ws.cell(row=r, column=c0))                      # 対応可
+                cell.alignment = C if ROOM_COLS[ci] in ("対応者", "来店") else L
+            dv_staff.add(ws.cell(row=r, column=c0))                      # 対応者（ドロップダウン）
             dv_channel.add(ws.cell(row=r, column=c0 + 3))               # 集客経路
             dv_check.add(ws.cell(row=r, column=c0 + 4))                 # 来店
 
@@ -198,14 +199,14 @@ def build_day(wb, d):
         rng_ok = f"{ok}{R_START}:{ok}{last_row}"
         rng_v = f"{visit}{R_START}:{visit}{last_row}"
         ws.conditional_formatting.add(
-            rng_ok, FormulaRule(formula=[f'{ok}{R_START}="✅"'], fill=green))
+            rng_ok, FormulaRule(formula=[f'NOT(ISBLANK({ok}{R_START}))'], fill=green))
         ws.conditional_formatting.add(
             rng_v, FormulaRule(formula=[f'{visit}{R_START}="✅"'], fill=blue))
 
     # 凡例
     lr = last_row + 2
     ws.cell(row=lr, column=1,
-            value="【使い方】対応可=✅で受付OK（担当不在・休憩・ブロックは✅を外す）／来店=当日ご来店で✅／担当者・集客経路はドロップダウン選択")
+            value="【使い方】新規対応=✅で新規受付OK（不在・休憩・ブロックは✅を外す）／対応者=枠ごとにドロップダウンで選択／来店=当日ご来店で✅／集客経路はドロップダウン選択")
     ws.merge_cells(start_row=lr, start_column=1, end_row=lr, end_column=total_cols)
     ws.cell(row=lr, column=1).font = Font(size=9, color="666666")
     ws.cell(row=lr, column=1).alignment = L
