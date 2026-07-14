@@ -36,11 +36,11 @@ function append_(d) {
     var sh = ss.getSheetByName(LOG_SHEET);
     if (!sh) {
       sh = ss.insertSheet(LOG_SHEET);
-      sh.appendRow(['受付日時', '体験日', '時間', '予約者名', '電話番号', 'メールアドレス', '予約のきっかけ']);
+      sh.appendRow(['受付日時', '第1希望', '第2希望', '第3希望', '予約者名', '電話番号', 'メールアドレス', '予約のきっかけ']);
       sh.getRange('1:1').setFontWeight('bold');
       sh.setFrozenRows(1);
     }
-    sh.appendRow([new Date(), d.day || '', d.time || '', d.name || '', d.tel || '', d.email || '', d.channel || '']);
+    sh.appendRow([new Date(), d.p1 || d.day || '', d.p2 || '', d.p3 || '', d.name || '', d.tel || '', d.email || '', d.channel || '']);
     return ContentService.createTextOutput('OK').setMimeType(ContentService.MimeType.TEXT);
   } finally {
     try { lock.releaseLock(); } catch (e) {}

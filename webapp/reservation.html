@@ -119,10 +119,24 @@
   .purpose a{color:var(--accent);text-decoration:underline;font-weight:800}
   footer a{color:var(--muted);text-decoration:underline;font-weight:700}
 
-  .selbar{margin-top:14px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 10%,var(--surface));
-    border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));font-size:14px;font-weight:700}
-  .selbar span{color:var(--muted);font-weight:700}
-  .selbar b{color:var(--accent)}
+  .pickhelp{font-size:12.5px;color:var(--muted);margin:0 2px 12px;line-height:1.6}
+  .pickhelp b{color:var(--ink)}
+  .pickmsg{font-size:12.5px;color:var(--warn);font-weight:700;margin:0 2px 10px}
+  .picks{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+  .pickrow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;
+    border:1px solid var(--line);background:var(--surface-2)}
+  .pickrow.filled{background:color-mix(in srgb,var(--accent) 9%,var(--surface));
+    border-color:color-mix(in srgb,var(--accent) 35%,var(--line))}
+  .pickrow .rank{flex:0 0 auto;font-size:12px;font-weight:800;color:var(--accent);min-width:78px}
+  .pickrow.filled .rank{color:var(--accent)}
+  .pickrow .pval{flex:1 1 auto;font-size:14px;font-weight:700}
+  .pickrow .pval.empty{color:var(--muted);font-weight:600}
+  .pickrow .rm{flex:0 0 auto;width:26px;height:26px;border:0;border-radius:7px;background:transparent;
+    color:var(--muted);font-size:14px;cursor:pointer}
+  .pickrow .rm:hover{background:var(--line);color:var(--ng)}
+  .slot.picked{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--surface));
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 26%,transparent)}
+  .slot .rankcap{color:var(--accent);font-weight:800}
 
   .cta{width:100%;margin-top:18px;padding:15px;border:0;border-radius:12px;background:var(--accent);
     color:var(--accent-ink);font:inherit;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.02em;
@@ -186,10 +200,12 @@
   </section>
 
   <section>
-    <p class="eyebrow"><span class="n">2</span>時間を選ぶ</p>
+    <p class="eyebrow"><span class="n">2</span>ご希望の日時を選ぶ</p>
+    <p class="pickhelp">空き枠をタップして<b>第1〜第3希望</b>を選べます（<b>第2希望まで必須</b>／第3希望は任意）。日をまたいで選べます。</p>
+    <p id="pickhelpMsg" class="pickmsg" style="display:none"></p>
+    <div id="picks" class="picks"></div>
     <div id="slots" class="slots" aria-live="polite"></div>
     <div id="loadnote" class="note" style="display:none"></div>
-    <div id="selbar" class="selbar" style="display:none"></div>
   </section>
 
   <section>
@@ -266,7 +282,8 @@
   // ルーム: 新規対応チェック列 / 氏名列（0始まりのインデックス）
   var ROOMS = [{s:2,n:2},{s:7,n:7},{s:12,n:12},{s:17,n:17}];
 
-  var STATE = { dayIdx:0, time:null, days:[], loaded:false, fallback:false };
+  var STATE = { dayIdx:0, picks:[], days:[], loaded:false, fallback:false };
+  var MAX_PICKS = 3, REQUIRED_PICKS = 2;
 
   function $(id){ return document.getElementById(id); }
   function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
@@ -329,7 +346,7 @@
       var b=document.createElement("button");
       b.setAttribute("role","tab"); b.setAttribute("aria-selected", i===STATE.dayIdx?"true":"false");
       b.innerHTML='<span class="d tnum">'+esc(d.label)+'</span><br><span class="w">'+esc(d.dow)+'曜</span>';
-      b.onclick=function(){ STATE.dayIdx=i; STATE.time=null; renderDays(); renderSlots(); renderSel(); };
+      b.onclick=function(){ STATE.dayIdx=i; renderDays(); renderSlots(); };
       seg.appendChild(b);
     });
   }
@@ -337,26 +354,61 @@
     var box=$("slots"); box.innerHTML="";
     for(var i=0;i<12;i++){ var d=document.createElement("div"); d.className="skeleton"; box.appendChild(d); }
   }
+  function pickRank(sheet, time){
+    for(var i=0;i<STATE.picks.length;i++){ if(STATE.picks[i].sheet===sheet && STATE.picks[i].time===time) return i+1; }
+    return 0;
+  }
+  function togglePick(day, s){
+    var r=pickRank(day.sheet, s.time);
+    if(r){ STATE.picks.splice(r-1,1); }
+    else {
+      if(STATE.picks.length>=MAX_PICKS){ flashPickHelp(); return; }
+      STATE.picks.push({ sheet:day.sheet, label:day.label, dow:day.dow, time:s.time });
+    }
+    renderSlots(); renderPicks();
+  }
+  function flashPickHelp(){
+    var h=$("pickhelpMsg"); if(!h) return;
+    h.textContent="ご希望は第3希望までです。変更するには選択済みの枠をもう一度タップして外してください。";
+    h.style.display="block"; setTimeout(function(){ h.style.display="none"; }, 2600);
+  }
   function renderSlots(){
-    var box=$("slots"), day=STATE.days[STATE.dayIdx];
+    var box=$("slots"), day=STATE.days[STATE.dayIdx], cfg=CONFIG.days[STATE.dayIdx];
     box.innerHTML="";
     if(!day){ return; }
     day.forEach(function(s){
-      var mk=markOf(s.open), full=(s.open<=0);
+      var mk=markOf(s.open), full=(s.open<=0), rank=cfg?pickRank(cfg.sheet,s.time):0;
       var el=document.createElement(full?"div":"button");
-      el.className="slot "+mk.c;
-      if(!full){ el.type="button"; el.setAttribute("aria-pressed", STATE.time===s.time?"true":"false"); }
+      el.className="slot "+mk.c+(rank?" picked":"");
+      if(!full){ el.type="button"; el.setAttribute("aria-pressed", rank?"true":"false"); }
       var start=s.time.split("〜")[0];
-      el.innerHTML='<span class="t tnum">'+esc(start)+'</span><span class="m">'+mk.m+'</span>'+
-                   (full?'<span class="cap">満席</span>':'<span class="cap">残り'+s.open+'枠</span>');
-      if(!full){ el.onclick=function(){ STATE.time=s.time; renderSlots(); renderSel(); }; }
+      var cap = rank ? '<span class="cap rankcap">第'+rank+'希望</span>'
+                     : (full?'<span class="cap">満席</span>':'<span class="cap">残り'+s.open+'枠</span>');
+      el.innerHTML='<span class="t tnum">'+esc(start)+'</span><span class="m">'+mk.m+'</span>'+cap;
+      if(!full){ el.onclick=function(){ togglePick(cfg, s); }; }
       box.appendChild(el);
     });
   }
-  function renderSel(){
-    var bar=$("selbar"), day=CONFIG.days[STATE.dayIdx];
-    if(STATE.time){ bar.style.display="block"; bar.innerHTML='<span>ご選択中：</span><b class="tnum">'+esc(day.label)+"（"+esc(day.dow)+"） "+esc(STATE.time)+"</b>"; }
-    else { bar.style.display="none"; }
+  function renderPicks(){
+    var box=$("picks");
+    box.innerHTML="";
+    for(var i=0;i<MAX_PICKS;i++){
+      var p=STATE.picks[i];
+      var req=i<REQUIRED_PICKS;
+      var row=document.createElement("div");
+      row.className="pickrow"+(p?" filled":"");
+      var badge='<span class="rank">第'+(i+1)+'希望'+(req?'':'（任意）')+'</span>';
+      if(p){
+        row.innerHTML=badge+'<span class="pval tnum">'+esc(p.label)+"（"+esc(p.dow)+"） "+esc(p.time)+'</span>'+
+                      '<button type="button" class="rm" data-i="'+i+'" aria-label="削除">✕</button>';
+      } else {
+        row.innerHTML=badge+'<span class="pval empty">'+(req?'空き枠をタップして選択':'（任意）空き枠をタップ')+'</span>';
+      }
+      box.appendChild(row);
+    }
+    Array.prototype.forEach.call(box.querySelectorAll(".rm"), function(btn){
+      btn.onclick=function(){ STATE.picks.splice(parseInt(btn.getAttribute("data-i"),10),1); renderSlots(); renderPicks(); };
+    });
   }
 
   // ===== きっかけ一覧（設定タブ C2以降）=====
@@ -383,7 +435,7 @@
 
   // ===== 読み込み =====
   function boot(){
-    renderDays(); renderSkeleton();
+    renderDays(); renderSkeleton(); renderPicks();
     if(CONFIG.privacyUrl){ var pl=$("ppLink"), fl=$("ppFoot"); if(pl)pl.href=CONFIG.privacyUrl; if(fl)fl.href=CONFIG.privacyUrl; }
     fillChannels(CONFIG.channels);                          // きっかけ選択肢（サイトに直接組み込み・確実に表示）
     // 設定タブC2以降で管理したい場合は次行を有効化（読めた場合のみ差し替え）
@@ -401,10 +453,11 @@
   }
 
   // ===== 送信（確認→LINE）=====
-  function buildMessage(p,day){
+  function pickText(p){ return p.label+"（"+p.dow+"） "+p.time; }
+  function buildMessage(p){
+    var lines=p.picks.map(function(pk,i){ return "■第"+(i+1)+"希望："+pickText(pk); }).join("\n");
     return "【体験会 ご予約希望】\n"+
-      "■体験日："+day.label+"（"+day.dow+"）\n"+
-      "■ご希望時間："+p.time+"\n"+
+      lines+"\n"+
       "■お名前："+p.name+"\n"+
       "■電話番号："+p.tel+"\n"+
       "■メール："+p.email+"\n"+
@@ -425,7 +478,7 @@
   }
   function validate(p){
     var e=[];
-    if(!p.time) e.push("・ご希望の日時を選択してください");
+    if(p.picks.length<REQUIRED_PICKS) e.push("・ご希望の日時を第"+REQUIRED_PICKS+"希望まで選択してください");
     if(!p.name) e.push("・お名前を入力してください");
     if(!telValid(p.tel)) e.push("・電話番号を正しくご入力ください（携帯は11桁、固定電話は10桁または7桁）");
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) e.push("・メールアドレスを正しく入力してください");
@@ -433,9 +486,8 @@
     return e;
   }
   function currentPayload(){
-    var day=CONFIG.days[STATE.dayIdx];
-    return { time:STATE.time, name:$("f_name").value.trim(), tel:$("f_tel").value.trim(),
-             email:$("f_email").value.trim(), channel:$("f_channel").value, day:day };
+    return { picks:STATE.picks.slice(), name:$("f_name").value.trim(), tel:$("f_tel").value.trim(),
+             email:$("f_email").value.trim(), channel:$("f_channel").value };
   }
 
   var lastText="", confirmData=null, confirmLogged=false;
@@ -443,11 +495,15 @@
   function logBooking(){
     if(!CONFIG.logUrl || confirmLogged || !confirmData) return;
     confirmLogged=true;
-    var p=confirmData.p, day=confirmData.day;
+    var p=confirmData.p;
     try{
       fetch(CONFIG.logUrl, { method:"POST", mode:"no-cors", keepalive:true,
         headers:{ "Content-Type":"text/plain;charset=utf-8" },
-        body: JSON.stringify({ day: day.label+"（"+day.dow+"）", time:p.time, name:p.name, tel:p.tel, email:p.email, channel:p.channel }) });
+        body: JSON.stringify({
+          p1: p.picks[0]?pickText(p.picks[0]):"",
+          p2: p.picks[1]?pickText(p.picks[1]):"",
+          p3: p.picks[2]?pickText(p.picks[2]):"",
+          name:p.name, tel:p.tel, email:p.email, channel:p.channel }) });
     }catch(e){}
   }
   $("submit").onclick=function(){
@@ -458,13 +514,13 @@
         .forEach(function(x){ $(x[0]).classList.toggle("err-in", !!x[1]); });
       fe.scrollIntoView({behavior:"smooth",block:"center"}); return; }
     fe.classList.remove("show");
-    lastText=buildMessage(p,p.day);
+    lastText=buildMessage(p);
     $("recap").textContent=lastText;
     var placeholder=/0{3}abcde/.test(CONFIG.lineId);
     $("warnset").classList.toggle("show", placeholder);
     var url="https://line.me/R/oaMessage/"+encodeURIComponent(CONFIG.lineId)+"/?"+encodeURIComponent(lastText);
     $("lineBtn").setAttribute("href", url);
-    confirmData={ p:p, day:p.day }; confirmLogged=false;
+    confirmData={ p:p }; confirmLogged=false;
     $("ov").classList.add("show");
   };
   $("closeBtn").onclick=function(){ $("ov").classList.remove("show"); };
