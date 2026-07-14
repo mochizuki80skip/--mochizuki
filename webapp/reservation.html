@@ -115,15 +115,9 @@
     box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
   .hint{font-size:11.5px;color:var(--muted);margin-top:5px}
   .err-in{border-color:var(--ng)!important}
-  .purpose{font-size:12px;color:var(--muted);margin:16px 0 10px;line-height:1.6}
-  .chk{display:flex;align-items:flex-start;gap:9px;font-size:13.5px;font-weight:700;margin:0;cursor:pointer}
-  .chk input{width:20px;height:20px;flex:0 0 auto;margin-top:1px;accent-color:var(--accent)}
-  .chk a{color:var(--accent);text-decoration:underline;font-weight:800}
-  .chk.err-in{border:0!important;color:var(--ng)}
-  .pp-body{max-height:52vh;overflow-y:auto;margin:6px 0 4px;padding-right:6px;font-size:12.5px;line-height:1.75;color:var(--ink)}
-  .pp-body h4{font-size:13px;margin:14px 0 4px;color:var(--accent)}
-  .pp-body p{margin:0 0 6px} .pp-body ul{margin:0 0 6px;padding-left:18px}
-  .pp-body .meta{color:var(--muted);font-size:11.5px}
+  .purpose{font-size:12px;color:var(--muted);margin:16px 0 4px;line-height:1.7}
+  .purpose a{color:var(--accent);text-decoration:underline;font-weight:800}
+  footer a{color:var(--muted);text-decoration:underline;font-weight:700}
 
   .selbar{margin-top:14px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 10%,var(--surface));
     border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));font-size:14px;font-weight:700}
@@ -219,9 +213,7 @@
         <label for="f_channel">当店を知ったきっかけ<span class="req">必須</span></label>
         <select id="f_channel"><option value="">選択してください</option></select>
       </div>
-      <p class="purpose">ご入力いただいた個人情報は、体験会のご予約受付・ご連絡、及びオープン後のご予約のご案内に利用します。</p>
-      <label class="chk"><input type="checkbox" id="f_agree">
-        <span><a href="#" id="ppLink">プライバシーポリシー</a>に同意します<span class="req">必須</span></span></label>
+      <p class="purpose">ご入力いただいた個人情報は、体験会のご予約受付・ご連絡、及びオープン後のご予約のご案内に利用します。詳しくは <a id="ppLink" href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a> をご確認ください。</p>
       <button class="cta" id="submit">入力内容を確認する</button>
       <p class="formerr" id="formerr"></p>
     </div>
@@ -230,7 +222,7 @@
 
 <footer>
   ご予約は公式LINEでの受付となります。送信後、担当より確認のご連絡を差し上げます。<br>
-  ONE'S BODY 静岡安倍川店
+  ONE'S BODY 静岡安倍川店　／　<a id="ppFoot" href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
 </footer>
 
 <div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="ovh">
@@ -248,14 +240,6 @@
   </div>
 </div>
 
-<div class="ov" id="ppOv" role="dialog" aria-modal="true" aria-labelledby="pph">
-  <div class="sheet">
-    <h3 id="pph">プライバシーポリシー</h3>
-    <div class="pp-body" id="ppBody"></div>
-    <button class="close" id="ppClose">閉じる</button>
-  </div>
-</div>
-
 <script>
 (function(){
   "use strict";
@@ -269,13 +253,7 @@
       { sheet: "8月30日（日）", label: "8/30", dow: "日" }
     ],
     channels: ["Instagram","Googleマップ","チラシ","紹介","HP","既存会員","その他"],
-    // プライバシーポリシー表示用（正式名称・連絡先に書き換えてください）
-    business: {
-      name: "ONE'S BODY 静岡安倍川店",
-      operator: "（運営事業者の正式名称を記入）",
-      contact: "（お問い合わせ先メール または 電話番号を記入）",
-      revised: "2026年8月"
-    }
+    privacyUrl: "privacy.html"  // プライバシーポリシーページ（同じ場所に置いてください）
   };
   // ルーム: 新規対応チェック列 / 氏名列（0始まりのインデックス）
   var ROOMS = [{s:2,n:2},{s:7,n:7},{s:12,n:12},{s:17,n:17}];
@@ -373,30 +351,10 @@
     else { bar.style.display="none"; }
   }
 
-  // ===== プライバシーポリシー =====
-  function setupPrivacy(){
-    var b=CONFIG.business||{};
-    $("ppBody").innerHTML=
-      '<p>'+esc(b.name||"当店")+'（以下「当店」）は、お客様の個人情報を以下のとおり取り扱います。</p>'+
-      '<h4>1. 取得する情報</h4><p>お名前、電話番号、メールアドレス、当店を知ったきっかけ（アンケート回答）。</p>'+
-      '<h4>2. 利用目的</h4><ul>'+
-        '<li>体験会のご予約受付・日程調整・ご連絡</li>'+
-        '<li>オープン後のサービス・ご予約に関するご案内</li>'+
-        '<li>お問い合わせへの対応</li></ul>'+
-      '<h4>3. 第三者提供</h4><p>法令に基づく場合を除き、ご本人の同意なく第三者へ提供しません。なお、ご予約の受付・ご連絡には LINE（LINEヤフー株式会社）のサービスを利用します。送信された内容は同社のサービスを通じて当店に届きます。</p>'+
-      '<h4>4. 安全管理</h4><p>取得した個人情報の漏えい・滅失・毀損の防止のため、適切な安全管理措置を講じます。</p>'+
-      '<h4>5. 開示・訂正・利用停止等</h4><p>ご本人からの開示・訂正・削除・利用停止のご請求には、下記窓口にて適切に対応します。</p>'+
-      '<h4>6. お問い合わせ窓口</h4><p>'+esc(b.operator||"")+'<br>'+esc(b.contact||"")+'</p>'+
-      '<h4>7. 改定</h4><p>本ポリシーは必要に応じて改定することがあります。</p>'+
-      '<p class="meta">制定・改定：'+esc(b.revised||"")+'</p>';
-    $("ppLink").onclick=function(e){ e.preventDefault(); $("ppOv").classList.add("show"); };
-    $("ppClose").onclick=function(){ $("ppOv").classList.remove("show"); };
-    $("ppOv").addEventListener("click",function(e){ if(e.target===$("ppOv")) $("ppOv").classList.remove("show"); });
-  }
-
   // ===== 読み込み =====
   function boot(){
-    renderDays(); renderSkeleton(); setupPrivacy();
+    renderDays(); renderSkeleton();
+    if(CONFIG.privacyUrl){ var pl=$("ppLink"), fl=$("ppFoot"); if(pl)pl.href=CONFIG.privacyUrl; if(fl)fl.href=CONFIG.privacyUrl; }
     var sel=$("f_channel");
     CONFIG.channels.forEach(function(c){ var o=document.createElement("option"); o.value=c; o.textContent=c; sel.appendChild(o); });
     Promise.all(CONFIG.days.map(function(d,i){
@@ -429,13 +387,12 @@
     if(!/^\d{2,4}-\d{2,4}-\d{3,4}$/.test(p.tel)) e.push("・電話番号は 000-0000-0000 の形式で入力してください");
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) e.push("・メールアドレスを正しく入力してください");
     if(!p.channel) e.push("・当店を知ったきっかけを選択してください");
-    if(!p.agree) e.push("・プライバシーポリシーへの同意が必要です");
     return e;
   }
   function currentPayload(){
     var day=CONFIG.days[STATE.dayIdx];
     return { time:STATE.time, name:$("f_name").value.trim(), tel:$("f_tel").value.trim(),
-             email:$("f_email").value.trim(), channel:$("f_channel").value, agree:$("f_agree").checked, day:day };
+             email:$("f_email").value.trim(), channel:$("f_channel").value, day:day };
   }
 
   var lastText="";
