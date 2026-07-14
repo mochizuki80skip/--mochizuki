@@ -28,15 +28,19 @@ function doGet(e) {
   return append_((e && e.parameter) || {});
 }
 
+var HEADER = ['受付日時', '第1希望', '第2希望', '第3希望', '予約者名', '電話番号', 'メールアドレス', '予約のきっかけ'];
+
 function append_(d) {
   var lock = LockService.getScriptLock();
   try { lock.waitLock(15000); } catch (e) {}
   try {
     var ss = SpreadsheetApp.openById(SS_ID);
     var sh = ss.getSheetByName(LOG_SHEET);
-    if (!sh) {
-      sh = ss.insertSheet(LOG_SHEET);
-      sh.appendRow(['受付日時', '第1希望', '第2希望', '第3希望', '予約者名', '電話番号', 'メールアドレス', '予約のきっかけ']);
+    if (!sh) sh = ss.insertSheet(LOG_SHEET);
+    // 見出しが未設定・旧バージョンの場合は自動で新しい見出しに揃える
+    var first = sh.getRange(1, 1, 1, HEADER.length).getValues()[0];
+    if (first.join('') !== HEADER.join('')) {
+      sh.getRange(1, 1, 1, HEADER.length).setValues([HEADER]);
       sh.getRange('1:1').setFontWeight('bold');
       sh.setFrozenRows(1);
     }
