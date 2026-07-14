@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#14203a">
+<title>ONE'S BODY 静岡安倍川店 オープン前無料体験会 ご予約</title>
+<style>
+  :root{
+    --bg:#eef1f6; --surface:#ffffff; --surface-2:#f6f8fc;
+    --ink:#14203a; --muted:#5b6577; --line:#d9dfe8;
+    --brand:#14203a; --accent:#f2551f; --accent-ink:#ffffff;
+    --ok:#12824a; --warn:#b0771a; --ng:#c0392b;
+    --line-green:#06C755;
+    --radius:12px; --shadow:0 1px 2px rgba(20,32,58,.06),0 8px 24px rgba(20,32,58,.06);
+    --maxw:620px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0b1120; --surface:#141c2b; --surface-2:#0f1826;
+      --ink:#eef2f8; --muted:#9aa6ba; --line:#27313f;
+      --brand:#eef2f8; --accent:#ff6a38; --accent-ink:#1a1005;
+      --ok:#40cb80; --warn:#e0a63a; --ng:#ff6f62;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#eef1f6; --surface:#ffffff; --surface-2:#f6f8fc;
+    --ink:#14203a; --muted:#5b6577; --line:#d9dfe8;
+    --brand:#14203a; --accent:#f2551f; --accent-ink:#ffffff;
+    --ok:#12824a; --warn:#b0771a; --ng:#c0392b;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1120; --surface:#141c2b; --surface-2:#0f1826;
+    --ink:#eef2f8; --muted:#9aa6ba; --line:#27313f;
+    --brand:#eef2f8; --accent:#ff6a38; --accent-ink:#1a1005;
+    --ok:#40cb80; --warn:#e0a63a; --ng:#ff6f62;
+  }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Hiragino Sans","Yu Gothic","Yu Gothic UI",Meiryo,"Noto Sans JP",sans-serif;
+    line-height:1.65;-webkit-font-smoothing:antialiased;}
+  .tnum{font-variant-numeric:tabular-nums;letter-spacing:.01em}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 16px 120px}
+
+  /* header */
+  .topbar{height:4px;background:linear-gradient(90deg,var(--accent),#ffb07a)}
+  header{background:var(--brand);color:#fff}
+  :root[data-theme="dark"] header{background:#0f1726;border-bottom:1px solid var(--line)}
+  @media (prefers-color-scheme: dark){header{background:#0f1726;border-bottom:1px solid var(--line)}}
+  .head-in{max-width:var(--maxw);margin:0 auto;padding:20px 16px 22px}
+  .brand{font-size:12px;letter-spacing:.22em;opacity:.82;margin:0 0 8px;text-transform:uppercase}
+  .title{font-size:23px;font-weight:800;margin:0;letter-spacing:.01em;text-wrap:balance;line-height:1.35}
+  .title .em{color:#ffcf9f}
+  :root[data-theme="dark"] .title .em{color:var(--accent)}
+  @media (prefers-color-scheme: dark){.title .em{color:var(--accent)}}
+  .sub{margin:10px 0 0;font-size:13px;opacity:.9}
+  .datechips{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+  .datechip{font-size:12px;font-weight:700;padding:5px 11px;border-radius:999px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22)}
+
+  section{margin-top:22px}
+  .eyebrow{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:800;color:var(--muted);
+    letter-spacing:.12em;margin:0 0 12px;text-transform:uppercase}
+  .eyebrow .n{display:grid;place-items:center;width:20px;height:20px;border-radius:6px;
+    background:var(--accent);color:var(--accent-ink);font-size:12px}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .card.pad{padding:16px}
+
+  /* day segmented */
+  .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:var(--surface-2);
+    border:1px solid var(--line);border-radius:var(--radius);padding:6px}
+  .seg button{appearance:none;border:0;background:transparent;color:var(--ink);cursor:pointer;
+    padding:11px 6px;border-radius:9px;font:inherit;font-weight:700;line-height:1.2;transition:.15s}
+  .seg button .d{font-size:17px}
+  .seg button .w{font-size:11px;color:var(--muted);font-weight:700}
+  .seg button[aria-selected="true"]{background:var(--brand);color:#fff;box-shadow:var(--shadow)}
+  .seg button[aria-selected="true"] .w{color:rgba(255,255,255,.8)}
+  :root[data-theme="dark"] .seg button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}
+  @media (prefers-color-scheme: dark){.seg button[aria-selected="true"]{background:var(--accent);color:var(--accent-ink)}}
+
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin:12px 2px 0}
+  .legend b{font-size:14px}
+  .legend .g{color:var(--ok)} .legend .a{color:var(--warn)} .legend .r{color:var(--ng)}
+
+  /* slots */
+  .slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(98px,1fr));gap:8px;margin-top:14px}
+  .slot{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;
+    padding:11px 6px 9px;border:1.5px solid var(--line);border-radius:11px;background:var(--surface);
+    cursor:pointer;transition:.14s;min-height:62px;justify-content:center}
+  .slot:hover{border-color:var(--accent)}
+  .slot .t{font-size:14px;font-weight:800}
+  .slot .m{font-size:19px;font-weight:900;line-height:1}
+  .slot.ok .m{color:var(--ok)} .slot.wn .m{color:var(--warn)} .slot.ng .m{color:var(--ng)}
+  .slot.ng{background:var(--surface-2);cursor:not-allowed;opacity:.6}
+  .slot.ng:hover{border-color:var(--line)}
+  .slot[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 28%,transparent)}
+  .slot .cap{font-size:10px;color:var(--muted);font-weight:700}
+
+  .note{font-size:12px;color:var(--muted);margin:12px 2px 0;padding:10px 12px;background:var(--surface-2);
+    border:1px dashed var(--line);border-radius:10px}
+  .skeleton{height:62px;border-radius:11px;background:linear-gradient(90deg,var(--surface-2),var(--line),var(--surface-2));
+    background-size:200% 100%;animation:sh 1.2s infinite}
+  @keyframes sh{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  @media (prefers-reduced-motion:reduce){.skeleton{animation:none}}
+
+  /* form */
+  .field{margin-top:14px}
+  .field:first-child{margin-top:0}
+  label{display:block;font-size:13px;font-weight:800;margin:0 0 6px}
+  label .req{color:var(--accent);font-size:11px;margin-left:6px;font-weight:800}
+  input,select{width:100%;padding:12px 13px;border:1.5px solid var(--line);border-radius:10px;
+    background:var(--surface-2);color:var(--ink);font:inherit;font-size:16px;transition:.14s}
+  input:focus,select:focus{outline:none;border-color:var(--accent);background:var(--surface);
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+  .hint{font-size:11.5px;color:var(--muted);margin-top:5px}
+  .err-in{border-color:var(--ng)!important}
+  .purpose{font-size:12px;color:var(--muted);margin:16px 0 4px;line-height:1.7}
+  .purpose a{color:var(--accent);text-decoration:underline;font-weight:800}
+  footer a{color:var(--muted);text-decoration:underline;font-weight:700}
+
+  .selbar{margin-top:14px;padding:12px 14px;border-radius:10px;background:color-mix(in srgb,var(--accent) 10%,var(--surface));
+    border:1px solid color-mix(in srgb,var(--accent) 35%,var(--line));font-size:14px;font-weight:700}
+  .selbar span{color:var(--muted);font-weight:700}
+  .selbar b{color:var(--accent)}
+
+  .cta{width:100%;margin-top:18px;padding:15px;border:0;border-radius:12px;background:var(--accent);
+    color:var(--accent-ink);font:inherit;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:.02em;
+    box-shadow:var(--shadow);transition:.14s}
+  .cta:hover{filter:brightness(1.04)}
+  .cta:disabled{opacity:.5;cursor:not-allowed}
+  .formerr{margin-top:12px;font-size:13px;color:var(--ng);font-weight:700;white-space:pre-line;display:none}
+  .formerr.show{display:block}
+
+  /* confirm panel */
+  .ov{position:fixed;inset:0;background:rgba(10,16,28,.55);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .ov.show{display:flex}
+  .sheet{background:var(--surface);width:100%;max-width:var(--maxw);border-radius:16px 16px 0 0;
+    border:1px solid var(--line);padding:20px 18px calc(20px + env(safe-area-inset-bottom));box-shadow:0 -8px 40px rgba(0,0,0,.3);
+    animation:up .22s ease}
+  @keyframes up{from{transform:translateY(18px);opacity:.5}to{transform:none;opacity:1}}
+  @media (min-width:640px){.ov{align-items:center}.sheet{border-radius:16px}}
+  .sheet h3{margin:0 0 4px;font-size:17px;font-weight:800}
+  .sheet .lead{margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .recap{background:var(--surface-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;
+    font-size:13.5px;white-space:pre-line;line-height:1.75;font-variant-numeric:tabular-nums}
+  .line-btn{display:flex;align-items:center;justify-content:center;gap:9px;width:100%;margin-top:14px;
+    padding:15px;border-radius:12px;background:var(--line-green);color:#fff;font-weight:800;font-size:16px;
+    text-decoration:none;border:0;cursor:pointer;box-shadow:var(--shadow)}
+  .line-btn:hover{filter:brightness(1.03)}
+  .line-btn svg{width:22px;height:22px}
+  .ghost{display:block;width:100%;margin-top:10px;padding:12px;border-radius:11px;background:transparent;
+    border:1.5px solid var(--line);color:var(--ink);font:inherit;font-weight:700;cursor:pointer}
+  .ghost.copied{border-color:var(--ok);color:var(--ok)}
+  .close{display:block;width:100%;margin-top:8px;padding:10px;background:none;border:0;color:var(--muted);
+    font:inherit;font-weight:700;cursor:pointer}
+  .warnset{margin-top:12px;font-size:12px;color:var(--warn);font-weight:700;display:none}
+  .warnset.show{display:block}
+
+  footer{max-width:var(--maxw);margin:0 auto;padding:26px 16px 40px;color:var(--muted);font-size:11.5px;text-align:center}
+</style>
+
+<div class="topbar"></div>
+<header>
+  <div class="head-in">
+    <p class="brand">ONE'S BODY 静岡安倍川店</p>
+    <h1 class="title">オープン前 <span class="em">無料体験会</span><br>ご予約フォーム</h1>
+    <p class="sub">ご希望の日時をお選びください（1枠30分／9:00〜18:00）</p>
+    <div class="datechips">
+      <span class="datechip tnum">8/28 金</span>
+      <span class="datechip tnum">8/29 土</span>
+      <span class="datechip tnum">8/30 日</span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <section>
+    <p class="eyebrow"><span class="n">1</span>体験日を選ぶ</p>
+    <div class="seg" id="seg" role="tablist" aria-label="体験日"></div>
+    <div class="legend">
+      <span><b class="g">◎</b> 空きあり</span>
+      <span><b class="a">△</b> 残りわずか</span>
+      <span><b class="r">×</b> 満席</span>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="n">2</span>時間を選ぶ</p>
+    <div id="slots" class="slots" aria-live="polite"></div>
+    <div id="loadnote" class="note" style="display:none"></div>
+    <div id="selbar" class="selbar" style="display:none"></div>
+  </section>
+
+  <section>
+    <p class="eyebrow"><span class="n">3</span>お客様情報</p>
+    <div class="card pad">
+      <div class="field">
+        <label for="f_name">お名前<span class="req">必須</span></label>
+        <input id="f_name" type="text" autocomplete="name" placeholder="山田 太郎">
+      </div>
+      <div class="field">
+        <label for="f_tel">電話番号<span class="req">必須</span></label>
+        <input id="f_tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="000-0000-0000">
+        <p class="hint">ハイフンを入れてご入力ください（例：090-1234-5678）</p>
+      </div>
+      <div class="field">
+        <label for="f_email">メールアドレス<span class="req">必須</span></label>
+        <input id="f_email" type="email" inputmode="email" autocomplete="email" placeholder="example@onesbody.jp">
+        <p class="hint">オープン後のご予約のご案内に使用します</p>
+      </div>
+      <div class="field">
+        <label for="f_channel">当店を知ったきっかけ<span class="req">必須</span></label>
+        <select id="f_channel"><option value="">選択してください</option></select>
+      </div>
+      <p class="purpose">ご入力いただいた個人情報は、体験会のご予約受付・ご連絡、及びオープン後のご予約のご案内に利用します。詳しくは <a id="ppLink" href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a> をご確認ください。</p>
+      <button class="cta" id="submit">入力内容を確認する</button>
+      <p class="formerr" id="formerr"></p>
+    </div>
+  </section>
+</div>
+
+<footer>
+  ご予約は公式LINEでの受付となります。送信後、担当より確認のご連絡を差し上げます。<br>
+  ONE'S BODY 静岡安倍川店　／　<a id="ppFoot" href="privacy.html" target="_blank" rel="noopener">プライバシーポリシー</a>
+</footer>
+
+<div class="ov" id="ov" role="dialog" aria-modal="true" aria-labelledby="ovh">
+  <div class="sheet">
+    <h3 id="ovh">この内容で公式LINEに送信します</h3>
+    <p class="lead">下のボタンでLINEが開きます。<b>内容を確認して送信ボタンを押して</b>ください。</p>
+    <div class="recap tnum" id="recap"></div>
+    <p class="warnset" id="warnset">※ 公式LINEのIDが未設定です。設定後にご利用ください。</p>
+    <a class="line-btn" id="lineBtn" href="#" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2C6.48 2 2 5.7 2 10.26c0 4.08 3.56 7.5 8.37 8.15.33.07.77.22.88.5.1.26.07.66.03.92l-.14.85c-.04.26-.2.99.87.54 1.07-.45 5.76-3.39 7.86-5.81C21.29 13.79 22 12.11 22 10.26 22 5.7 17.52 2 12 2Z"/></svg>
+      LINEを開いて送信する
+    </a>
+    <button class="ghost" id="copyBtn">メッセージをコピー</button>
+    <button class="close" id="closeBtn">戻る</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  // ===== 設定（ここを書き換えてご利用ください）=====
+  var CONFIG = {
+    spreadsheetId: "15an8h-Z4SeRlXKB1kceugg2hdX6tAjPUrori76pxpNQ",
+    lineId: "@055gtdcb",  // 公式LINEのID
+    days: [
+      { sheet: "8月28日（金）", label: "8/28", dow: "金" },
+      { sheet: "8月29日（土）", label: "8/29", dow: "土" },
+      { sheet: "8月30日（日）", label: "8/30", dow: "日" }
+    ],
+    channels: ["Instagram","Googleマップ","チラシ","紹介","HP","既存会員","その他"],
+    privacyUrl: "privacy.html"  // プライバシーポリシーページ（同じ場所に置いてください）
+  };
+  // ルーム: 新規対応チェック列 / 氏名列（0始まりのインデックス）
+  var ROOMS = [{s:2,n:2},{s:7,n:7},{s:12,n:12},{s:17,n:17}];
+
+  var STATE = { dayIdx:0, time:null, days:[], loaded:false, fallback:false };
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){ return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+
+  // ---- 時間枠 ----
+  function pad(n){ return (n<10?"0":"")+n; }
+  function allTimes(){ var a=[],t=540; for(var i=0;i<18;i++){ a.push(pad((t/60|0))+":"+pad(t%60)+"〜"+pad(((t+30)/60|0))+":"+pad((t+30)%60)); t+=30; } return a; }
+
+  // ---- gviz(JSONP)で空き状況を読み込む ----
+  function jsonp(url, cb, timeout){
+    return new Promise(function(resolve,reject){
+      var done=false, s=document.createElement("script");
+      var timer=setTimeout(function(){ if(!done){done=true;clean();reject(new Error("timeout"));} }, timeout||9000);
+      function clean(){ clearTimeout(timer); try{delete window[cb];}catch(e){window[cb]=undefined;} if(s.parentNode)s.parentNode.removeChild(s); }
+      window[cb]=function(data){ if(done)return; done=true; clean(); resolve(data); };
+      s.onerror=function(){ if(!done){done=true;clean();reject(new Error("load"));} };
+      s.src=url; document.head.appendChild(s);
+    });
+  }
+  function loadDay(day){
+    var cb="gv_"+Math.floor(Math.random()*1e9);
+    var url="https://docs.google.com/spreadsheets/d/"+CONFIG.spreadsheetId+
+      "/gviz/tq?tqx=responseHandler:"+cb+";out:json&headers=0&sheet="+encodeURIComponent(day.sheet);
+    return jsonp(url,cb,6000).then(function(res){ return parseTable(res && res.table); });
+  }
+  function cellVal(row,i){ return (row && row.c && row.c[i] && row.c[i].v!=null) ? row.c[i].v : ""; }
+  function isTrue(v){ return v===true || v==="TRUE" || v==="true" || v===1 || v==="1"; }
+  function parseTable(table){
+    var rows=(table&&table.rows)||[]; if(!rows.length) throw new Error("empty");
+    // 「新規対応」ラベルの位置から各ルーム列を特定（ラベルの右隣＝チェック列＝氏名列）
+    var shinkiRow=null, roomCols=[];
+    for(var i=0;i<rows.length;i++){
+      var cs=[], len=(rows[i].c?rows[i].c.length:0);
+      for(var k=0;k<len;k++){ if(String(cellVal(rows[i],k)).trim()==="新規対応") cs.push(k+1); }
+      if(cs.length){ shinkiRow=rows[i]; roomCols=cs; break; }
+    }
+    if(!roomCols.length) roomCols=ROOMS.map(function(r){ return r.s; });
+    var open=roomCols.map(function(k){ return shinkiRow ? isTrue(cellVal(shinkiRow,k)) : true; });
+    var re=/^\d{1,2}:\d{2}\s*[〜~\-]/, slots=[];
+    for(var j=0;j<rows.length;j++){
+      var t=String(cellVal(rows[j],0)).trim(); if(!re.test(t)) continue;
+      var c=0; roomCols.forEach(function(k,idx){ if(open[idx] && String(cellVal(rows[j],k)).trim()==="") c++; });
+      slots.push({ time:t, open:c });
+    }
+    if(!slots.length) throw new Error("noslots");
+    return slots;
+  }
+  // ---- 読み込めない場合のサンプル（プレビュー用）----
+  function sampleSlots(seed){
+    var pat=[4,4,3,4,2,1,0,4,3,4,2,4,3,1,4,4,2,4], times=allTimes();
+    return times.map(function(tm,i){ return { time:tm, open:pat[(i+seed)%pat.length] }; });
+  }
+
+  function markOf(open){ return open>=2 ? {m:"◎",c:"ok"} : (open===1 ? {m:"△",c:"wn"} : {m:"×",c:"ng"}); }
+
+  // ===== 描画 =====
+  function renderDays(){
+    var seg=$("seg"); seg.innerHTML="";
+    CONFIG.days.forEach(function(d,i){
+      var b=document.createElement("button");
+      b.setAttribute("role","tab"); b.setAttribute("aria-selected", i===STATE.dayIdx?"true":"false");
+      b.innerHTML='<span class="d tnum">'+esc(d.label)+'</span><br><span class="w">'+esc(d.dow)+'曜</span>';
+      b.onclick=function(){ STATE.dayIdx=i; STATE.time=null; renderDays(); renderSlots(); renderSel(); };
+      seg.appendChild(b);
+    });
+  }
+  function renderSkeleton(){
+    var box=$("slots"); box.innerHTML="";
+    for(var i=0;i<12;i++){ var d=document.createElement("div"); d.className="skeleton"; box.appendChild(d); }
+  }
+  function renderSlots(){
+    var box=$("slots"), day=STATE.days[STATE.dayIdx];
+    box.innerHTML="";
+    if(!day){ return; }
+    day.forEach(function(s){
+      var mk=markOf(s.open), full=(s.open<=0);
+      var el=document.createElement(full?"div":"button");
+      el.className="slot "+mk.c;
+      if(!full){ el.type="button"; el.setAttribute("aria-pressed", STATE.time===s.time?"true":"false"); }
+      var start=s.time.split("〜")[0];
+      el.innerHTML='<span class="t tnum">'+esc(start)+'</span><span class="m">'+mk.m+'</span>'+
+                   (full?'<span class="cap">満席</span>':'<span class="cap">残り'+s.open+'枠</span>');
+      if(!full){ el.onclick=function(){ STATE.time=s.time; renderSlots(); renderSel(); }; }
+      box.appendChild(el);
+    });
+  }
+  function renderSel(){
+    var bar=$("selbar"), day=CONFIG.days[STATE.dayIdx];
+    if(STATE.time){ bar.style.display="block"; bar.innerHTML='<span>ご選択中：</span><b class="tnum">'+esc(day.label)+"（"+esc(day.dow)+"） "+esc(STATE.time)+"</b>"; }
+    else { bar.style.display="none"; }
+  }
+
+  // ===== 読み込み =====
+  function boot(){
+    renderDays(); renderSkeleton();
+    if(CONFIG.privacyUrl){ var pl=$("ppLink"), fl=$("ppFoot"); if(pl)pl.href=CONFIG.privacyUrl; if(fl)fl.href=CONFIG.privacyUrl; }
+    var sel=$("f_channel");
+    CONFIG.channels.forEach(function(c){ var o=document.createElement("option"); o.value=c; o.textContent=c; sel.appendChild(o); });
+    Promise.all(CONFIG.days.map(function(d,i){
+      return loadDay(d).catch(function(){ STATE.fallback=true; return sampleSlots(i); });
+    })).then(function(all){
+      STATE.days=all; STATE.loaded=true;
+      renderSlots();
+      if(STATE.fallback){
+        var n=$("loadnote"); n.style.display="block";
+        n.textContent="※ 空き状況を読み込めなかったため、サンプルを表示しています。スプレッドシートの共有設定（リンクを知っている全員が閲覧可）をご確認ください。";
+      }
+    });
+  }
+
+  // ===== 送信（確認→LINE）=====
+  function buildMessage(p,day){
+    return "【体験会 ご予約希望】\n"+
+      "■体験日："+day.label+"（"+day.dow+"）\n"+
+      "■ご希望時間："+p.time+"\n"+
+      "■お名前："+p.name+"\n"+
+      "■電話番号："+p.tel+"\n"+
+      "■メール："+p.email+"\n"+
+      "■きっかけ："+p.channel+"\n\n"+
+      "上記の内容で体験会を希望します。よろしくお願いいたします。";
+  }
+  function validate(p){
+    var e=[];
+    if(!p.time) e.push("・ご希望の日時を選択してください");
+    if(!p.name) e.push("・お名前を入力してください");
+    if(!/^\d{2,4}-\d{2,4}-\d{3,4}$/.test(p.tel)) e.push("・電話番号は 000-0000-0000 の形式で入力してください");
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) e.push("・メールアドレスを正しく入力してください");
+    if(!p.channel) e.push("・当店を知ったきっかけを選択してください");
+    return e;
+  }
+  function currentPayload(){
+    var day=CONFIG.days[STATE.dayIdx];
+    return { time:STATE.time, name:$("f_name").value.trim(), tel:$("f_tel").value.trim(),
+             email:$("f_email").value.trim(), channel:$("f_channel").value, day:day };
+  }
+
+  var lastText="";
+  $("submit").onclick=function(){
+    var p=currentPayload(), errs=validate(p), fe=$("formerr");
+    if(errs.length){ fe.textContent=errs.join("\n"); fe.classList.add("show");
+      [["f_name",!p.name],["f_tel",!/^\d{2,4}-\d{2,4}-\d{3,4}$/.test(p.tel)],["f_email",!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)]]
+        .forEach(function(x){ $(x[0]).classList.toggle("err-in", !!x[1]); });
+      fe.scrollIntoView({behavior:"smooth",block:"center"}); return; }
+    fe.classList.remove("show");
+    lastText=buildMessage(p,p.day);
+    $("recap").textContent=lastText;
+    var placeholder=/0{3}abcde/.test(CONFIG.lineId);
+    $("warnset").classList.toggle("show", placeholder);
+    var url="https://line.me/R/oaMessage/"+encodeURIComponent(CONFIG.lineId)+"/?"+encodeURIComponent(lastText);
+    $("lineBtn").setAttribute("href", url);
+    $("ov").classList.add("show");
+  };
+  $("closeBtn").onclick=function(){ $("ov").classList.remove("show"); };
+  $("ov").addEventListener("click",function(e){ if(e.target===$("ov")) $("ov").classList.remove("show"); });
+  $("copyBtn").onclick=function(){
+    var btn=$("copyBtn");
+    function ok(){ btn.textContent="コピーしました ✓"; btn.classList.add("copied"); setTimeout(function(){ btn.textContent="メッセージをコピー"; btn.classList.remove("copied"); },1800); }
+    if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(lastText).then(ok,fallbackCopy); } else { fallbackCopy(); }
+    function fallbackCopy(){ var ta=document.createElement("textarea"); ta.value=lastText; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");ok();}catch(e){} document.body.removeChild(ta); }
+  };
+  ["f_name","f_tel","f_email","f_channel"].forEach(function(id){ $(id).addEventListener("input",function(){ $(id).classList.remove("err-in"); }); });
+
+  boot();
+})();
+</script>
+
+</html>
