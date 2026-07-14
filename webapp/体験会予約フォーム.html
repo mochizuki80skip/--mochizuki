@@ -246,7 +246,14 @@
       { sheet: "8月30日（日）", label: "8/30", dow: "日" }
     ],
     settingsSheet: "設定",       // きっかけ一覧を読むタブ名（C2以降を反映）
-    channels: ["Instagram","Googleマップ","チラシ","紹介","HP","既存会員","その他"], // 読み込み失敗時の予備
+    channels: [
+      "新聞折込","チラシ","のぼり","家族の紹介","友人の紹介","職場の紹介",
+      "Instagram広告","Facebook広告","threads広告","ホームページを見た",
+      "会社に挨拶に来た","接骨院から手紙が届いた","Googleを見た",
+      "あやめ接骨院からの紹介","なつめ接骨院瀬名中央店からの紹介","みつき接骨院からの紹介",
+      "なつめ接骨院沼田町店からの紹介","なつめ接骨院竜南店からの紹介","ミツカル接骨院からの紹介",
+      "アローズからの紹介","みずほ接骨院からの紹介"
+    ], // 「きっかけ」選択肢（設定タブC2以降が読めればそちらを優先）
     privacyUrl: "privacy.html", // プライバシーポリシーページ（同じ場所に置いてください）
     logUrl: "https://script.google.com/macros/s/AKfycbyxsJB_2y9lg4NLWiWXNlFIkl1RgozDMZ97axrQVY50kl-FEG9uJcuGb0AOtyvsPzz8oQ/exec"  // 予約ログ記録先（Apps Scriptウェブアプリ）
   };
@@ -372,8 +379,9 @@
   function boot(){
     renderDays(); renderSkeleton();
     if(CONFIG.privacyUrl){ var pl=$("ppLink"), fl=$("ppFoot"); if(pl)pl.href=CONFIG.privacyUrl; if(fl)fl.href=CONFIG.privacyUrl; }
-    fillChannels(CONFIG.channels);                          // まず予備を表示
-    loadChannels().then(fillChannels).catch(function(){});  // 設定タブから読めたら差し替え
+    fillChannels(CONFIG.channels);                          // きっかけ選択肢（サイトに直接組み込み・確実に表示）
+    // 設定タブC2以降で管理したい場合は次行を有効化（読めた場合のみ差し替え）
+    // loadChannels().then(fillChannels).catch(function(){});
     Promise.all(CONFIG.days.map(function(d,i){
       return loadDay(d).catch(function(){ STATE.fallback=true; return sampleSlots(i); });
     })).then(function(all){
