@@ -25,10 +25,17 @@
 
 ※ きっかけの選択肢は `channels:` を編集すれば変更できます（設定タブと合わせてください）。
 
+3. **プライバシーポリシーの事業者情報**（推奨）
+   `CONFIG.business` の `operator`（運営事業者の正式名称）と `contact`（問い合わせ先）を記入してください。
+   フォームには「プライバシーポリシーに同意」チェック（必須）と規定の表示が入っています。
+   ※ 規定文はテンプレートです。実運用前に内容をご確認ください（必要に応じて専門家へご相談を推奨）。
+
 ## 公開（お客様に配る）方法の例
 `reservation.html` はどこに置いても動きます。手軽な順に：
 
-- **Netlify Drop**（登録ほぼ不要・最速）：https://app.netlify.com/drop に `reservation.html` をドラッグ → 発行URLを共有
+- **Netlify Drop**（最速）：`reservation.html` を **`index.html` にリネーム**してから
+  https://app.netlify.com/drop にドラッグ → 発行URLがそのまま予約サイトに。
+  （サイトを保持・独自名にするには無料アカウントでログインしてください。ファイル名が `index.html` だとトップURLで開けます）
 - **GitHub Pages / Cloudflare Pages** 等の静的ホスティングにアップロード
 - 既存のホームページ内に設置
 
