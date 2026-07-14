@@ -201,8 +201,8 @@
       </div>
       <div class="field">
         <label for="f_tel">電話番号<span class="req">必須</span></label>
-        <input id="f_tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="000-0000-0000">
-        <p class="hint">ハイフンを入れてご入力ください（例：090-1234-5678）</p>
+        <input id="f_tel" type="tel" inputmode="tel" autocomplete="tel" placeholder="09012345678">
+        <p class="hint">数字のみでOK（自動でハイフンが入ります）例：09012345678</p>
       </div>
       <div class="field">
         <label for="f_email">メールアドレス<span class="req">必須</span></label>
@@ -411,11 +411,23 @@
       "■きっかけ："+p.channel+"\n\n"+
       "上記の内容で体験会を希望します。よろしくお願いいたします。";
   }
+  // 電話番号：数字を抽出し、桁数に応じてハイフンを自動付与
+  function telDigits(v){ return (v||"").replace(/\D/g,""); }
+  function telValid(v){ var d=telDigits(v); return d.length===7 || d.length===10 || d.length===11; }
+  function formatTel(v){
+    var d=telDigits(v);
+    if(d.length===11) return d.slice(0,3)+"-"+d.slice(3,7)+"-"+d.slice(7);        // 携帯 3-4-4
+    if(d.length===10) return /^0[36]/.test(d)                                      // 固定 10桁
+      ? d.slice(0,2)+"-"+d.slice(2,6)+"-"+d.slice(6)                               //  03/06 → 2-4-4
+      : d.slice(0,3)+"-"+d.slice(3,6)+"-"+d.slice(6);                              //  それ以外 → 3-3-4
+    if(d.length===7) return d.slice(0,3)+"-"+d.slice(3);                           // 固定（局番なし）3-4
+    return v;
+  }
   function validate(p){
     var e=[];
     if(!p.time) e.push("・ご希望の日時を選択してください");
     if(!p.name) e.push("・お名前を入力してください");
-    if(!/^\d{2,4}-\d{2,4}-\d{3,4}$/.test(p.tel)) e.push("・電話番号は 000-0000-0000 の形式で入力してください");
+    if(!telValid(p.tel)) e.push("・電話番号を正しくご入力ください（携帯は11桁、固定電話は10桁または7桁）");
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)) e.push("・メールアドレスを正しく入力してください");
     if(!p.channel) e.push("・当店を知ったきっかけを選択してください");
     return e;
@@ -439,9 +451,10 @@
     }catch(e){}
   }
   $("submit").onclick=function(){
+    $("f_tel").value=formatTel($("f_tel").value);           // 送信時にもハイフンを整える
     var p=currentPayload(), errs=validate(p), fe=$("formerr");
     if(errs.length){ fe.textContent=errs.join("\n"); fe.classList.add("show");
-      [["f_name",!p.name],["f_tel",!/^\d{2,4}-\d{2,4}-\d{3,4}$/.test(p.tel)],["f_email",!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)]]
+      [["f_name",!p.name],["f_tel",!telValid(p.tel)],["f_email",!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(p.email)]]
         .forEach(function(x){ $(x[0]).classList.toggle("err-in", !!x[1]); });
       fe.scrollIntoView({behavior:"smooth",block:"center"}); return; }
     fe.classList.remove("show");
@@ -465,6 +478,7 @@
     function fallbackCopy(){ var ta=document.createElement("textarea"); ta.value=lastText; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");ok();}catch(e){} document.body.removeChild(ta); }
   };
   ["f_name","f_tel","f_email","f_channel"].forEach(function(id){ $(id).addEventListener("input",function(){ $(id).classList.remove("err-in"); }); });
+  $("f_tel").addEventListener("blur",function(){ $("f_tel").value=formatTel($("f_tel").value); }); // 入力欄を離れたら自動でハイフン
 
   boot();
 })();
