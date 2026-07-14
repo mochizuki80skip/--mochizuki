@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <style>
+    :root { --navy:#1F3864; --navy2:#2f4f86; --line:#dcdfe6; --ok:#1a7f37; --warn:#b26a00; --ng:#c0392b; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,sans-serif;
+           color:#222; background:#f4f6f9; line-height:1.6; }
+    header { background:var(--navy); color:#fff; padding:18px 16px; }
+    header h1 { margin:0; font-size:17px; }
+    header p { margin:4px 0 0; font-size:12px; opacity:.85; }
+    .wrap { max-width:640px; margin:0 auto; padding:16px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; }
+    .step { font-size:13px; font-weight:700; color:var(--navy); margin:0 0 10px; padding-left:8px; border-left:4px solid var(--navy); }
+    .days { display:flex; gap:8px; flex-wrap:wrap; }
+    .day-btn { flex:1 1 auto; min-width:90px; padding:10px; border:1px solid var(--navy); background:#fff; color:var(--navy);
+               border-radius:8px; font-size:14px; font-weight:700; cursor:pointer; }
+    .day-btn.active { background:var(--navy); color:#fff; }
+    .legend { font-size:12px; color:#555; margin:8px 2px 0; }
+    .legend b { color:#222; }
+    .slots { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:8px; margin-top:12px; }
+    .slot { display:flex; align-items:center; justify-content:space-between; padding:10px 12px; border:1px solid var(--line);
+            border-radius:8px; background:#fff; cursor:pointer; font-size:14px; }
+    .slot .time { font-weight:600; }
+    .slot .mark { font-size:18px; font-weight:800; }
+    .slot.ok .mark{color:var(--ok)} .slot.warn .mark{color:var(--warn)} .slot.ng .mark{color:var(--ng)}
+    .slot.ng { background:#f6f6f6; color:#aaa; cursor:not-allowed; }
+    .slot.selected { outline:3px solid var(--navy2); border-color:var(--navy2); }
+    label { display:block; font-size:13px; font-weight:700; margin:12px 0 4px; }
+    input, select { width:100%; padding:10px; border:1px solid var(--line); border-radius:8px; font-size:15px; }
+    .hint { font-size:11px; color:#888; margin-top:3px; }
+    .submit { width:100%; padding:14px; margin-top:18px; background:var(--navy); color:#fff; border:none;
+              border-radius:8px; font-size:16px; font-weight:700; cursor:pointer; }
+    .submit:disabled { background:#9aa4b5; cursor:not-allowed; }
+    .msg { padding:12px; border-radius:8px; font-size:14px; white-space:pre-wrap; margin-top:12px; }
+    .msg.err { background:#fdecea; color:#8a1c14; border:1px solid #f5c6c2; }
+    .msg.ok  { background:#e7f6ec; color:#14622c; border:1px solid #b7e2c4; }
+    .selbar { font-size:14px; margin-top:10px; padding:8px 10px; background:#eef2f8; border-radius:8px; }
+    .selbar b { color:var(--navy); }
+    .loading { color:#888; font-size:14px; padding:8px 2px; }
+    .req { color:#c0392b; font-size:11px; margin-left:4px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>ONE'S BODY 静岡安倍川店　オープン前体験会</h1>
+    <p>ご希望の日時をお選びのうえ、お客様情報をご入力ください（1枠30分）</p>
+  </header>
+
+  <div class="wrap">
+    <div class="card">
+      <p class="step">① 体験日を選ぶ</p>
+      <div class="days" id="days"></div>
+      <p class="legend"><b>◎</b> 空きあり　<b>△</b> 残りわずか　<b>×</b> 満員</p>
+    </div>
+
+    <div class="card">
+      <p class="step">② 時間を選ぶ</p>
+      <div id="slotArea"><div class="loading">読み込み中…</div></div>
+      <div class="selbar" id="selbar" style="display:none;"></div>
+    </div>
+
+    <div class="card">
+      <p class="step">③ お客様情報を入力</p>
+      <label>予約者名<span class="req">必須</span></label>
+      <input id="f_name" type="text" placeholder="山田 太郎">
+
+      <label>電話番号<span class="req">必須</span></label>
+      <input id="f_tel" type="tel" inputmode="numeric" placeholder="000-0000-0000">
+      <div class="hint">ハイフンを入れてご入力ください（例：090-1234-5678）</div>
+
+      <label>メールアドレス<span class="req">必須</span></label>
+      <input id="f_email" type="email" inputmode="email" placeholder="example@onesbody.jp">
+      <div class="hint">オープン後のご予約のご案内に使用します</div>
+
+      <label>ご予約のきっかけ<span class="req">必須</span></label>
+      <select id="f_channel"><option value="">選択してください</option></select>
+
+      <button class="submit" id="submitBtn">この内容で予約する</button>
+      <div id="msg"></div>
+    </div>
+  </div>
+
+  <script>
+    var STATE = { days: [], dayIndex: 0, time: null };
+
+    function esc(s){ return String(s).replace(/[&<>"]/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+    google.script.run.withSuccessHandler(onInit).withFailureHandler(onFail).getInitData();
+
+    function onInit(data){
+      STATE.days = data.days;
+      var sel = document.getElementById('f_channel');
+      (data.channels || []).forEach(function(c){
+        var o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o);
+      });
+      renderDays();
+      renderSlots();
+    }
+    function onFail(err){
+      document.getElementById('slotArea').innerHTML =
+        '<div class="msg err">データの読み込みに失敗しました。時間をおいて再読み込みしてください。</div>';
+    }
+
+    function renderDays(){
+      var box = document.getElementById('days'); box.innerHTML = '';
+      STATE.days.forEach(function(d, i){
+        var b = document.createElement('button');
+        b.className = 'day-btn' + (i === STATE.dayIndex ? ' active' : '');
+        b.textContent = d.label;
+        b.onclick = function(){ STATE.dayIndex = i; STATE.time = null; renderDays(); renderSlots(); updateSelbar(); };
+        box.appendChild(b);
+      });
+    }
+
+    function renderSlots(){
+      var day = STATE.days[STATE.dayIndex];
+      var area = document.getElementById('slotArea');
+      if (!day){ area.innerHTML = ''; return; }
+      var html = '<div class="slots">';
+      day.slots.forEach(function(s){
+        var cls = s.mark === '◎' ? 'ok' : (s.mark === '△' ? 'warn' : 'ng');
+        var selected = (STATE.time === s.time) ? ' selected' : '';
+        var start = s.time.split('〜')[0];
+        html += '<div class="slot ' + cls + selected + '" data-time="' + esc(s.time) + '" data-open="' + s.open + '">' +
+                  '<span class="time">' + esc(start) + '</span><span class="mark">' + s.mark + '</span></div>';
+      });
+      html += '</div>';
+      area.innerHTML = html;
+      Array.prototype.forEach.call(area.querySelectorAll('.slot'), function(el){
+        if (el.getAttribute('data-open') === '0') return; // 満員は選択不可
+        el.onclick = function(){ STATE.time = el.getAttribute('data-time'); renderSlots(); updateSelbar(); };
+      });
+    }
+
+    function updateSelbar(){
+      var bar = document.getElementById('selbar');
+      var day = STATE.days[STATE.dayIndex];
+      if (STATE.time && day){
+        bar.style.display = 'block';
+        bar.innerHTML = 'ご選択中：<b>' + esc(day.label) + '　' + esc(STATE.time) + '</b>';
+      } else { bar.style.display = 'none'; }
+    }
+
+    document.getElementById('submitBtn').onclick = function(){
+      var msg = document.getElementById('msg'); msg.className = ''; msg.textContent = '';
+      var day = STATE.days[STATE.dayIndex];
+      if (!STATE.time){ showMsg('err', '時間枠を選択してください。'); return; }
+      var payload = {
+        sheet: day.sheet, time: STATE.time,
+        name: document.getElementById('f_name').value.trim(),
+        tel: document.getElementById('f_tel').value.trim(),
+        email: document.getElementById('f_email').value.trim(),
+        channel: document.getElementById('f_channel').value,
+      };
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = true; btn.textContent = '送信中…';
+      google.script.run
+        .withSuccessHandler(function(res){ onSubmitDone(res); })
+        .withFailureHandler(function(err){ onSubmitDone({ ok:false, message:'送信に失敗しました。通信環境をご確認のうえ再度お試しください。' }); })
+        .submitBooking(payload);
+    };
+
+    function onSubmitDone(res){
+      var btn = document.getElementById('submitBtn');
+      btn.disabled = false; btn.textContent = 'この内容で予約する';
+      if (res && res.ok){
+        showMsg('ok', res.message);
+        // 入力欄クリア＋空き状況を更新
+        document.getElementById('f_name').value = '';
+        document.getElementById('f_tel').value = '';
+        document.getElementById('f_email').value = '';
+        document.getElementById('f_channel').value = '';
+        STATE.time = null;
+        google.script.run.withSuccessHandler(function(days){ STATE.days = days; renderSlots(); updateSelbar(); }).getAvailability();
+      } else {
+        showMsg('err', (res && res.message) || 'エラーが発生しました。');
+        // 満員化などに備え空き状況を更新
+        google.script.run.withSuccessHandler(function(days){ STATE.days = days; renderSlots(); }).getAvailability();
+      }
+    }
+
+    function showMsg(type, text){
+      var msg = document.getElementById('msg');
+      msg.className = 'msg ' + type; msg.textContent = text;
+      msg.scrollIntoView({ behavior:'smooth', block:'center' });
+    }
+  </script>
+</body>
+</html>
