@@ -8,7 +8,7 @@
 const CONFIG = {
   // 集計GAS（availability-aggregator-osada.gs）をウェブアプリ公開した URL を設定。
   // 空のままだとサンプル表示になります（見た目確認用）。
-  apiUrl: '',
+  apiUrl: 'https://script.google.com/macros/s/AKfycbwa2t08Dxcl44Cd6idCtwK4hkKWgor4HTspeUY8FVqQ60Wa6gNofZngQ8n74XZnubsQ/exec',
 
   // 公式LINE。lineOaId（@から始まるID）があるとメッセージが自動入力されます。
   lineOaId: '@881udugq',
