@@ -35,7 +35,9 @@ const CONFIG = {
     'Instagram広告', 'Facebook広告', 'threads広告', 'ホームページを見た',
     'Googleを見た', 'みずほ接骨院からの紹介', 'その他',
   ],
-  visitTypes: ['初診', '2回目', '3回目', '既存'],
+  visitTypes: ['初', '2', '3', '既'], // 区分リスト（設定タブC列に出力）
+  initialLabel: '初',        // 初診＝30分・淡い赤の対象ラベル
+  existingLabel: '既',       // 既存＝淡い青の対象ラベル
   colorInitial: '#f4cccc',  // 初診=淡い赤
   colorExisting: '#cfe2f3', // 既存=淡い青
   noon: 720,                // 午前/午後の境界（12:00）
@@ -52,6 +54,7 @@ function onOpen() {
   try {
     SpreadsheetApp.getUi().createMenu('▶ 予約表')
       .addItem('予約表を生成/再生成', 'buildReservationSheets')
+      .addItem('色分け・集計を更新(データ保持)', 'refreshColorsAndCounts')
       .addItem('古い安倍川店タブを削除', 'cleanupOldTabs')
       .addToUi();
   } catch (e) {}
@@ -128,15 +131,15 @@ function buildDay_(ss, day, staffRange, channelRange, visitRange) {
   sh.getRange(R_PM, 3).setFormula(sumOver(OFF_COME, pmStart, lastDataRow, 'TRUE'));
   sh.getRange(R_SUM, 3).setFormula(`=C${R_AM}+C${R_PM}`);
   // 初診（区分=初診）
-  sh.getRange(R_AM, 4).setFormula(sumOver(OFF_VISIT, R_DATA, amEnd, '"初診"'));
-  sh.getRange(R_PM, 4).setFormula(sumOver(OFF_VISIT, pmStart, lastDataRow, '"初診"'));
+  sh.getRange(R_AM, 4).setFormula(sumOver(OFF_VISIT, R_DATA, amEnd, '"' + CONFIG.initialLabel + '"'));
+  sh.getRange(R_PM, 4).setFormula(sumOver(OFF_VISIT, pmStart, lastDataRow, '"' + CONFIG.initialLabel + '"'));
   sh.getRange(R_SUM, 4).setFormula(`=D${R_AM}+D${R_PM}`);
 
   // 右：既存 / 来院なし / 新規対応ベッド
   sh.getRange(R_AM, 6).setValue('既存');
   sh.getRange(R_PM, 6).setValue('来院なし');
   sh.getRange(R_SUM, 6).setValue('新規対応ベッド');
-  sh.getRange(R_AM, 7).setFormula(sumOver(OFF_VISIT, R_DATA, lastDataRow, '"既存"'));
+  sh.getRange(R_AM, 7).setFormula(sumOver(OFF_VISIT, R_DATA, lastDataRow, '"' + CONFIG.existingLabel + '"'));
   sh.getRange(R_PM, 7).setFormula(`=B${R_SUM}-C${R_SUM}`); // 来院なし＝予約数−実績
   sh.getRange(R_SUM, 7).setFormula(`=COUNTIF(${R_NEW}:${R_NEW},TRUE)&"/"&${nBeds}`);
 
@@ -194,9 +197,9 @@ function buildDay_(ss, day, staffRange, channelRange, visitRange) {
     const visitCol = columnLetter_(c + 3);
     const range = sh.getRange(R_DATA, c, nRows, COLS_PER_BED);
     cfRules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied(`=$${visitCol}${R_DATA}="初診"`).setBackground(CONFIG.colorInitial).setRanges([range]).build());
+      .whenFormulaSatisfied(`=$${visitCol}${R_DATA}="${CONFIG.initialLabel}"`).setBackground(CONFIG.colorInitial).setRanges([range]).build());
     cfRules.push(SpreadsheetApp.newConditionalFormatRule()
-      .whenFormulaSatisfied(`=$${visitCol}${R_DATA}="既存"`).setBackground(CONFIG.colorExisting).setRanges([range]).build());
+      .whenFormulaSatisfied(`=$${visitCol}${R_DATA}="${CONFIG.existingLabel}"`).setBackground(CONFIG.colorExisting).setRanges([range]).build());
   }
   sh.setConditionalFormatRules(cfRules);
 
@@ -245,6 +248,54 @@ function ensureSettingsSheet_(ss) {
   sh.getRange(1, 5).setValue('※このタブを編集すると各予約表のドロップダウン候補も変わります').setFontColor('#888');
   sh.autoResizeColumns(1, 3);
   return sh;
+}
+
+/* ===== 色分け・集計だけ更新（タブ作り直しなし＝データ・設定を保持） =====
+ * 設定タブの区分ラベルを変えた等のとき、既存タブに色分けと初診/既存カウントを反映。 */
+function refreshColorsAndCounts() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const OFF_VISIT = 3;
+  CONFIG.days.forEach((day) => {
+    const sh = ss.getSheetByName(day.tab);
+    if (!sh) return;
+    const nBeds = CONFIG.bedCount;
+    const rows = dayRows_(day);
+    const nRows = rows.length;
+    const lastDataRow = R_DATA + nRows - 1;
+    let amEnd = -1, pmStart = -1;
+    rows.forEach((row, ri) => {
+      const r = R_DATA + ri;
+      if (row.brk) return;
+      if (row.min <= CONFIG.noon) amEnd = r; else if (pmStart < 0) pmStart = r;
+    });
+    if (amEnd < 0) amEnd = R_DATA - 1;
+    if (pmStart < 0) pmStart = lastDataRow + 1;
+    const sumOver = (offset, rs, re, crit) => {
+      const parts = [];
+      for (let i = 0; i < nBeds; i++) {
+        const L = columnLetter_(2 + i * COLS_PER_BED + offset);
+        parts.push(`COUNTIF(${L}${rs}:${L}${re},${crit})`);
+      }
+      return '=' + parts.join('+');
+    };
+    // ダッシュボードの 初診/既存 を現ラベルで再設定
+    sh.getRange(R_AM, 4).setFormula(sumOver(OFF_VISIT, R_DATA, amEnd, '"' + CONFIG.initialLabel + '"'));
+    sh.getRange(R_PM, 4).setFormula(sumOver(OFF_VISIT, pmStart, lastDataRow, '"' + CONFIG.initialLabel + '"'));
+    sh.getRange(R_AM, 7).setFormula(sumOver(OFF_VISIT, R_DATA, lastDataRow, '"' + CONFIG.existingLabel + '"'));
+    // 色分けルールを現ラベルで作り直し
+    const rules = [];
+    for (let i = 0; i < nBeds; i++) {
+      const c = 2 + i * COLS_PER_BED;
+      const visitCol = columnLetter_(c + 3);
+      const range = sh.getRange(R_DATA, c, nRows, COLS_PER_BED);
+      rules.push(SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(`=$${visitCol}${R_DATA}="${CONFIG.initialLabel}"`).setBackground(CONFIG.colorInitial).setRanges([range]).build());
+      rules.push(SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(`=$${visitCol}${R_DATA}="${CONFIG.existingLabel}"`).setBackground(CONFIG.colorExisting).setRanges([range]).build());
+    }
+    sh.setConditionalFormatRules(rules);
+  });
+  try { SpreadsheetApp.getActive().toast('色分け・集計を更新しました（データは保持）'); } catch (e) {}
 }
 
 /* ====== 古い安倍川店タブ（8月28日（金）/体験者一覧/Web予約）を削除 ====== */
