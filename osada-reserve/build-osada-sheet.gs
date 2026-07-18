@@ -58,7 +58,6 @@ function onOpen() {
 function buildReservationSheets() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const settings = ensureSettingsSheet_(ss);
-  ensureWebSheet_(ss);
   const staffRange = settings.getRange('A2:A200');
   const channelRange = settings.getRange('B2:B200');
   const visitRange = settings.getRange('C2:C200');
@@ -204,24 +203,13 @@ function ensureSettingsSheet_(ss) {
   return sh;
 }
 
-function ensureWebSheet_(ss) {
-  let sh = ss.getSheetByName('Web予約');
-  if (!sh) sh = ss.insertSheet('Web予約');
-  if (sh.getLastRow() === 0) {
-    sh.getRange(1, 1, 1, 9).setValues([[
-      '受付日時', '第1希望', '第2希望', '第3希望', '予約者名', '電話番号', 'メールアドレス', '予約のきっかけ', '区分',
-    ]]).setFontWeight('bold').setBackground('#1f6f43').setFontColor('#fff');
-    sh.setFrozenRows(1);
-  }
-}
-
-/* ============ 古い安倍川店タブ（8月28日（金）等）を削除 ============ */
+/* ====== 古い安倍川店タブ（8月28日（金）/体験者一覧/Web予約）を削除 ====== */
 function cleanupOldTabs() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const keep = CONFIG.days.map((d) => d.tab).concat(['設定', 'Web予約']);
+  const keep = CONFIG.days.map((d) => d.tab).concat(['設定']);
   ss.getSheets().forEach((sh) => {
     const n = sh.getName();
-    if (keep.indexOf(n) < 0 && /(月.*日|体験者一覧)/.test(n) && ss.getSheets().length > 1) {
+    if (keep.indexOf(n) < 0 && /(月.*日|体験者一覧|Web予約)/.test(n) && ss.getSheets().length > 1) {
       ss.deleteSheet(sh);
     }
   });
