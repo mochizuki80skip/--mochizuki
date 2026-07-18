@@ -29,8 +29,8 @@ const CONFIG = {
   ],
   stepMin: 15,          // 行の刻み（分）
   bedCount: 14,         // ベッド台数
-  therapistByBed: [],   // 各ベッドの既定施術者（空でOK。設定タブの候補から選択）
-  staffList: ['佐藤', '服部', '水野', '小堺', '八木', '山中'], // 施術者ドロップダウン候補（設定タブに出力）
+  therapistByBed: [],   // 各ベッドの既定施術者（空。院側で入力）
+  staffList: [],        // 施術者ドロップダウン候補（空。設定タブA列に院側で入力→全タブ反映）
   channels: [           // ③集客きっかけの選択肢（設定タブに出力→ドロップダウンで参照）
     '新聞折込', 'チラシ', 'のぼり', '家族の紹介', '友人の紹介', '職場の紹介',
     'Instagram広告', 'Facebook広告', 'threads広告', 'ホームページを見た',
@@ -91,8 +91,9 @@ function buildDay_(ss, day, staffRange, channelRange, visitRange) {
 
   // 行2: ベッド番号（各5列を結合）
   sh.getRange(2, 1).setValue('ベッド').setFontWeight('bold').setHorizontalAlignment('center').setBackground('#e7f2ec');
-  // 行3: 新規対応（チェックボックス）
-  sh.getRange(3, 1).setValue('新規対応').setFontWeight('bold').setHorizontalAlignment('center').setBackground('#f0f0f0');
+  // 行3: 新規対応（チェックボックス）。A3は新規対応=TRUEベッド数のライブカウント。
+  sh.getRange(3, 1).setFormula('=CONCATENATE("新規対応 ",COUNTIF(3:3,TRUE),"/' + nBeds + '")')
+    .setFontWeight('bold').setFontColor('#1f6f43').setHorizontalAlignment('center').setBackground('#f0f0f0');
   // 行4: 施術者（ドロップダウン）
   sh.getRange(4, 1).setValue('施術者').setFontWeight('bold').setHorizontalAlignment('center').setBackground('#f0f0f0');
   // 行5: 小見出し
