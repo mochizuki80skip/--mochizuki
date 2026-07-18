@@ -112,43 +112,40 @@ function buildDay_(ss, day, staffRange, channelRange, visitRange) {
     .setHorizontalAlignment('center').setVerticalAlignment('middle');
 
   /* ---------- 行2〜5: ダッシュボード（数式） ---------- */
-  // 左：午前/午後/合計 × 予約数/初診
+  // 左：午前/午後/合計 × 予約数 / 実績 / 初診
   sh.getRange(R_DASH_H, 2).setValue('予約数');
-  sh.getRange(R_DASH_H, 3).setValue('初診');
+  sh.getRange(R_DASH_H, 3).setValue('実績');   // ＝来院☑の数
+  sh.getRange(R_DASH_H, 4).setValue('初診');
   sh.getRange(R_AM, 1).setValue('午前');
   sh.getRange(R_PM, 1).setValue('午後');
   sh.getRange(R_SUM, 1).setValue('合計');
+  // 予約数（氏名の数）
   sh.getRange(R_AM, 2).setFormula(sumOver(OFF_NAME, R_DATA, amEnd, null));
   sh.getRange(R_PM, 2).setFormula(sumOver(OFF_NAME, pmStart, lastDataRow, null));
   sh.getRange(R_SUM, 2).setFormula(`=B${R_AM}+B${R_PM}`);
-  sh.getRange(R_AM, 3).setFormula(sumOver(OFF_VISIT, R_DATA, amEnd, '"初診"'));
-  sh.getRange(R_PM, 3).setFormula(sumOver(OFF_VISIT, pmStart, lastDataRow, '"初診"'));
+  // 実績（来院☑の数）
+  sh.getRange(R_AM, 3).setFormula(sumOver(OFF_COME, R_DATA, amEnd, 'TRUE'));
+  sh.getRange(R_PM, 3).setFormula(sumOver(OFF_COME, pmStart, lastDataRow, 'TRUE'));
   sh.getRange(R_SUM, 3).setFormula(`=C${R_AM}+C${R_PM}`);
+  // 初診（区分=初診）
+  sh.getRange(R_AM, 4).setFormula(sumOver(OFF_VISIT, R_DATA, amEnd, '"初診"'));
+  sh.getRange(R_PM, 4).setFormula(sumOver(OFF_VISIT, pmStart, lastDataRow, '"初診"'));
+  sh.getRange(R_SUM, 4).setFormula(`=D${R_AM}+D${R_PM}`);
 
-  // 中：既存 / 来院 / 来院なし（合計）
-  sh.getRange(R_DASH_H, 5).setValue('既存');
-  sh.getRange(R_AM, 5).setValue('来院');
-  sh.getRange(R_PM, 5).setValue('来院なし');
-  sh.getRange(R_DASH_H, 6).setFormula(sumOver(OFF_VISIT, R_DATA, lastDataRow, '"既存"'));
-  sh.getRange(R_AM, 6).setFormula(sumOver(OFF_COME, R_DATA, lastDataRow, 'TRUE'));
-  sh.getRange(R_PM, 6).setFormula(`=B${R_SUM}-F${R_AM}`);
-
-  // 右：新規対応ベッド / 最大予約枠 / 予約率
-  sh.getRange(R_DASH_H, 8).setValue('新規対応ベッド');
-  sh.getRange(R_AM, 8).setValue('最大予約枠');
-  sh.getRange(R_PM, 8).setValue('予約率');
-  sh.getRange(R_DASH_H, 9).setFormula(`=COUNTIF(${R_NEW}:${R_NEW},TRUE)&"/"&${nBeds}`);
-  // 最大予約枠＝新規対応ベッド数×コマ数（数式。固定目標にしたい場合は数値を直接入力で上書き可）
-  sh.getRange(R_AM, 9).setFormula(`=COUNTIF(${R_NEW}:${R_NEW},TRUE)*${slotCount}`);
-  sh.getRange(R_PM, 9).setFormula(`=IFERROR(B${R_SUM}/I${R_AM},0)`).setNumberFormat('0.0%');
+  // 右：既存 / 来院なし / 新規対応ベッド
+  sh.getRange(R_AM, 6).setValue('既存');
+  sh.getRange(R_PM, 6).setValue('来院なし');
+  sh.getRange(R_SUM, 6).setValue('新規対応ベッド');
+  sh.getRange(R_AM, 7).setFormula(sumOver(OFF_VISIT, R_DATA, lastDataRow, '"既存"'));
+  sh.getRange(R_PM, 7).setFormula(`=B${R_SUM}-C${R_SUM}`); // 来院なし＝予約数−実績
+  sh.getRange(R_SUM, 7).setFormula(`=COUNTIF(${R_NEW}:${R_NEW},TRUE)&"/"&${nBeds}`);
 
   // ダッシュボードの見た目
-  sh.getRange(R_DASH_H, 1, 4, 9).setHorizontalAlignment('center');
-  [ [R_DASH_H, 2], [R_DASH_H, 3], [R_DASH_H, 5], [R_DASH_H, 8],
-    [R_AM, 1], [R_PM, 1], [R_SUM, 1], [R_AM, 5], [R_PM, 5], [R_AM, 8], [R_PM, 8],
+  sh.getRange(R_DASH_H, 1, 4, 7).setHorizontalAlignment('center');
+  [ [R_DASH_H, 2], [R_DASH_H, 3], [R_DASH_H, 4],
+    [R_AM, 1], [R_PM, 1], [R_SUM, 1], [R_AM, 6], [R_PM, 6], [R_SUM, 6],
   ].forEach(([r, c]) => sh.getRange(r, c).setFontWeight('bold').setFontColor('#1f6f43'));
-  sh.getRange(R_PM, 9).setFontWeight('bold').setFontSize(12).setFontColor('#b33636'); // 予約率を強調
-  sh.getRange(R_DASH_H, 1, 4, 9).setBackground('#f4f8f5')
+  sh.getRange(R_DASH_H, 1, 4, 7).setBackground('#f4f8f5')
     .setBorder(true, true, true, true, true, true, '#cfe0d5', SpreadsheetApp.BorderStyle.SOLID);
 
   /* ---------- 行6〜9: 見出し ---------- */
