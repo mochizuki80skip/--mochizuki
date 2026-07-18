@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#29abe2" />
+  <meta name="description" content="なつめ接骨院 静岡長田店 チャリティー施術会の空き状況確認とご予約。希望日時を選んでLINEで送れます。" />
+  <meta property="og:title" content="なつめ接骨院 静岡長田店 チャリティー施術会のご予約" />
+  <meta property="og:description" content="チャリティー施術会の空き状況を確認して、希望日時をLINEで送れます。" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="" />
+  <title>なつめ接骨院 静岡長田店 チャリティー施術会のご予約</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <p id="clinicName" class="clinic"></p>
+    <h1 id="eventName">チャリティー施術会のご予約</h1>
+    <p id="venue" class="venue"></p>
+  </header>
+
+  <main class="wrap">
+    <!-- 来院区分 -->
+    <section class="card">
+      <div class="seg" id="visitorType" role="tablist" aria-label="来院区分">
+        <button class="seg-btn is-active" data-type="new">はじめての方</button>
+        <button class="seg-btn" data-type="all">2回目以降の方</button>
+      </div>
+      <p class="hint" id="visitorHint">※ 新規対応できる枠の空き状況を表示しています</p>
+      <div class="party">
+        <span class="party-label">ご予約人数（お連れ様含む）</span>
+        <div class="party-ctrl">
+          <button type="button" class="step" id="partyMinus" aria-label="人数を減らす">−</button>
+          <span class="party-num" id="partyNum">1</span>
+          <span class="party-unit">名</span>
+          <button type="button" class="step" id="partyPlus" aria-label="人数を増やす">＋</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 凡例 -->
+    <section class="legend" aria-label="記号の説明">
+      <span><b class="mk ok">〇</b> 複数空きあり</span>
+      <span><b class="mk few">△</b> 残りわずか（要問合せ）</span>
+      <span><b class="mk full">×</b> 満員</span>
+    </section>
+
+    <!-- 日付タブ -->
+    <nav class="tabs" id="dateTabs" aria-label="開催日"></nav>
+    <p class="tabs-note">※ 3日間のご予約も可能です（第1〜第3希望は別々の日でも選べます）</p>
+
+    <!-- 時間グリッド -->
+    <section class="card">
+      <p class="grid-note" id="gridNote"></p>
+      <div class="grid" id="slotGrid"></div>
+      <p class="loading" id="loading">空き状況を読み込み中…</p>
+    </section>
+
+    <footer class="site-footer">
+      <p class="foot-title">運営者情報</p>
+      <p>院名：なつめ接骨院 静岡長田店</p>
+      <p>運営会社：株式会社CSスタンダード</p>
+      <p>所在地：〒421-0111 静岡県静岡市駿河区丸子新田525-2</p>
+      <p>施術管理者：吉田 脩</p>
+      <p>お問い合わせ：054-256-7772</p>
+      <p><a href="privacy.html">プライバシーポリシー</a></p>
+    </footer>
+  </main>
+
+  <!-- 選択トレイ（下部固定） -->
+  <div class="tray" id="tray">
+    <div class="tray-choices">
+      <button class="choice" data-idx="0" id="choice0">
+        <span class="choice-label">第1希望</span>
+        <span class="choice-val">タップして選択</span>
+      </button>
+      <button class="choice" data-idx="1" id="choice1">
+        <span class="choice-label">第2希望</span>
+        <span class="choice-val">タップして選択</span>
+      </button>
+      <button class="choice" data-idx="2" id="choice2">
+        <span class="choice-label">第3希望（任意）</span>
+        <span class="choice-val">タップして選択</span>
+      </button>
+    </div>
+    <div class="tray-inputs">
+      <input type="text" id="nameInput" class="ti" placeholder="お名前（必須）" autocomplete="name" />
+      <input type="tel" id="telInput" class="ti" placeholder="電話番号（必須）" inputmode="tel" autocomplete="tel" />
+    </div>
+    <div id="companionFields" class="companions" style="display:none"></div>
+    <select id="channelInput" class="tray-select" style="display:none">
+      <option value="">ご予約のきっかけを選択（必須）</option>
+    </select>
+    <button class="line-btn" id="lineBtn" disabled>LINEで予約を送る</button>
+    <p class="confirm-note">※ ご予約はLINEでの最終確認をもって確定します</p>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
