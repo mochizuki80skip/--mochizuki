@@ -92,13 +92,25 @@ function a_readBoard_(sh) {
     }
   }
 
-  // 時刻行（A列が h:mm）。昼休憩など時刻でない行はスキップ。
+  // 時刻行（A列）。文字列 "9:00" でも、Sheetsが時刻値に変換した場合でも読めるように。
+  // 昼休憩など時刻でない行は null になりスキップされる。
   const slots = [];
   for (let r = subRow + 1; r < nRows; r++) {
-    const m = label(r).match(/^(\d{1,2}):(\d{2})$/);
-    if (m) slots.push({ r: r, min: Number(m[1]) * 60 + Number(m[2]) });
+    const min = a_toMin_(values[r][0]);
+    if (min != null) slots.push({ r: r, min: min });
   }
   return { values: values, beds: beds, slots: slots };
+}
+
+/** セルの値（Date時刻 / "9:00" / 時刻シリアル）を 0:00からの分に。該当なしは null */
+function a_toMin_(v) {
+  if (v instanceof Date) return v.getHours() * 60 + v.getMinutes();
+  if (typeof v === 'number') return (v > 0 && v < 1) ? Math.round(v * 1440) : null; // 時刻シリアル
+  if (typeof v === 'string') {
+    const m = v.replace('：', ':').trim().match(/^(\d{1,2}):(\d{2})/);
+    if (m) return Number(m[1]) * 60 + Number(m[2]);
+  }
+  return null;
 }
 
 /** 各時刻の空き（はじめて=30分 / 2回目以降=15分）を計算 */
