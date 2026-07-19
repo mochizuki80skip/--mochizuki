@@ -137,8 +137,8 @@ function applyDateConstraints() {
   } else {
     if (allBtn) allBtn.disabled = false;
     hint.textContent = state.visitor === 'new'
-      ? '※ 新規対応できる枠の空き状況を表示しています'
-      : '※ 全体の空き状況を表示しています';
+      ? '※ 新規対応できる枠を30分単位で表示しています'
+      : '※ 全体の空き状況（15分単位）を表示しています';
   }
 }
 
@@ -224,6 +224,9 @@ function renderGrid() {
   note.textContent = `${md}${wd} の空き状況${partyNote}（タップして希望時間を選択）`;
 
   for (const slot of day.slots) {
+    // 「はじめての方（初診＝30分）」は30分刻みの枠だけ表示（9:00,9:30…）。
+    // 「2回目以降（15分）」は15分刻みのまま全て表示。
+    if (state.visitor === 'new' && Number(slot.time.split(':')[1]) % 30 !== 0) continue;
     const { mark } = statusOf(slot);
     const cls = klass(mark);
     const el = document.createElement('button');
