@@ -39,3 +39,5 @@
 Root Directory を `osada-reserve` に設定してデプロイ。発行URLをQRコード化して集客に使える。
 
 > `apiUrl` 未設定でもサイトはサンプルデータで表示されるので、見た目確認だけ先に可能。
+
+<!-- redeploy trigger: cloudflare production build 2026-07 -->
