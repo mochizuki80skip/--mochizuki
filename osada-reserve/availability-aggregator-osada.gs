@@ -124,8 +124,11 @@ function a_slots_(board) {
     for (const bed of board.beds) {
       if (!bed.active) continue;                         // 稼働（新規対応☑）ベッドのみ
       const free15 = !a_occupied_(board, bed, cur.r);
-      if (free15) allFree++;
-      if (free15 && adj && !a_occupied_(board, bed, next.r)) newFree++; // 30分（縦2枠）
+      if (!free15) continue;
+      allFree++;
+      // 初診=30分は縦2枠が必要。ただし各営業ブロックの最終枠（次の15分が無い＝adj=false：
+      // 12:00 / 18:00 / 17:00 など）は運営として受け付けるため、15分空きで新規OKとする。
+      if (!adj || !a_occupied_(board, bed, next.r)) newFree++;
     }
     out.push({
       time: a_hhmm_(cur.min),
