@@ -133,10 +133,10 @@ function applyDateConstraints() {
     document.querySelectorAll('#visitorType .seg-btn')
       .forEach((x) => x.classList.toggle('is-active', x.dataset.type === 'new'));
     if (allBtn) allBtn.disabled = true;
-    hint.textContent = '※ この日は「はじめての方」専用です';
+    if (hint) hint.textContent = '※ この日は「はじめての方」専用です';
   } else {
     if (allBtn) allBtn.disabled = false;
-    hint.textContent = state.visitor === 'new'
+    if (hint) hint.textContent = state.visitor === 'new'
       ? '※ 新規対応できる枠を30分単位で表示しています'
       : '※ 全体の空き状況（15分単位）を表示しています';
   }
