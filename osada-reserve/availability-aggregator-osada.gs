@@ -1,57 +1,96 @@
 /**
- * なつめ接骨院 静岡長田店 予約表 → サイト公開用 空き状況 集計（自動読み取り）
+ * チャリティー予約 空き状況 集計（自動読み取り）2店舗対応
  * ==================================================================
- * 予約表スプレッドシート（build-osada-sheet.gs で生成した 8/28・8/29・8/30 タブ）を
- * 読み取り、各時刻の空き（〇△×）を JSON で配信する。個人情報（氏名・連絡先）は出さない。
+ * 1つのスプレッドシート内の2形式のタブを読み取り、店舗ごとに空きJSONを配信。
+ *   ・学園みずほ接骨院 8/1-26 … 「新患列(5)」の空白＝受入可（〇）／×・名前＝不可
+ *   ・なつめ接骨院 静岡長田店 8/28-30 … 14ベッド形式（新規対応☑ベッドの空きを算出）
+ * 個人情報（氏名・連絡先）は出さず、時刻と〇△×のみ配信。
  *
- * サイトは doGet の JSON を fetch して自動表示。時間主導トリガーで動かす必要はなく、
- * サイトがアクセスするたびに最新のシートを読むので「常時読み取り」で自動最新化される。
- *
- * 【判定ルール】各ベッド（＝1列グループ：氏名/連絡先/集客きっかけ/区分/来院）について
- *   ・稼働ベッド ＝ 見出しの「新規対応 ☑」が TRUE のベッド（＝新規受付の母数）
- *     （☑を外したベッドは休憩・不在・ブロック扱いで、空きに数えない）
- *   ・ある時刻に 氏名 が入っていれば埋まり。区分=「初」は30分＝下の15分も埋まり。
- *   ・はじめて(初診/30分) … 稼働ベッドで「その時刻＋次の15分」が両方空き → newFree
- *   ・2回目以降(15分)     … 稼働ベッドで「その時刻」が空き            → allFree
- *   ・空き数 0→×, 1〜2→△, 3以上→〇
- *
- * 【デプロイ】Apps Script → デプロイ → 新しいデプロイ → 種類「ウェブアプリ」
- *   アクセスできるユーザー「全員」で発行 → その URL を osada-reserve/app.js の
- *   CONFIG.apiUrl に貼り付ける。
- *
- * ※ build-osada-sheet.gs と同じ Apps Script プロジェクトに置いてOK
- *   （関数名が衝突しないよう、このファイルの補助関数はすべて a_ 始まり）。
+ * 【デプロイ】Apps Script → デプロイ → 新しいデプロイ → ウェブアプリ（全員）
+ *   → 発行URLを osada-reserve/app.js の CONFIG.apiUrl に設定（既存URLのまま新バージョンでも可）。
  */
 
 const AGG = {
-  days: [
-    { tab: '8/28', date: '2026-08-28' },
-    { tab: '8/29', date: '2026-08-29' },
-    { tab: '8/30', date: '2026-08-30' },
+  stores: [
+    { id: 'mizuho', name: '学園みずほ接骨院', note: '（移転前）', period: '8/1〜8/26',
+      format: 'mizuho', days: null /* mizuhoDays_() を後で設定 */ },
+    { id: 'natsume', name: 'なつめ接骨院 静岡長田店', note: '（移転後）', period: '8/28〜8/30',
+      format: 'natsume', days: [
+        { tab: '8/28', date: '2026-08-28' },
+        { tab: '8/29', date: '2026-08-29' },
+        { tab: '8/30', date: '2026-08-30' },
+      ] },
   ],
-  initialLabel: '初',   // 区分=初診（30分＝縦2枠）の値
+  initialLabel: '初',   // なつめ：区分=初診（30分＝縦2枠）の値
+  existingLabel: '既',  // なつめ：区分=既存
   fewMax: 2,            // 空き 1〜2 → △
-  channelSheet: '設定', // 集客きっかけリストのタブ
-  channelCol: 2,        // 設定タブのB列（1始まり）
-  stepMin: 15,
+  channelSheet: '設定', channelCol: 2, stepMin: 15,
 };
 
+function mizuhoDays_() {
+  const out = [];
+  for (let d = 1; d <= 26; d++) out.push({ tab: '8/' + d, date: '2026-08-' + (d < 10 ? '0' + d : d) });
+  return out;
+}
+
 function doGet() {
-  return ContentService
-    .createTextOutput(JSON.stringify(a_build_()))
+  return ContentService.createTextOutput(JSON.stringify(a_build_()))
     .setMimeType(ContentService.MimeType.JSON);
 }
 
 function a_build_() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const days = [];
-  for (const d of AGG.days) {
-    const sh = ss.getSheetByName(d.tab);
-    if (!sh) { days.push({ date: d.date, stepMin: AGG.stepMin, slots: [] }); continue; }
-    const board = a_readBoard_(sh);
-    days.push({ date: d.date, stepMin: AGG.stepMin, slots: a_slots_(board) });
+  const storeMeta = {}, storeOrder = [], days = [];
+  for (const store of AGG.stores) {
+    const list = store.format === 'mizuho' ? mizuhoDays_() : store.days;
+    storeMeta[store.id] = { name: store.name, note: store.note, period: store.period };
+    storeOrder.push(store.id);
+    for (const d of list) {
+      const sh = ss.getSheetByName(d.tab);
+      if (!sh) continue;
+      const slots = store.format === 'mizuho' ? a_mizuhoSlots_(sh) : a_slots_(a_readBoard_(sh));
+      days.push({ store: store.id, date: d.date, slots: slots });
+    }
   }
-  return { generatedAt: new Date().toISOString(), channels: a_channels_(ss), days: days };
+  return { generatedAt: new Date().toISOString(), channels: a_channels_(ss),
+           storeMeta: storeMeta, storeOrder: storeOrder, days: days };
+}
+
+/* ===================== みずほ形式（新患列を読む） ===================== */
+/** 新患列が空白の時刻＝受入可（〇）。×・名前入りは出さない（＝サイトに非表示）。 */
+function a_mizuhoSlots_(sh) {
+  const values = sh.getDataRange().getValues();
+  const nRows = values.length;
+  let timeCol = -1, shinkanCol = -1;
+  for (let r = 0; r < Math.min(nRows, 12); r++) {
+    const row = values[r] || [];
+    for (let c = 0; c < row.length; c++) {
+      const s = String(row[c]).trim();
+      if (s === '時間' && timeCol < 0) timeCol = c;
+      if (s === '新患') shinkanCol = c;
+    }
+  }
+  // 「新患」ラベルが無ければ、ヘッダの「5」を新患列とみなす
+  if (shinkanCol < 0 && timeCol >= 0) {
+    for (let r = 0; r < Math.min(nRows, 12); r++) {
+      const row = values[r] || [];
+      for (let c = timeCol + 1; c < row.length; c++) {
+        if (String(row[c]).trim() === '5') shinkanCol = c;
+      }
+    }
+  }
+  if (timeCol < 0 || shinkanCol < 0) return [];
+  const out = [];
+  for (let r = 0; r < nRows; r++) {
+    const min = a_toMin_(values[r][timeCol]);
+    if (min == null) continue;                 // 時刻行のみ
+    const cell = values[r][shinkanCol];
+    const s = cell == null ? '' : String(cell).trim();
+    if (s === '') {                            // 新患列が空白＝開放中＝受入可
+      out.push({ time: a_hhmm_(min), newFree: 1, newStatus: '〇', allFree: 1, allStatus: '〇' });
+    }
+  }
+  return out;
 }
 
 /** 設定タブの集客きっかけリスト（B2以降）を選択肢として返す */
@@ -64,25 +103,21 @@ function a_channels_(ss) {
     .map((r) => String(r[0]).trim()).filter((s) => s !== '');
 }
 
-/** 日タブを解析：新規対応ベッド列・時刻行を検出 */
+/* ===================== なつめ形式（14ベッド） ===================== */
 function a_readBoard_(sh) {
   const values = sh.getDataRange().getValues();
   const nRows = values.length;
   const label = (r) => String((values[r] && values[r][0]) || '').trim();
-
-  // 見出し行を検出（A列のラベルで）
   let bedRow = -1, newRow = -1, subRow = -1;
   for (let r = 0; r < Math.min(nRows, 12); r++) {
     const a = label(r);
     if (a === 'ベッド') bedRow = r;
     else if (a.indexOf('新規対応') === 0) newRow = r;
-    else if (a === '時間' && r > bedRow) subRow = r; // データ直前の「時間」小見出し
+    else if (a === '時間' && r > bedRow) subRow = r;
   }
   if (bedRow < 0) bedRow = 5;
   if (newRow < 0) newRow = bedRow + 1;
   if (subRow < 0) subRow = bedRow + 3;
-
-  // ベッド列（No.x のセル位置＝氏名列）と 新規対応☑
   const beds = [];
   const row = values[bedRow] || [];
   for (let c = 1; c < row.length; c++) {
@@ -91,9 +126,6 @@ function a_readBoard_(sh) {
       beds.push({ nameCol: c, visitCol: c + 3, active: newOk });
     }
   }
-
-  // 時刻行（A列）。文字列 "9:00" でも、Sheetsが時刻値に変換した場合でも読めるように。
-  // 昼休憩など時刻でない行は null になりスキップされる。
   const slots = [];
   for (let r = subRow + 1; r < nRows; r++) {
     const min = a_toMin_(values[r][0]);
@@ -102,49 +134,31 @@ function a_readBoard_(sh) {
   return { values: values, beds: beds, slots: slots };
 }
 
-/** セルの値（Date時刻 / "9:00" / 時刻シリアル）を 0:00からの分に。該当なしは null */
-function a_toMin_(v) {
-  if (v instanceof Date) return v.getHours() * 60 + v.getMinutes();
-  if (typeof v === 'number') return (v > 0 && v < 1) ? Math.round(v * 1440) : null; // 時刻シリアル
-  if (typeof v === 'string') {
-    const m = v.replace('：', ':').trim().match(/^(\d{1,2}):(\d{2})/);
-    if (m) return Number(m[1]) * 60 + Number(m[2]);
-  }
-  return null;
-}
-
-/** 各時刻の空き（はじめて=30分 / 2回目以降=15分）を計算 */
 function a_slots_(board) {
   const out = [];
   for (let i = 0; i < board.slots.length; i++) {
     const cur = board.slots[i];
     const next = board.slots[i + 1];
-    const adj = next && next.min === cur.min + AGG.stepMin; // 次の15分が連続しているか
+    const adj = next && next.min === cur.min + AGG.stepMin;
     let allFree = 0, newFree = 0;
     for (const bed of board.beds) {
-      if (!bed.active) continue;                         // 稼働（新規対応☑）ベッドのみ
+      if (!bed.active) continue;
       const free15 = !a_occupied_(board, bed, cur.r);
       if (!free15) continue;
       allFree++;
-      // 初診=30分は縦2枠が必要。ただし各営業ブロックの最終枠（次の15分が無い＝adj=false：
-      // 12:00 / 18:00 / 17:00 など）は運営として受け付けるため、15分空きで新規OKとする。
+      // 各営業ブロックの最終枠（次の15分が無い）は運営として受け付けるため15分空きで新規OK
       if (!adj || !a_occupied_(board, bed, next.r)) newFree++;
     }
-    out.push({
-      time: a_hhmm_(cur.min),
+    out.push({ time: a_hhmm_(cur.min),
       allFree: allFree, allStatus: a_status_(allFree),
-      newFree: newFree, newStatus: a_status_(newFree),
-    });
+      newFree: newFree, newStatus: a_status_(newFree) });
   }
   return out;
 }
 
-/** そのベッドがその行で埋まっているか。
- *  氏名が入っていれば埋まり。ひとつ上の行が「初」(30分)なら、この行も埋まり。 */
 function a_occupied_(board, bed, r) {
   const name = board.values[r][bed.nameCol];
   if (name != null && String(name).trim() !== '') return true;
-  // 直上の行が初診(30分)なら、この行は2枠目として埋まり
   const upName = board.values[r - 1] ? board.values[r - 1][bed.nameCol] : '';
   const upVisit = board.values[r - 1] ? board.values[r - 1][bed.visitCol] : '';
   if (upName != null && String(upName).trim() !== '' &&
@@ -152,6 +166,7 @@ function a_occupied_(board, bed, r) {
   return false;
 }
 
+/* =========================== 共通ユーティリティ =========================== */
 function a_status_(free) {
   if (free <= 0) return '×';
   if (free <= AGG.fewMax) return '△';
@@ -159,4 +174,13 @@ function a_status_(free) {
 }
 function a_hhmm_(min) {
   return String(Math.floor(min / 60)).padStart(2, '0') + ':' + String(min % 60).padStart(2, '0');
+}
+function a_toMin_(v) {
+  if (v instanceof Date) return v.getHours() * 60 + v.getMinutes();
+  if (typeof v === 'number') return (v > 0 && v < 1) ? Math.round(v * 1440) : null;
+  if (typeof v === 'string') {
+    const m = v.replace('：', ':').trim().match(/^(\d{1,2}):(\d{2})/);
+    if (m) return Number(m[1]) * 60 + Number(m[2]);
+  }
+  return null;
 }

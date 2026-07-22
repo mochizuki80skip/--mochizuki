@@ -14,9 +14,15 @@ const CONFIG = {
   lineOaId: '@881udugq',
   lineUrl: '',  // 友だち追加 / トークURL（oaId が無い場合に使用）
 
-  clinicName: 'なつめ接骨院　静岡長田店',
+  clinicName: 'なつめ接骨院　静岡長田店', // 初期表示（店舗選択で上書き）
   eventName: 'チャリティー施術会のご予約',
   venue: '',
+
+  // 定休日（この日付は非表示）。学園みずほ 8/1-26 の休診日（木・日・8/9〜13）。
+  closedDates: [
+    '2026-08-02', '2026-08-06', '2026-08-09', '2026-08-10', '2026-08-11',
+    '2026-08-12', '2026-08-13', '2026-08-16', '2026-08-20', '2026-08-23',
+  ],
 
   // この曜日は「はじめての方」専用（2回目以降を選べない）。0=日 … 6=土。今回は制限なし。
   newOnlyWeekdays: [],
@@ -25,7 +31,7 @@ const CONFIG = {
 };
 
 const WD = ['日', '月', '火', '水', '木', '金', '土'];
-const state = { data: null, visitor: 'new', party: 1, companions: [], activeDate: null, choices: [null, null, null], activeChoice: 0 };
+const state = { data: null, activeStore: null, visitor: 'new', party: 1, companions: [], activeDate: null, choices: [null, null, null], activeChoice: 0 };
 let lastFetch = 0;
 
 /* ----------------------------- 初期化 ----------------------------- */
@@ -60,18 +66,20 @@ async function refresh(initial = false) {
   try {
     data = await loadData();
   } catch (e) {
-    if (initial) {
-      state.data = sampleData();
-      toast('サンプル表示中（接続設定が未完了です）');
-    }
-    // 再取得の失敗時は、既存の表示をそのまま維持（黙って次回に任せる）
-    if (initial) finishRender();
-    return;
+    if (!initial) return;                 // 再取得失敗は現状維持
+    data = sampleData();
+    toast('サンプル表示中（接続設定が未完了です）');
   }
+  if (!data) return;
   state.data = data;
   lastFetch = Date.now();
-  // アクティブ日が無効なら、最初の有効な日へ
-  const valid = data.days.filter((d) => (d.slots || []).length);
+  // 店舗の既定（未選択なら先頭店舗）
+  const order = data.storeOrder || [];
+  if (!state.activeStore || order.indexOf(state.activeStore) < 0) {
+    state.activeStore = order.length ? order[0] : null;
+  }
+  // アクティブ日が無効なら、その店舗の最初の有効日へ
+  const valid = activeDays();
   if (!state.activeDate || !valid.some((d) => d.date === state.activeDate)) {
     state.activeDate = valid.length ? valid[0].date : null;
   }
@@ -79,13 +87,62 @@ async function refresh(initial = false) {
   finishRender();
 }
 
+/* 定休日か（サイト側の定休日リスト） */
+function isClosed(date) { return (CONFIG.closedDates || []).indexOf(date) >= 0; }
+
+/* 選択中の店舗の、表示すべき日（定休日・空き0を除外） */
+function activeDays() {
+  if (!state.data || !state.data.days) return [];
+  return state.data.days.filter((d) =>
+    d.store === state.activeStore && !isClosed(d.date) && (d.slots || []).length);
+}
+
 function finishRender() {
+  renderStores();
+  updateStoreHeader();
   applyDateConstraints();
   renderTabs();
   renderGrid();
   renderChoices();
   renderChannels();
   showUpdated();
+}
+
+/* 店舗選択（複数店舗のときだけ表示） */
+function renderStores() {
+  const box = document.getElementById('storeSelector');
+  if (!box || !state.data) return;
+  const order = state.data.storeOrder || [];
+  const meta = state.data.storeMeta || {};
+  box.innerHTML = '';
+  if (order.length <= 1) { box.style.display = 'none'; return; }
+  box.style.display = 'flex';
+  for (const id of order) {
+    const m = meta[id] || {};
+    const btn = document.createElement('button');
+    btn.className = 'store-btn' + (id === state.activeStore ? ' is-active' : '');
+    btn.innerHTML = `<span class="store-name">${escapeHtml(m.name || id)}</span>` +
+      `<span class="store-period">${escapeHtml(m.period || '')}</span>`;
+    btn.addEventListener('click', () => switchStore(id));
+    box.appendChild(btn);
+  }
+}
+
+function switchStore(id) {
+  if (id === state.activeStore) return;
+  state.activeStore = id;
+  state.choices = [null, null, null]; // 店舗が変わったら希望をリセット
+  state.activeChoice = 0;
+  const valid = activeDays();
+  state.activeDate = valid.length ? valid[0].date : null;
+  finishRender();
+}
+
+function updateStoreHeader() {
+  const meta = (state.data && state.data.storeMeta) || {};
+  const m = meta[state.activeStore];
+  const el = document.getElementById('clinicName');
+  if (el && m && m.name) el.textContent = m.name + (m.note || '');
 }
 
 /** 集客経路（ご予約のきっかけ）の選択肢を「集客経路」タブから反映。
@@ -193,8 +250,7 @@ function dateLabel(iso) {
 function renderTabs() {
   const nav = document.getElementById('dateTabs');
   nav.innerHTML = '';
-  for (const day of state.data.days) {
-    if (!(day.slots || []).length) continue;
+  for (const day of activeDays()) {
     const { md, wd } = dateLabel(day.date);
     const btn = document.createElement('button');
     btn.className = 'tab' + (day.date === state.activeDate ? ' is-active' : '');
@@ -217,7 +273,7 @@ function renderGrid() {
   const grid = document.getElementById('slotGrid');
   const note = document.getElementById('gridNote');
   grid.innerHTML = '';
-  const day = state.data.days.find((d) => d.date === state.activeDate);
+  const day = activeDays().find((d) => d.date === state.activeDate);
   if (!day) { note.textContent = ''; return; }
   const { md, wd } = dateLabel(day.date);
   const partyNote = state.party > 1 ? `（${state.party}名で入れる時間のみ）` : '';
@@ -355,7 +411,10 @@ function buildMessage() {
   const tel = document.getElementById('telInput').value.trim();
   const channel = document.getElementById('channelInput').value.trim();
   const visitor = state.visitor === 'new' ? 'はじめて' : '2回目以降';
+  const meta = (state.data && state.data.storeMeta) || {};
+  const store = meta[state.activeStore] || {};
   const lines = ['【予約希望】'];
+  if (store.name) lines.push(`店舗：${store.name}`);
   lines.push(`お名前：${name}`);
   lines.push(`電話番号：${tel}`);
   if (channel) lines.push(`ご予約のきっかけ：${channel}`);
@@ -433,14 +492,24 @@ function sampleData() {
     }
     return out;
   };
+  const mizuho = () => ['09:00', '10:00', '11:00', '16:00', '17:00', '18:00']
+    .map((t) => ({ time: t, newFree: 1, newStatus: '〇', allFree: 1, allStatus: '〇' }));
   return {
     channels: ['新聞折込', 'チラシ', 'のぼり', '家族の紹介', '友人の紹介', '職場の紹介',
       'Instagram広告', 'Facebook広告', 'ホームページを見た', 'Googleを見た',
       'みずほ接骨院からの紹介', 'その他'],
+    storeOrder: ['mizuho', 'natsume'],
+    storeMeta: {
+      mizuho: { name: '学園みずほ接骨院', note: '（移転前）', period: '8/1〜8/26' },
+      natsume: { name: 'なつめ接骨院 静岡長田店', note: '（移転後）', period: '8/28〜8/30' },
+    },
     days: [
-      { date: '2026-08-28', stepMin: 15, slots: gen([[540, 720], [840, 1080]], 15) },
-      { date: '2026-08-29', stepMin: 15, slots: gen([[540, 720], [840, 1080]], 15) },
-      { date: '2026-08-30', stepMin: 15, slots: gen([[540, 1020]], 15) },
+      { store: 'mizuho', date: '2026-08-01', slots: mizuho() },
+      { store: 'mizuho', date: '2026-08-04', slots: mizuho() },
+      { store: 'mizuho', date: '2026-08-05', slots: mizuho() },
+      { store: 'natsume', date: '2026-08-28', slots: gen([[540, 720], [840, 1080]], 15) },
+      { store: 'natsume', date: '2026-08-29', slots: gen([[540, 720], [840, 1080]], 15) },
+      { store: 'natsume', date: '2026-08-30', slots: gen([[540, 1020]], 15) },
     ],
   };
 }
