@@ -24,6 +24,9 @@ const CONFIG = {
     '2026-08-12', '2026-08-13', '2026-08-16', '2026-08-20', '2026-08-23',
   ],
 
+  // この店舗は「〇空きあり／×満員」だけ表示（△を使わない）。1枠1名で残りわずかが無いため。
+  simpleStatusStores: ['mizuho'],
+
   // この曜日は「はじめての方」専用（2回目以降を選べない）。0=日 … 6=土。今回は制限なし。
   newOnlyWeekdays: [],
 
@@ -100,6 +103,7 @@ function activeDays() {
 function finishRender() {
   renderStores();
   updateStoreHeader();
+  renderLegend();
   applyDateConstraints();
   renderTabs();
   renderGrid();
@@ -143,6 +147,19 @@ function updateStoreHeader() {
   const m = meta[state.activeStore];
   const el = document.getElementById('clinicName');
   if (el && m && m.name) el.textContent = m.name + (m.note || '');
+}
+
+/* 凡例：店舗により〇×のみ／〇△×を切替 */
+function renderLegend() {
+  const el = document.getElementById('legend');
+  if (!el) return;
+  const simple = (CONFIG.simpleStatusStores || []).indexOf(state.activeStore) >= 0;
+  el.innerHTML = simple
+    ? '<span><b class="mk ok">〇</b> 空きあり</span>' +
+      '<span><b class="mk full">×</b> 満員</span>'
+    : '<span><b class="mk ok">〇</b> 複数空きあり</span>' +
+      '<span><b class="mk few">△</b> 残りわずか（要問合せ）</span>' +
+      '<span><b class="mk full">×</b> 満員</span>';
 }
 
 /** 集客経路（ご予約のきっかけ）の選択肢を「集客経路」タブから反映。
