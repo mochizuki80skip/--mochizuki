@@ -55,11 +55,13 @@ function mizuhoSetDate_(sh, day) {
  *  見出し(氏名/新患/AM/PM等)は時刻行でないので触らない。×と空白は保持。 */
 function mizuhoClearNames_(sh) {
   const vals = sh.getDataRange().getValues();
-  let timeCol = -1;
-  for (let r = 0; r < Math.min(vals.length, 10) && timeCol < 0; r++) {
-    for (let c = 0; c < vals[r].length; c++) {
-      if (String(vals[r][c]).trim() === '時間') { timeCol = c; break; }
-    }
+  // 時間列＝実際に時刻値が最も多い列（見出し「時間」の位置ズレを回避）
+  let timeCol = -1, best = 0;
+  const cols = vals.length ? Math.max.apply(null, vals.map(function (r) { return r.length; })) : 0;
+  for (let c = 0; c < cols; c++) {
+    let cnt = 0;
+    for (let r = 0; r < vals.length; r++) if (mizuhoToMin_(vals[r][c]) != null) cnt++;
+    if (cnt > best) { best = cnt; timeCol = c; }
   }
   if (timeCol < 0) return;
   for (let r = 0; r < vals.length; r++) {

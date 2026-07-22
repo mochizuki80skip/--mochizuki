@@ -61,32 +61,34 @@ function a_build_() {
 function a_mizuhoSlots_(sh) {
   const values = sh.getDataRange().getValues();
   const nRows = values.length;
-  let timeCol = -1, shinkanCol = -1;
-  for (let r = 0; r < Math.min(nRows, 12); r++) {
+  // 新患列：ラベル「新患」を探す。無ければヘッダ「5」。
+  let shinkanCol = -1;
+  for (let r = 0; r < Math.min(nRows, 12) && shinkanCol < 0; r++) {
     const row = values[r] || [];
-    for (let c = 0; c < row.length; c++) {
-      const s = String(row[c]).trim();
-      if (s === '時間' && timeCol < 0) timeCol = c;
-      if (s === '新患') shinkanCol = c;
-    }
+    for (let c = 0; c < row.length; c++) if (String(row[c]).trim() === '新患') { shinkanCol = c; break; }
   }
-  // 「新患」ラベルが無ければ、ヘッダの「5」を新患列とみなす
-  if (shinkanCol < 0 && timeCol >= 0) {
-    for (let r = 0; r < Math.min(nRows, 12); r++) {
+  if (shinkanCol < 0) {
+    for (let r = 0; r < Math.min(nRows, 12) && shinkanCol < 0; r++) {
       const row = values[r] || [];
-      for (let c = timeCol + 1; c < row.length; c++) {
-        if (String(row[c]).trim() === '5') shinkanCol = c;
-      }
+      for (let c = 0; c < row.length; c++) if (String(row[c]).trim() === '5') { shinkanCol = c; break; }
     }
   }
-  if (timeCol < 0 || shinkanCol < 0) return [];
+  if (shinkanCol < 0) return [];
+  // 時間列：新患列より左で「実際に時刻値が最も多く入っている列」を採用。
+  // （見出し「時間」の位置ズレや、日付セルを0:00と誤認する問題を回避）
+  let timeCol = -1, best = 0;
+  for (let c = 0; c < shinkanCol; c++) {
+    let cnt = 0;
+    for (let r = 0; r < nRows; r++) if (a_toMin_(values[r][c]) != null) cnt++;
+    if (cnt > best) { best = cnt; timeCol = c; }
+  }
+  if (timeCol < 0) return [];
   const out = [];
   for (let r = 0; r < nRows; r++) {
     const min = a_toMin_(values[r][timeCol]);
     if (min == null) continue;                 // 時刻行のみ
     const cell = values[r][shinkanCol];
-    const s = cell == null ? '' : String(cell).trim();
-    if (s === '') {                            // 新患列が空白＝開放中＝受入可
+    if (cell == null || String(cell).trim() === '') { // 新患列が空白＝開放中＝受入可
       out.push({ time: a_hhmm_(min), newFree: 1, newStatus: '〇', allFree: 1, allStatus: '〇' });
     }
   }
