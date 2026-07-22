@@ -33,9 +33,18 @@ function mizuhoDays_() {
   return out;
 }
 
+// 30秒キャッシュ：直近30秒はシートを読み直さず即返す（速度改善／古さは最大30秒）
+const AGG_CACHE_KEY = 'avail_v1';
+const AGG_CACHE_SEC = 30;
+
 function doGet() {
-  return ContentService.createTextOutput(JSON.stringify(a_build_()))
-    .setMimeType(ContentService.MimeType.JSON);
+  const cache = CacheService.getScriptCache();
+  let json = cache.get(AGG_CACHE_KEY);
+  if (!json) {
+    json = JSON.stringify(a_build_());
+    try { if (json.length < 95000) cache.put(AGG_CACHE_KEY, json, AGG_CACHE_SEC); } catch (e) {}
+  }
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
 function a_build_() {
