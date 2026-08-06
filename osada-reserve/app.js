@@ -93,11 +93,19 @@ async function refresh(initial = false) {
 /* 定休日か（サイト側の定休日リスト） */
 function isClosed(date) { return (CONFIG.closedDates || []).indexOf(date) >= 0; }
 
-/* 選択中の店舗の、表示すべき日（定休日・空き0を除外） */
+/* 今日より前の日付か（閲覧端末の「今日」基準。当日は表示する） */
+function isPast(date) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const p = date.split('-').map(Number);
+  return new Date(p[0], p[1] - 1, p[2]) < today;
+}
+
+/* 選択中の店舗の、表示すべき日（過去日・定休日・空き0を除外） */
 function activeDays() {
   if (!state.data || !state.data.days) return [];
   return state.data.days.filter((d) =>
-    d.store === state.activeStore && !isClosed(d.date) && (d.slots || []).length);
+    d.store === state.activeStore && !isClosed(d.date) && !isPast(d.date) && (d.slots || []).length);
 }
 
 function finishRender() {
