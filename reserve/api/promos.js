@@ -29,6 +29,7 @@ export default async function handler(req, res) {
         autoOpen: effectiveAutoOpen,
         autoOpenLevel: ['clinic', 'visit', 'course'].includes(p.autoOpenLevel) ? p.autoOpenLevel : 'course',
         keepOriginalMenu: !!p.keepOriginalMenu,
+        useNewCustomerLine: !!p.useNewCustomerLine,
         customFieldLabel: typeof p.customFieldLabel === 'string' ? p.customFieldLabel : '',
         customFieldRequired: !!p.customFieldRequired,
         customFieldPlaceholder: typeof p.customFieldPlaceholder === 'string' ? p.customFieldPlaceholder : '',
