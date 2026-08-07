@@ -26,6 +26,11 @@
     },
   };
 
+  // 新規集客専用の公式LINEアカウント。
+  // 「初回」の予約はこのアカウントに送信する（2回目以降・3ヶ月ぶりは各院の
+  // lineBasicId に送信）。空文字にすると従来通り各院アカウントに送る。
+  const NEW_CUSTOMER_LINE_ID = '@844cczgm';
+
   // 「直前のためLINEでは受付できない」枠の閾値（分）
   const IMMINENT_MIN = 30;
 
@@ -1279,10 +1284,14 @@ ${dtLines}${promoLine}${nameLine}${cfLine}${notesLine}
     // Prefer the oaMessage scheme so the chat opens with the text already
     // entered in the input box. This works for users who are already friends
     // with the OA. Fall back to the friend-add link if the basic ID isn't set.
+    // 初回（新規）のお客様は、新規集客専用の公式LINEアカウントに送信する。
     const clinic = CLINICS[state.clinic];
+    const basicId = state.visitMode === 'first'
+      ? NEW_CUSTOMER_LINE_ID
+      : clinic.lineBasicId;
     let openUrl;
-    if (clinic.lineBasicId) {
-      const id = encodeURIComponent(clinic.lineBasicId);
+    if (basicId) {
+      const id = encodeURIComponent(basicId);
       openUrl = `https://line.me/R/oaMessage/${id}/?${encodeURIComponent(text)}`;
     } else {
       openUrl = clinic.lineUrl;
