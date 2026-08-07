@@ -496,6 +496,7 @@
       const lineUrl = location.origin + '/#promo=' + encodeURIComponent(p.code);
       const chips = [];
       if (p.autoOpen) chips.push(`<span class="tag tag-auto">⚡ 自動進行</span>`);
+      if (p.useNewCustomerLine) chips.push(`<span class="tag">💬 初回は新規集客用LINEへ</span>`);
       if (p.customFieldLabel) {
         chips.push(`<span class="tag">📝 ${escapeHtml(p.customFieldLabel)}${p.customFieldRequired ? '(必須)' : ''}</span>`);
       }
@@ -615,6 +616,7 @@
       $('f-autoOpen').checked = !!p.autoOpen;
       $('f-autoOpenLevel').value = ['clinic', 'visit', 'course'].includes(p.autoOpenLevel) ? p.autoOpenLevel : 'course';
       $('f-keepOriginalMenu').checked = !!p.keepOriginalMenu;
+      $('f-useNewCustomerLine').checked = !!p.useNewCustomerLine;
       $('f-cf-label').value = p.customFieldLabel || '';
       $('f-cf-required').checked = !!p.customFieldRequired;
       $('f-cf-placeholder').value = p.customFieldPlaceholder || '';
@@ -652,6 +654,7 @@
       autoOpen: kind === 'shortcut' ? true : $('f-autoOpen').checked,
       autoOpenLevel: $('f-autoOpenLevel').value,
       keepOriginalMenu: kind === 'override' ? $('f-keepOriginalMenu').checked : false,
+      useNewCustomerLine: $('f-useNewCustomerLine').checked,
       customFieldLabel: cfLabel,
       customFieldRequired: cfLabel ? $('f-cf-required').checked : false,
       customFieldPlaceholder: cfLabel ? $('f-cf-placeholder').value.trim() : '',
