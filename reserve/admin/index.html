@@ -8,7 +8,7 @@
   <meta name="robots" content="noindex,nofollow">
   <title>管理画面 | リカバリー鍼灸院</title>
   <link rel="stylesheet" href="/style.css?v=20260520k">
-  <link rel="stylesheet" href="/admin/admin.css?v=20260520m">
+  <link rel="stylesheet" href="/admin/admin.css?v=20260713b">
 </head>
 <body>
   <header class="topbar">
@@ -177,6 +177,19 @@
             </p>
           </fieldset>
 
+          <fieldset class="admin-fieldset" id="f-newline-wrap">
+            <legend>予約の送信先LINE</legend>
+            <label class="admin-checkbox">
+              <input type="checkbox" name="useNewCustomerLine" id="f-useNewCustomerLine">
+              <span>このURL経由の<strong>初回予約</strong>を新規集客用LINE（@844cczgm）に送信する</span>
+            </label>
+            <p class="admin-help">
+              OFF（通常）はこれまで通り各院の公式LINEに送信されます。<br>
+              ON にすると、このキャンペーンURLから来た<strong>初回</strong>のお客様の予約だけが
+              新規集客用アカウントに届きます（2回目以降・3ヶ月ぶりは各院のLINEのまま）。
+            </p>
+          </fieldset>
+
           <fieldset class="admin-fieldset" id="f-customfield-wrap">
             <legend>予約時の記入欄（任意）</legend>
             <label>
@@ -254,6 +267,6 @@
 
   </main>
 
-  <script src="/admin/admin.js?v=20260520l"></script>
+  <script src="/admin/admin.js?v=20260713b"></script>
 </body>
 </html>
