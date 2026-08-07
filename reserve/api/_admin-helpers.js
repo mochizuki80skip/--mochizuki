@@ -133,6 +133,8 @@ export function normalizePromo(p) {
   const customFieldRequired = customFieldLabel ? !!p.customFieldRequired : false;
   // 価格変更（override）で「通常メニューも残す」かどうか
   const keepOriginalMenu = !!p.keepOriginalMenu;
+  // このキャンペーンURL経由の初回予約を新規集客用LINEに送るかどうか
+  const useNewCustomerLine = !!p.useNewCustomerLine;
   // autoOpen の到達範囲: clinic（院だけ） / visit（来院まで） / course（コースまで＝既定）
   const autoOpenLevel = ['clinic', 'visit', 'course'].includes(p.autoOpenLevel)
     ? p.autoOpenLevel : 'course';
@@ -148,6 +150,7 @@ export function normalizePromo(p) {
     autoOpen,
     autoOpenLevel,
     keepOriginalMenu,
+    useNewCustomerLine,
     customFieldLabel,
     customFieldRequired,
     customFieldPlaceholder,
