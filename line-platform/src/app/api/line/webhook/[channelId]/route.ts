@@ -4,6 +4,7 @@ import { verifyLineSignature } from "@/lib/signature";
 import { prisma } from "@/lib/prisma";
 import { getProfile, getChannelSecret } from "@/lib/line";
 import { startScenariosForFollow } from "@/lib/scenario";
+import { replyByKeyword, replyImmediateScenarioSteps } from "@/lib/autoReply";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -45,7 +46,7 @@ async function handleEvent(channelId: string, event: WebhookEvent) {
 
   switch (event.type) {
     case "follow":
-      await onFollow(channelId, userId);
+      await onFollow(channelId, userId, event.replyToken);
       break;
     case "unfollow":
       await onUnfollow(channelId, userId);
@@ -53,12 +54,15 @@ async function handleEvent(channelId: string, event: WebhookEvent) {
     case "message":
       await onMessage(channelId, event, userId);
       break;
+    case "postback":
+      await onPostback(channelId, event, userId);
+      break;
     default:
       break;
   }
 }
 
-async function onFollow(channelId: string, userId: string) {
+async function onFollow(channelId: string, userId: string, replyToken: string) {
   const profile = await getProfile(channelId, userId);
   const friend = await prisma.friend.upsert({
     where: { lineChannelId_lineUserId: { lineChannelId: channelId, lineUserId: userId } },
@@ -83,6 +87,8 @@ async function onFollow(channelId: string, userId: string) {
   });
 
   await startScenariosForFollow(channelId, friend.id);
+  // 即時（0 分後）のステップは replyToken で送り、送信通数を消費しない
+  await replyImmediateScenarioSteps(channelId, friend.id, replyToken);
 }
 
 async function onUnfollow(channelId: string, userId: string) {
@@ -120,4 +126,22 @@ async function onMessage(
       raw: msg as unknown as object,
     },
   });
+
+  if (msg.type === "text") {
+    await replyByKeyword(channelId, friend.id, event.replyToken, msg.text);
+  }
+}
+
+// リッチメニュー等のポストバック：data をキーワードとして自動応答（通数にカウントされない）
+async function onPostback(
+  channelId: string,
+  event: Extract<WebhookEvent, { type: "postback" }>,
+  userId: string,
+) {
+  const friend = await prisma.friend.findUnique({
+    where: { lineChannelId_lineUserId: { lineChannelId: channelId, lineUserId: userId } },
+    select: { id: true },
+  });
+  if (!friend) return;
+  await replyByKeyword(channelId, friend.id, event.replyToken, event.postback.data);
 }

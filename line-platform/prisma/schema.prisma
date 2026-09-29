@@ -40,6 +40,7 @@ model LineChannel {
   broadcasts   Broadcast[]
   scenarios    Scenario[]
   deliveryLogs DeliveryLog[]
+  autoReplies  AutoReply[]
 
   @@index([isActive])
 }
@@ -249,4 +250,20 @@ model DeliveryLog {
 
   @@index([lineChannelId, sentAt])
   @@index([sentAt])
+}
+
+// キーワード自動応答（replyToken で返信するため送信通数にカウントされない）
+model AutoReply {
+  id            String   @id @default(cuid())
+  lineChannelId String
+  keyword       String   // テキスト受信時はメッセージ本文、ポストバック時は data と照合
+  matchType     String   @default("exact") // exact / contains
+  messages      Json
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lineChannel LineChannel @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+
+  @@index([lineChannelId, isActive])
 }
