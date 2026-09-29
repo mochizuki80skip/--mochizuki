@@ -1,0 +1,122 @@
+// 接骨院 GBP / Instagram 一括投稿プラットフォーム
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 本部の管理画面ログインユーザー
+model AdminUser {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+}
+
+// Google アカウント連携（1 件のみ。GBP の管理者権限を持つアカウント）
+model GoogleConnection {
+  id           String   @id @default("default")
+  email        String?
+  refreshToken String   // 暗号化して保存
+  connectedAt  DateTime @default(now())
+}
+
+// 全体設定（1 件のみ）
+model Settings {
+  id             String @id @default("default")
+  postingDays    Int[]  @default([1, 3, 5, 6]) // 0=日 … 6=土
+  postingTime    String @default("10:00")      // JST
+  themeCursor    Int    @default(0)            // テーマのローテーション位置
+  commonHashtags String @default("#接骨院 #整骨院 #骨盤矯正 #肩こり #腰痛")
+  extraNgWords   String @default("")           // 1 行に 1 つ
+}
+
+// 投稿対象の店舗（接骨院のみを登録する）
+model Store {
+  id               String    @id @default(cuid())
+  name             String
+  area             String    @default("") // 駅名・市区町村
+  features         String    @default("") // 得意な施術・特徴
+  bookingUrl       String    @default("")
+  ctaType          String    @default("BOOK") // BOOK / CALL / LEARN_MORE / NONE
+  photoUrls        String    @default("") // 投稿用写真の URL（1 行に 1 つ、順番に使う）
+  gbpAccountId     String?
+  gbpLocationId    String?   @unique
+  gbpEnabled       Boolean   @default(true)
+  igUserId         String?
+  igAccessToken    String?   // 暗号化して保存
+  igTokenExpiresAt DateTime?
+  igHashtags       String    @default("") // 店舗独自のハッシュタグ（地域名など）
+  igEnabled        Boolean   @default(false)
+  isActive         Boolean   @default(true)
+  sortOrder        Int       @default(0)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  posts Post[]
+
+  @@index([isActive, sortOrder])
+}
+
+// 1 回分の投稿（全店舗共通のテーマ・日時）
+model PostBatch {
+  id          String   @id @default(cuid())
+  theme       String
+  memo        String   @default("")
+  imageUrl    String?  // 全店舗共通の画像（未指定なら店舗の写真を使う）
+  scheduledAt DateTime
+  createdAt   DateTime @default(now())
+
+  posts Post[]
+
+  @@index([scheduledAt])
+}
+
+// 店舗ごとの投稿内容
+model Post {
+  id         String    @id @default(cuid())
+  batchId    String
+  storeId    String
+  gbpText    String    @default("")
+  igCaption  String    @default("")
+  imageUrl   String?
+  // pending（AI 作成待ち）/ draft（確認待ち）/ approved / posted / failed / skipped
+  status     String    @default("pending")
+  flags      Json      @default("[]")
+  error      String?
+  approvedAt DateTime?
+  approvedBy String?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  batch      PostBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  store      Store      @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  deliveries Delivery[]
+
+  @@unique([batchId, storeId])
+  @@index([status])
+}
+
+// 媒体ごとの送信結果
+model Delivery {
+  id          String    @id @default(cuid())
+  postId      String
+  channel     String    // gbp / instagram
+  status      String    @default("pending") // pending / sending / sent / failed / skipped
+  externalId  String?
+  error       String?
+  attempts    Int       @default(0)
+  sentAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, channel])
+  @@index([status])
+}
