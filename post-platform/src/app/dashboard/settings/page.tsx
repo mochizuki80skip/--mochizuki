@@ -65,6 +65,10 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <input type="time" name="postingTime" defaultValue={settings.postingTime} className="mt-1 border rounded px-3 py-2 text-sm font-normal" />
         </label>
         <label className="block text-sm font-medium">
+          画像・動画の帯の色
+          <input type="color" name="brandColor" defaultValue={settings.brandColor} className="mt-1 block w-16 h-9 border rounded" />
+        </label>
+        <label className="block text-sm font-medium">
           全店舗共通のハッシュタグ（Instagram）
           <input name="commonHashtags" defaultValue={settings.commonHashtags} className={input} />
         </label>

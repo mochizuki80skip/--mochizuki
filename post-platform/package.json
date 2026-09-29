@@ -4,13 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3002",
-    "build": "prisma generate && node scripts/db-push.js && tsx prisma/seed.ts && next build",
+    "build": "prisma generate && next build",
     "postinstall": "prisma generate",
     "start": "next start -p 3002",
     "lint": "next lint",
     "prisma:studio": "prisma studio",
     "seed": "tsx prisma/seed.ts",
-    "test": "tsx --test src/lib/*.test.ts"
+    "test": "tsx --test src/lib/*.test.ts",
+    "build:vercel": "prisma generate && node scripts/db-push.js && tsx prisma/seed.ts && next build",
+    "start:prod": "prisma db push --skip-generate && tsx prisma/seed.ts && next start -p 3000"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -20,7 +22,8 @@
     "next": "^15.1.0",
     "next-auth": "^4.24.10",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth";
-import { CalendarDays, Store, BarChart3, Settings, LogOut } from "lucide-react";
+import { CalendarDays, Store, BarChart3, Settings, LogOut, KeyRound, TableProperties } from "lucide-react";
 import { authOptions } from "@/lib/auth";
 import { signOutAction } from "./actions";
 
 const NAV = [
   { href: "/dashboard", label: "投稿予定・承認", icon: CalendarDays },
   { href: "/dashboard/stores", label: "店舗", icon: Store },
-  { href: "/dashboard/insights", label: "実績", icon: BarChart3 },
+  { href: "/dashboard/stores/list", label: "店舗リスト（差し込み）", icon: TableProperties },
+  { href: "/dashboard/analysis", label: "実績・分析", icon: BarChart3 },
+  { href: "/dashboard/credentials", label: "ログイン情報", icon: KeyRound },
   { href: "/dashboard/settings", label: "設定", icon: Settings },
 ];
 

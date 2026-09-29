@@ -1,0 +1,58 @@
+# XServer VPS での構成：アプリ / PostgreSQL / Caddy（HTTPS 自動化） / Cron
+# 使い方は README の「XServer VPS へのデプロイ」を参照
+services:
+  db:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: post_platform
+    volumes:
+      - db:/var/lib/postgresql/data
+
+  app:
+    build: .
+    restart: always
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://app:${DB_PASSWORD}@db:5432/post_platform
+      NEXTAUTH_URL: https://${DOMAIN}
+      PUBLIC_BASE_URL: https://${DOMAIN}
+      MEDIA_DIR: /data/media
+    volumes:
+      - media:/data/media
+    depends_on:
+      - db
+
+  caddy:
+    image: caddy:2
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+    depends_on:
+      - app
+
+  # 5 分おきに予約投稿を送信、毎週月曜 8 時（JST）に分析レポートを作成
+  cron:
+    image: curlimages/curl:latest
+    restart: always
+    environment:
+      CRON_SECRET: ${CRON_SECRET}
+      TZ: Asia/Tokyo
+    entrypoint: ["/bin/sh", "/cron.sh"]
+    volumes:
+      - ./scripts/cron.sh:/cron.sh:ro
+    depends_on:
+      - app
+
+volumes:
+  db:
+  media:
+  caddy:

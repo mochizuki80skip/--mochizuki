@@ -34,13 +34,16 @@ model Settings {
   themeCursor    Int    @default(0)            // テーマのローテーション位置
   commonHashtags String @default("#接骨院 #整骨院 #骨盤矯正 #肩こり #腰痛")
   extraNgWords   String @default("")           // 1 行に 1 つ
+  brandColor     String @default("#1a73e8")    // 画像・動画の帯の色
 }
 
 // 投稿対象の店舗（接骨院のみを登録する）
 model Store {
   id               String    @id @default(cuid())
   name             String
-  area             String    @default("") // 駅名・市区町村
+  city             String    @default("") // 地名（市区町村など）… {地名}
+  area             String    @default("") // エリア（駅名・地域）… {エリア}
+  vars             Json      @default("{}") // 任意の差し込み項目 {項目名: 値}
   features         String    @default("") // 得意な施術・特徴
   bookingUrl       String    @default("")
   ctaType          String    @default("BOOK") // BOOK / CALL / LEARN_MORE / NONE
@@ -58,7 +61,8 @@ model Store {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  posts Post[]
+  posts       Post[]
+  credentials StoreCredential[]
 
   @@index([isActive, sortOrder])
 }
@@ -70,6 +74,13 @@ model PostBatch {
   memo        String   @default("")
   imageUrl    String?  // 全店舗共通の画像（未指定なら店舗の写真を使う）
   scheduledAt DateTime
+  mode        String   @default("ai")    // ai（AI が店舗ごとに作成）/ template（テンプレートに店舗情報を差し込む）
+  gbpTemplate String   @default("")
+  igTemplate  String   @default("")
+  mediaType   String   @default("image") // image / reel / none
+  headline    String   @default("")      // 画像・動画に入れる見出し
+  bgPrompt    String   @default("")      // AI 背景画像の指示
+  bgImageUrl  String?                    // 全店舗共通の背景（AI 生成またはアップロード）
   createdAt   DateTime @default(now())
 
   posts Post[]
@@ -85,6 +96,7 @@ model Post {
   gbpText    String    @default("")
   igCaption  String    @default("")
   imageUrl   String?
+  videoUrl   String?   // Instagram リール用の動画
   // pending（AI 作成待ち）/ draft（確認待ち）/ approved / posted / failed / skipped
   status     String    @default("pending")
   flags      Json      @default("[]")
@@ -107,11 +119,13 @@ model Delivery {
   id          String    @id @default(cuid())
   postId      String
   channel     String    // gbp / instagram
-  status      String    @default("pending") // pending / sending / sent / failed / skipped
+  status      String    @default("pending") // pending / sending / processing（リール処理待ち）/ sent / failed / skipped
   externalId  String?
   error       String?
   attempts    Int       @default(0)
   sentAt      DateTime?
+  metrics     Json?     // Instagram の投稿別インサイト（分析時に更新）
+  metricsAt   DateTime?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -119,4 +133,48 @@ model Delivery {
 
   @@unique([postId, channel])
   @@index([status])
+}
+
+// 店舗の SNS 等のログイン情報（パスワードは暗号化して保存。表示するたびに記録を残す）
+model StoreCredential {
+  id          String   @id @default(cuid())
+  storeId     String
+  service     String   @default("instagram") // instagram / google / other
+  loginId     String
+  passwordEnc String   @default("")
+  note        String   @default("")
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  store Store                  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  logs  CredentialAccessLog[]
+
+  @@unique([storeId, service])
+}
+
+model CredentialAccessLog {
+  id           String   @id @default(cuid())
+  credentialId String
+  userEmail    String
+  action       String   // reveal / update
+  at           DateTime @default(now())
+
+  credential StoreCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@index([at])
+}
+
+// パフォーマンス分析レポート
+model AnalysisReport {
+  id          String   @id @default(cuid())
+  status      String   @default("running") // running / done / failed
+  periodStart DateTime
+  periodEnd   DateTime
+  data        Json     @default("{}")
+  summary     String   @default("")
+  themeIdeas  String[] @default([])
+  error       String?
+  createdBy   String
+  createdAt   DateTime @default(now())
 }

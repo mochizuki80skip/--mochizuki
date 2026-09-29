@@ -11,9 +11,14 @@ export default async function StoresPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">店舗（接骨院）</h1>
-        <Link href="/dashboard/stores/import" className="bg-brand text-white px-3 py-1.5 rounded text-sm">
-          Google から取り込む
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/dashboard/stores/list" className="border bg-white px-3 py-1.5 rounded text-sm">
+            一覧で編集・CSV
+          </Link>
+          <Link href="/dashboard/stores/import" className="bg-brand text-white px-3 py-1.5 rounded text-sm">
+            Google から取り込む
+          </Link>
+        </div>
       </div>
       <p className="text-sm text-gray-500">
         ここに登録した店舗だけに投稿します。連携した Google アカウントで管理している鍼灸院・ジムなどは、取り込まない限り投稿されません。
@@ -23,7 +28,7 @@ export default async function StoresPage() {
           <thead className="bg-gray-50 text-left">
             <tr>
               <th className="px-3 py-2 font-medium">店舗</th>
-              <th className="px-3 py-2 font-medium">地域</th>
+              <th className="px-3 py-2 font-medium">地名／エリア</th>
               <th className="px-3 py-2 font-medium">GBP</th>
               <th className="px-3 py-2 font-medium">Instagram</th>
               <th className="px-3 py-2 font-medium">写真</th>
@@ -38,7 +43,7 @@ export default async function StoresPage() {
               return (
                 <tr key={s.id} className={`border-t ${s.isActive ? "" : "text-gray-400"}`}>
                   <td className="px-3 py-2">{s.name}{!s.isActive && "（停止中）"}</td>
-                  <td className="px-3 py-2">{s.area || <span className="text-amber-600">未入力</span>}</td>
+                  <td className="px-3 py-2">{[s.city, s.area].filter(Boolean).join("／") || <span className="text-amber-600">未入力</span>}</td>
                   <td className="px-3 py-2">{ch.gbp ? "○" : "—"}</td>
                   <td className="px-3 py-2">
                     {ch.instagram ? (expiring ? <span className="text-amber-600">期限間近</span> : "○") : "—"}

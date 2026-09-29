@@ -3,10 +3,17 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import type { Flag } from "@/lib/compliance";
+import { BatchFields } from "@/components/BatchFields";
+import type { PreviewStore } from "@/components/TemplateEditor";
 import {
   approveAction,
+  clearBackgroundAction,
   deleteBatchAction,
   generateAction,
+  makeBackgroundAction,
+  makeMediaAction,
+  updateBatchAction,
+  uploadBackgroundAction,
   regenerateAction,
   retryAction,
   savePostAction,
@@ -22,6 +29,7 @@ export type ReviewPost = {
   gbpText: string;
   igCaption: string;
   imageUrl: string;
+  videoUrl: string | null;
   status: string;
   flags: Flag[];
   error: string | null;
@@ -41,12 +49,30 @@ const DS: Record<string, string> = { pending: "予約中", sending: "送信中",
 
 type Filter = "all" | "draft" | "error" | "approved" | "failed";
 
+type BatchInfo = {
+  id: string;
+  when: string;
+  theme: string;
+  memo: string;
+  mode: string;
+  gbpTemplate: string;
+  igTemplate: string;
+  mediaType: string;
+  headline: string;
+  bgPrompt: string;
+  bgImageUrl: string | null;
+};
+
 export function BatchReview({
   batch,
   posts,
+  preview,
+  themeIdeas,
 }: {
-  batch: { id: string; when: string; theme: string; memo: string; imageUrl: string | null };
+  batch: BatchInfo;
   posts: ReviewPost[];
+  preview: { stores: PreviewStore[]; customKeys: string[] };
+  themeIdeas: string[];
 }) {
   const router = useRouter();
   const [busy, start] = useTransition();
@@ -65,11 +91,13 @@ export function BatchReview({
     [posts, filter],
   );
 
+  const editable = posts.filter((p) => p.status === "draft" || p.status === "pending");
+
   function generateAll() {
     start(async () => {
       let remaining = pendingCount;
       while (remaining > 0) {
-        setProgress(`AI で作成中…（残り ${remaining} 店舗）`);
+        setProgress(`${batch.mode === "template" ? "テンプレートから" : "AI で"}作成中…（残り ${remaining} 店舗）`);
         const r = await generateAction(batch.id);
         if (r.processed === 0) break;
         remaining = r.remaining;
@@ -96,12 +124,16 @@ export function BatchReview({
           <div>
             <div className="text-sm text-gray-500">{batch.when} 投稿</div>
             <h1 className="text-lg font-semibold">{batch.theme}</h1>
-            {batch.memo && <div className="text-sm text-gray-600 mt-1">補足：{batch.memo}</div>}
+            <div className="text-xs text-gray-500 mt-1">
+              {batch.mode === "template" ? "テンプレート差し込み" : "AI 作成"} ／{" "}
+              {{ image: "画像", reel: "リール動画", none: "画像を作らない" }[batch.mediaType] ?? batch.mediaType}
+            </div>
+            {batch.memo && batch.mode === "ai" && <div className="text-sm text-gray-600 mt-1">補足：{batch.memo}</div>}
           </div>
           <div className="flex flex-wrap gap-2">
             {pendingCount > 0 && (
               <button onClick={generateAll} disabled={busy} className="bg-brand text-white px-3 py-1.5 rounded text-sm disabled:opacity-50">
-                AI で作成（{pendingCount} 店舗）
+                {batch.mode === "template" ? "テンプレートから作成" : "AI で作成"}（{pendingCount} 店舗）
               </button>
             )}
             <button
@@ -125,6 +157,29 @@ export function BatchReview({
         {progress && <div className="text-sm text-brand">{progress}</div>}
       </div>
 
+      <details className="bg-white border rounded">
+        <summary className="px-4 py-2 cursor-pointer text-sm font-medium">作り方・テンプレートを変更</summary>
+        <form
+          action={(form) =>
+            start(async () => {
+              const n = await updateBatchAction(batch.id, form);
+              alert(`保存しました。未承認の ${n} 店舗を作り直し対象にしました。「作成」を押してください。`);
+              router.refresh();
+            })
+          }
+          className="p-4 space-y-4 border-t"
+        >
+          <BatchFields d={batch} stores={preview.stores} customKeys={preview.customKeys} themeIdeas={themeIdeas} />
+          <button disabled={busy} className="bg-brand text-white px-4 py-2 rounded text-sm disabled:opacity-50">
+            保存して未承認分を作り直す
+          </button>
+        </form>
+      </details>
+
+      {batch.mediaType !== "none" && (
+        <MediaPanel batch={batch} targets={editable.filter((p) => p.status === "draft").map((p) => p.id)} busy={busy} start={start} setProgress={setProgress} />
+      )}
+
       <div className="flex flex-wrap gap-1 text-sm">
         {(
           [
@@ -147,7 +202,7 @@ export function BatchReview({
 
       <div className="grid gap-3 lg:grid-cols-2">
         {shown.map((p) => (
-          <PostCard key={`${p.id}-${p.status}-${p.gbpText.length}`} post={p} disabled={busy} />
+          <PostCard key={`${p.id}-${p.status}-${p.gbpText.length}-${p.imageUrl}-${p.videoUrl}`} post={p} disabled={busy} />
         ))}
       </div>
     </div>
@@ -193,12 +248,16 @@ function PostCard({ post, disabled }: { post: ReviewPost; disabled: boolean }) {
       {post.status !== "pending" && (
         <>
           <div className="flex gap-2">
-            {imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="" className="w-20 h-20 object-cover rounded border shrink-0" />
+            {post.videoUrl ? (
+              <video src={post.videoUrl} poster={imageUrl || undefined} controls muted className="w-24 h-40 object-cover rounded border shrink-0 bg-black" />
+            ) : (
+              imageUrl && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <a href={imageUrl} target="_blank" rel="noreferrer"><img src={imageUrl} alt="" className="w-24 h-28 object-cover rounded border shrink-0" /></a>
+              )
             )}
             <label className="text-xs text-gray-500 flex-1">
-              画像 URL（Instagram は必須）
+              {post.videoUrl ? "表紙画像 URL（GBP に使用）" : "画像 URL（Instagram は必須）"}
               <input
                 value={imageUrl}
                 onChange={(e) => setImage(e.target.value)}
@@ -256,7 +315,7 @@ function PostCard({ post, disabled }: { post: ReviewPost; disabled: boolean }) {
       <div className="flex flex-wrap gap-2 pt-1">
         {post.status === "pending" && (
           <button onClick={() => run(() => regenerateAction(post.id))} disabled={busy || disabled} className="border px-2 py-1 rounded text-xs">
-            この店舗を AI で作成
+            この店舗を作成
           </button>
         )}
         {post.status === "draft" && (
@@ -275,7 +334,7 @@ function PostCard({ post, disabled }: { post: ReviewPost; disabled: boolean }) {
               disabled={busy || disabled}
               className="border px-2 py-1 rounded text-xs"
             >
-              AI で作り直す
+              作り直す
             </button>
             <button
               onClick={() =>
@@ -304,6 +363,104 @@ function PostCard({ post, disabled }: { post: ReviewPost; disabled: boolean }) {
             失敗した媒体を再送
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function MediaPanel({
+  batch,
+  targets,
+  busy,
+  start,
+  setProgress,
+}: {
+  batch: BatchInfo;
+  targets: string[];
+  busy: boolean;
+  start: (fn: () => Promise<void>) => void;
+  setProgress: (s: string | null) => void;
+}) {
+  const router = useRouter();
+  const reel = batch.mediaType === "reel";
+
+  const guard = (fn: () => Promise<void>) =>
+    start(async () => {
+      try {
+        await fn();
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "失敗しました");
+      } finally {
+        setProgress(null);
+        router.refresh();
+      }
+    });
+
+  function makeAll() {
+    if (!targets.length) return alert("確認待ちの投稿がありません。先に文章を作成してください。");
+    guard(async () => {
+      const chunk = reel ? 2 : 6;
+      const errors: string[] = [];
+      for (let i = 0; i < targets.length; i += chunk) {
+        setProgress(`${reel ? "リール動画" : "画像"}を作成中…（${i}/${targets.length} 店舗）`);
+        const r = await makeMediaAction(batch.id, targets.slice(i, i + chunk));
+        errors.push(...r.errors);
+      }
+      if (errors.length) alert(`作成できなかった店舗があります：\n${errors.join("\n")}`);
+    });
+  }
+
+  return (
+    <div className="bg-white border rounded p-4 flex flex-wrap gap-4 items-start">
+      <div className="w-28 shrink-0">
+        {batch.bgImageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={batch.bgImageUrl} alt="背景" className={`w-28 ${reel ? "h-48" : "h-36"} object-cover rounded border`} />
+        ) : (
+          <div className={`w-28 ${reel ? "h-48" : "h-36"} rounded border bg-gray-50 text-xs text-gray-400 flex items-center justify-center text-center p-2`}>
+            背景未設定（各店舗の写真を使用）
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-60 space-y-2 text-sm">
+        <div className="font-medium">{reel ? "リール動画" : "投稿画像"}の作成</div>
+        <p className="text-xs text-gray-500">
+          共通の背景に見出しを入れ、店舗ごとに院名・エリアの帯を付けます。{reel ? "リールは「見出し → 本文の要点 → 院名と予約案内」の 12 秒の縦動画です。" : ""}
+          文章を直した後に作り直すと、リールの 2 枚目に反映されます。
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => guard(async () => { setProgress("AI で背景画像を作成中…（20 秒ほど）"); await makeBackgroundAction(batch.id); })}
+            className="border px-3 py-1.5 rounded text-sm"
+          >
+            AI で背景を作成
+          </button>
+          <label className="border px-3 py-1.5 rounded text-sm cursor-pointer">
+            背景をアップロード
+            <input
+              type="file"
+              accept="image/jpeg,image/png"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (!f) return;
+                const fd = new FormData();
+                fd.set("file", f);
+                guard(() => uploadBackgroundAction(batch.id, fd));
+              }}
+            />
+          </label>
+          {batch.bgImageUrl && (
+            <button type="button" disabled={busy} onClick={() => guard(() => clearBackgroundAction(batch.id))} className="px-3 py-1.5 rounded text-sm text-gray-500">
+              背景を外す
+            </button>
+          )}
+          <button type="button" disabled={busy || !targets.length} onClick={makeAll} className="bg-brand text-white px-3 py-1.5 rounded text-sm disabled:opacity-50">
+            確認待ち {targets.length} 店舗の{reel ? "動画" : "画像"}を作成
+          </button>
+        </div>
       </div>
     </div>
   );

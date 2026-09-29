@@ -189,3 +189,20 @@ export async function fetchMetrics(locationId: string, start: Date, end: Date): 
   }
   return totals;
 }
+
+// 検索キーワード（月別の表示回数。少ない語は "threshold" で「〇未満」として返る）
+export async function fetchSearchKeywords(locationId: string, year: number, month: number, limit = 20) {
+  const p = new URLSearchParams({
+    "monthlyRange.startMonth.year": String(year),
+    "monthlyRange.startMonth.month": String(month),
+    "monthlyRange.endMonth.year": String(year),
+    "monthlyRange.endMonth.month": String(month),
+    pageSize: "100",
+  });
+  type R = { searchKeywordsCounts?: { searchKeyword: string; insightsValue?: { value?: string; threshold?: string } }[] };
+  const r = await gfetch<R>(`https://businessprofileperformance.googleapis.com/v1/locations/${locationId}/searchkeywords/impressions/monthly?${p}`);
+  return (r.searchKeywordsCounts ?? [])
+    .map((k) => ({ keyword: k.searchKeyword, count: Number(k.insightsValue?.value ?? 0), under: k.insightsValue?.threshold ? Number(k.insightsValue.threshold) : null }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, limit);
+}

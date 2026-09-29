@@ -12,3 +12,4 @@ prisma/dev.db-journal
 .turbo
 next-env.d.ts
 tsconfig.tsbuildinfo
+storage/
