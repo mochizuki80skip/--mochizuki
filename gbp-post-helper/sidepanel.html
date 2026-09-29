@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>GBP 投稿アシスタント</title>
+  <link rel="stylesheet" href="sidepanel.css" />
+</head>
+<body>
+  <nav class="tabs">
+    <button data-tab="compose" class="active">作成</button>
+    <button data-tab="drafts">下書き</button>
+    <button data-tab="settings">設定</button>
+  </nav>
+
+  <!-- 作成 -->
+  <section id="tab-compose" class="tab active">
+    <label>テーマ
+      <select id="theme"></select>
+    </label>
+    <label>補足メモ（任意：伝えたいこと・症状・キャンペーン内容など）
+      <textarea id="memo" rows="2" placeholder="例：朝晩の冷え込みで寝違えの来院が増えている"></textarea>
+    </label>
+    <div class="row">
+      <button id="btn-template">テンプレートで作成</button>
+      <button id="btn-ai" class="primary">AIで作成</button>
+    </div>
+
+    <label>投稿本文 <span id="count" class="muted"></span>
+      <textarea id="body" rows="12"></textarea>
+    </label>
+    <div id="warnings"></div>
+
+    <label>画像（任意）
+      <input type="file" id="image" accept="image/png,image/jpeg" />
+    </label>
+    <div id="image-preview"></div>
+
+    <label>投稿予定日（下書き管理用）
+      <input type="date" id="planned" />
+    </label>
+
+    <div class="row">
+      <button id="btn-save">下書きに保存</button>
+      <button id="btn-fill" class="primary">GBP に入力</button>
+    </div>
+    <button id="btn-open" class="link">GBP の投稿画面を開く</button>
+    <div id="status"></div>
+  </section>
+
+  <!-- 下書き -->
+  <section id="tab-drafts" class="tab">
+    <div id="draft-list"></div>
+  </section>
+
+  <!-- 設定 -->
+  <section id="tab-settings" class="tab">
+    <label>院名 <input id="s-name" placeholder="〇〇接骨院" /></label>
+    <label>地域（駅名・市区町村） <input id="s-area" placeholder="〇〇駅 徒歩3分" /></label>
+    <label>得意な施術・特徴 <input id="s-features" placeholder="骨盤矯正、スポーツ外傷、交通事故治療" /></label>
+    <label>締めの定型文 <textarea id="s-footer" rows="3" placeholder="ご予約はWEBから24時間受付中です。"></textarea></label>
+    <label>投稿画面の URL <input id="s-url" placeholder="https://business.google.com/locations" /></label>
+    <label>Gemini API キー（AI作成に使用・この端末にのみ保存）<input id="s-key" type="password" /></label>
+    <label>Gemini モデル <input id="s-model" placeholder="gemini-2.5-flash" /></label>
+    <label>追加の NG ワード（1行に1つ） <textarea id="s-ng" rows="3"></textarea></label>
+    <button id="btn-settings" class="primary">保存</button>
+    <div id="settings-status" class="muted"></div>
+  </section>
+
+  <script src="rules.js"></script>
+  <script src="templates.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "GBP 投稿アシスタント（接骨院向け）",
+  "version": "0.1.0",
+  "description": "Googleビジネスプロフィールの投稿文を作成し、投稿画面に入力するところまで自動化します（投稿ボタンは人が押します）。",
+  "permissions": ["storage", "sidePanel", "activeTab", "scripting", "unlimitedStorage"],
+  "host_permissions": [
+    "https://business.google.com/*",
+    "https://www.google.com/*",
+    "https://www.google.co.jp/*",
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "action": { "default_title": "GBP 投稿アシスタント", "default_icon": "icons/icon128.png" },
+  "icons": { "128": "icons/icon128.png" }
+}
