@@ -56,7 +56,7 @@ def add_tree(z, src, dst, skip=lambda rel: False):
             rel = os.path.relpath(full, src)
             if skip(rel) or f in ('.DS_Store', '.gitkeep') and False:
                 continue
-            z.write(full, os.path.join(dst, rel).replace(os.sep, '/'))
+            z.write(full, (os.path.join(dst, rel) if dst else rel).replace(os.sep, '/'))
 
 
 def skip_app(rel):
@@ -89,3 +89,12 @@ with zipfile.ZipFile(OUT_FM, 'w', zipfile.ZIP_DEFLATED) as z:
     add_tree(z, os.path.join(ROOT, 'public'), 'public_html')
     add_tree(z, os.path.join(ROOT, 'app'), 'app', skip_app)
 print(OUT_FM, os.path.getsize(OUT_FM), 'bytes')
+
+# ---- サブドメイン用: Xserver のサブドメインは「公開フォルダ」が
+#      ドメイン名/public_html/サブドメイン.ドメイン名/ になる。その公開フォルダの中で解凍するだけで済む ZIP
+#      （index.php などが直下、app/ はその中。app/ は .htaccess で Web から見えないように保護済み）
+OUT_SUB = os.path.join(ROOT, 'dist', 'line-broadcast-xserver-subdomain.zip')
+with zipfile.ZipFile(OUT_SUB, 'w', zipfile.ZIP_DEFLATED) as z:
+    add_tree(z, os.path.join(ROOT, 'public'), '')
+    add_tree(z, os.path.join(ROOT, 'app'), 'app', skip_app)
+print(OUT_SUB, os.path.getsize(OUT_SUB), 'bytes')
