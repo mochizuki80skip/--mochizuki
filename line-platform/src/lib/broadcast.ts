@@ -40,14 +40,15 @@ async function resolveTargets(broadcastId: string): Promise<{
 
 export async function executeBroadcast(broadcastId: string) {
   const b = await prisma.broadcast.findUniqueOrThrow({ where: { id: broadcastId } });
-  if (b.status !== "draft" && b.status !== "scheduled") {
-    throw new Error(`broadcast already ${b.status}`);
-  }
 
-  await prisma.broadcast.update({
-    where: { id: broadcastId },
+  // 手動実行と cron が重なっても二重送信しないよう、状態遷移で排他的に確保する
+  const claimed = await prisma.broadcast.updateMany({
+    where: { id: broadcastId, status: { in: ["draft", "scheduled"] } },
     data: { status: "sending" },
   });
+  if (claimed.count === 0) {
+    throw new Error(`broadcast already ${b.status}`);
+  }
 
   try {
     const { channelId, targetAll, userIds, totalIfAll } = await resolveTargets(broadcastId);
@@ -110,14 +111,17 @@ export async function executeBroadcast(broadcastId: string) {
 export async function dispatchScheduledBroadcasts(now: Date = new Date()) {
   const due = await prisma.broadcast.findMany({
     where: { status: "scheduled", scheduledAt: { lte: now } },
-    take: 10,
+    take: 30,
   });
-  for (const b of due) {
-    try {
-      await executeBroadcast(b.id);
-    } catch (e) {
-      console.error("[broadcast] failed", b.id, e);
-    }
-  }
+  // 複数アカウントの一括配信が同時刻に並ぶため並列で実行する
+  await Promise.all(
+    due.map(async (b) => {
+      try {
+        await executeBroadcast(b.id);
+      } catch (e) {
+        console.error("[broadcast] failed", b.id, e);
+      }
+    }),
+  );
   return due.length;
 }

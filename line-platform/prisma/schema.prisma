@@ -136,6 +136,7 @@ model InboundMessage {
 model Broadcast {
   id                 String   @id @default(cuid())
   lineChannelId      String
+  campaignId         String?  // 全店舗一括配信から生成された場合
   title              String
   messages           Json
   status             String   @default("draft")
@@ -150,9 +151,11 @@ model Broadcast {
   updatedAt          DateTime @updatedAt
 
   lineChannel  LineChannel    @relation(fields: [lineChannelId], references: [id], onDelete: Cascade)
+  campaign     Campaign?      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   tags         BroadcastTag[]
   deliveryLogs DeliveryLog[]
 
+  @@index([campaignId])
   @@index([lineChannelId, status, scheduledAt])
   @@index([status, scheduledAt])
 }
@@ -249,4 +252,30 @@ model DeliveryLog {
 
   @@index([lineChannelId, sentAt])
   @@index([sentAt])
+}
+
+// 全店舗一括配信（1回の作成で、選択した複数アカウントに Broadcast を展開する）
+model Campaign {
+  id               String   @id @default(cuid())
+  title            String
+  blocks           Json     // 編集画面のブロック定義（プレビュー用）
+  messages         Json     // LINE に送る形式に変換済みのメッセージ
+  audienceTagNames Json     @default("[]") // 空 = 全員。タグはアカウントごとに「名前」で突き合わせる
+  scheduledAt      DateTime?
+  createdById      String?
+  createdAt        DateTime @default(now())
+
+  broadcasts Broadcast[]
+
+  @@index([createdAt])
+}
+
+// 配信用に保管するクライアント側リサイズ済み画像（LINE から公開 URL で取得される）
+model Media {
+  id          String   @id @default(cuid())
+  contentType String
+  data        Bytes
+  width       Int?
+  height      Int?
+  createdAt   DateTime @default(now())
 }
