@@ -81,3 +81,11 @@ with zipfile.ZipFile(OUT, 'w', zipfile.ZIP_DEFLATED) as z:
             z.write(os.path.join(ROOT, 'docs', f), 'docs/' + f)
 
 print(OUT, os.path.getsize(OUT), 'bytes')
+
+# ---- サーバーパネルの「ファイルマネージャ」用: ドメインのフォルダ直下で解凍するだけで
+#      public_html/ と app/ が正しい位置に配置される ZIP（フォルダの移動が不要）
+OUT_FM = os.path.join(ROOT, 'dist', 'line-broadcast-xserver-filemanager.zip')
+with zipfile.ZipFile(OUT_FM, 'w', zipfile.ZIP_DEFLATED) as z:
+    add_tree(z, os.path.join(ROOT, 'public'), 'public_html')
+    add_tree(z, os.path.join(ROOT, 'app'), 'app', skip_app)
+print(OUT_FM, os.path.getsize(OUT_FM), 'bytes')
