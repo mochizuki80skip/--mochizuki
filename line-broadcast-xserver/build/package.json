@@ -1,0 +1,10 @@
+{
+  "name": "line-broadcast-xserver-assets",
+  "private": true,
+  "scripts": {
+    "build": "tailwindcss -c tailwind.config.js -i input.css -o ../public/assets/app.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.14"
+  }
+}

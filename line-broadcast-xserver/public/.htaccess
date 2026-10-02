@@ -1,0 +1,10 @@
+# Xserver（Apache）用。実在するファイル（assets/ や install.php）以外はすべて index.php へ
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+  RewriteRule ^ index.php [L]
+</IfModule>
+
+Options -Indexes

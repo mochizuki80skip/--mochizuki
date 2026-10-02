@@ -3,6 +3,8 @@
 接骨院事業専用の、**複数の公式LINEアカウントをまとめて管理・配信するシステム**。
 他のプロジェクト（`line-platform` など）とは独立しており、DB・認証・デプロイもこのフォルダ単体で完結する。
 
+> **Xserver（レンタルサーバー）で使う場合は、PHP + MySQL 版の [`../line-broadcast-xserver`](../line-broadcast-xserver/README.md) を使用してください。** このフォルダは Next.js（Vercel など Node.js が動く環境）向けです。
+
 ## できること
 
 ### 全店舗 一括配信（`/dashboard/campaigns`）
