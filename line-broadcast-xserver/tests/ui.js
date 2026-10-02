@@ -16,8 +16,15 @@ const ok = (c, n, d = '') => { if (c) { pass++; console.log('  ✔ ' + n); } els
   const badResponses = [];
   page.on('response', r => { if (r.status() >= 400) badResponses.push(r.status() + ' ' + r.request().method() + ' ' + r.url().replace(BASE, '')); });
 
+  console.log('\n== アクセスキー ==');
+  const key = (require('fs').readFileSync('/tmp/lhrun/app/config.php', 'utf8').match(/'access_key' => '([a-f0-9]+)'/) || [])[1];
+  const blocked = await page.goto(BASE + '/login');
+  ok(blocked.status() === 404, 'キー無しのブラウザには 404（ログイン画面は見えない）');
+  badResponses.length = 0; // 上の 404 は意図したもの
+  await page.goto(BASE + '/?k=' + key);
+  ok(page.url() === BASE + '/login' || page.url().endsWith('/login'), 'キー付き URL を開くとログイン画面へ（URL からキーが消える）', page.url());
+
   console.log('\n== ログイン ==');
-  await page.goto(BASE + '/login');
   await page.fill('input[name=email]', 'admin@example.com');
   await page.fill('input[name=password]', 'adminpass1');
   await page.click('button:has-text("ログイン")');

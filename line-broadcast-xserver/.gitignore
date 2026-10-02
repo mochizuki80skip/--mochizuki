@@ -4,3 +4,4 @@ app/storage/logs/*
 !app/storage/media/.gitkeep
 !app/storage/logs/.gitkeep
 build/node_modules/
+dist/

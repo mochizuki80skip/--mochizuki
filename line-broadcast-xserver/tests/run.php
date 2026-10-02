@@ -10,10 +10,13 @@ function ok(bool $cond, string $name, string $detail = ''): void {
 }
 function section(string $s): void { echo "\n== $s ==\n"; }
 
+$GATE_KEY = null; // インストール後に config.php から読む（入口のアクセスキー）
 class Http {
     public string $jar;
     public ?string $csrf = null;
-    public function __construct() { $this->jar = tempnam(sys_get_temp_dir(), 'jar'); }
+    public function __construct(bool $unlocked = true) { $this->jar = tempnam(sys_get_temp_dir(), 'jar'); if ($unlocked && $GLOBALS['GATE_KEY']) $this->unlock(); }
+    /** アクセスキー付き URL を開いて、この端末(Cookie)を通行可能にする */
+    public function unlock(): void { $this->req('GET', '/?k=' . $GLOBALS['GATE_KEY']); }
     public function req(string $method, string $path, array|string|null $body = null, array $headers = [], bool $follow = false): array {
         $ch = curl_init(str_starts_with($path, 'http') ? $path : BASE . $path);
         curl_setopt_array($ch, [CURLOPT_CUSTOMREQUEST => $method, CURLOPT_RETURNTRANSFER => true, CURLOPT_HEADER => true, CURLOPT_FOLLOWLOCATION => $follow,
@@ -83,6 +86,28 @@ $cfg = file_get_contents(RUN . '/app/config.php');
 file_put_contents(RUN . '/app/config.php', str_replace("'https://api.line.me'", "'http://127.0.0.1:9001'", $cfg));
 $r = $admin->req('GET', '/install.php');
 ok($r['status'] === 404 || !str_contains($r['body'], '接続情報'), 'install.php は再実行できない');
+preg_match("/'access_key' => '([a-f0-9]{32})'/", (string)file_get_contents(RUN . '/app/config.php'), $mk);
+$GATE_KEY = $mk[1] ?? null;
+ok($GATE_KEY !== null, 'アクセスキーが自動生成される');
+
+
+section('入口のアクセスキー（URL を知っている人だけ）');
+$stranger = new Http(false); // アクセスキーを知らない人
+foreach (['/', '/login', '/dashboard', '/campaigns', '/channels', '/api/campaigns', '/c/1'] as $path) {
+    $r = $stranger->req('GET', $path);
+    ok($r['status'] === 404 && str_contains($r['body'], 'Not Found') && !str_contains($r['body'], 'LINE'), "キー無しで GET $path → 404（存在しないサイトに見える）", (string)$r['status']);
+}
+ok($stranger->req('POST', '/login', http_build_query(['email' => 'admin@example.com', 'password' => 'adminpass1']))['status'] === 404, 'キー無しではログイン POST も 404');
+ok($stranger->req('GET', '/?k=wrongkey')['status'] === 404, '誤ったキーは 404');
+ok(str_contains($stranger->req('GET', '/login')['headers'], 'X-Robots-Tag: noindex') || str_contains($stranger->req('GET', '/login')['headers'], 'x-robots-tag: noindex'), '404 応答にも noindex ヘッダ');
+ok($stranger->req('GET', '/robots.txt')['body'] === "User-agent: *\nDisallow: /\n", 'robots.txt は全拒否');
+$r = $stranger->req('POST', '/webhook/1', '{}', ['X-Line-Signature: x']);
+ok(str_contains($r['body'], 'channel not found'), 'LINE の Webhook はキー無しでもアプリまで届く（認証は署名検証）', $r['body']);
+$r = $stranger->req('GET', '/?k=' . $GATE_KEY);
+ok($r['status'] === 302 && str_contains($r['headers'], 'Set-Cookie: lhgate=') && !str_contains($r['headers'], 'Location: /?k='), '正しいキー → 通行証 Cookie を発行してキーを消した URL へ');
+ok(str_contains($r['headers'], 'HttpOnly') && str_contains($r['headers'], 'SameSite=Lax'), '通行証 Cookie は HttpOnly / SameSite=Lax');
+ok(str_contains($stranger->req('GET', '/login', null, [], true)['body'], 'ログイン'), '通行証のある端末はログイン画面を見られる');
+$admin->unlock();
 
 // ============================================================
 section('ログイン・CSRF');

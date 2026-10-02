@@ -8,3 +8,8 @@
 </IfModule>
 
 Options -Indexes
+
+# 検索エンジンに載せない（静的ファイルを含むすべての応答）
+<IfModule mod_headers.c>
+  Header set X-Robots-Tag "noindex, nofollow, noarchive"
+</IfModule>

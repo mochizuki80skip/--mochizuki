@@ -24,8 +24,40 @@ if (BASE_PATH !== '' && str_starts_with($path, BASE_PATH)) $path = substr($path,
 $path = '/' . ltrim(rawurldecode($path), '/');
 if ($path === '/index.php') $path = '/';
 
-// LINE からの Webhook・画像取得・cron はセッション不要
-$noSession = str_starts_with($path, '/webhook/') || str_starts_with($path, '/media/') || $path === '/cron';
+// 検索エンジンに載せない（すべての応答に付ける）
+header('X-Robots-Tag: noindex, nofollow, noarchive');
+
+// LINE からの Webhook・画像取得・cron は外部から届く必要がある（アクセスキー不要）
+$isPublicEndpoint = str_starts_with($path, '/webhook/') || str_starts_with($path, '/media/') || $path === '/cron';
+
+// アクセスキーによる入口の保護: URL を知っている人（キー付き URL を開いた端末）だけが画面にたどり着ける。
+// 知らない人には「存在しないサイト」と同じ 404 を返す。キーは config.php の access_key（空なら無効）。
+$gateKey = (string)Config::get('access_key', '');
+if ($gateKey !== '' && !$isPublicEndpoint) {
+    $cookieValue = hash_hmac('sha256', 'linehub-gate', $gateKey);
+    $given = $_GET['k'] ?? null;
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https';
+    if (is_string($given) && hash_equals($gateKey, $given)) {
+        // 正しいキー付き URL → この端末に通行証（Cookie）を渡して、キーを消した URL へ移動
+        setcookie('lhgate', $cookieValue, [
+            'expires' => time() + 86400 * 365, 'path' => BASE_PATH . '/', 'secure' => $https, 'httponly' => true, 'samesite' => 'Lax',
+        ]);
+        $q = $_GET;
+        unset($q['k']);
+        header('Location: ' . BASE_PATH . ($path === '/' ? '/' : $path) . ($q ? '?' . http_build_query($q) : ''));
+        exit;
+    }
+    if (!hash_equals($cookieValue, (string)($_COOKIE['lhgate'] ?? ''))) {
+        http_response_code(404);
+        header('Content-Type: text/html; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n<html><head><title>404 Not Found</title></head><body>\n<h1>Not Found</h1>\n<p>The requested URL was not found on this server.</p>\n</body></html>";
+        exit;
+    }
+}
+
+// セッションは Webhook・画像・cron では不要
+$noSession = $isPublicEndpoint;
 if (!$noSession) Auth::startSession();
 
 // セキュリティヘッダ

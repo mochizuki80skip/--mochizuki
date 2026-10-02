@@ -18,7 +18,7 @@ function page(string $body): void
 if (Config::exists()) {
     page('<div class="bg-white border rounded-lg p-6 space-y-3"><h1 class="text-lg font-semibold">セットアップ済みです</h1>'
         . '<p class="text-sm text-gray-600">すでに設定ファイルがあります。安全のため、サーバー上の <code>install.php</code> を削除してください。</p>'
-        . '<a class="text-line-dark underline text-sm" href="' . h(url('/login')) . '">ログイン画面へ</a></div>');
+        . '<a class="text-line-dark underline text-sm" href="' . h(url('/')) . '">トップへ</a></div>');
 }
 
 $errors = [];
@@ -69,6 +69,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $envOk) {
                 'db' => ['host' => $v['db_host'], 'name' => $v['db_name'], 'user' => $v['db_user'], 'pass' => $v['db_pass']],
                 'base_url' => $v['base_url'],
                 'app_key' => Crypto::generateKey(),
+                // 入口の保護キー。このキー付き URL を開いた端末だけが画面を見られる（空にすると無効）
+                'access_key' => bin2hex(random_bytes(16)),
                 'cron_secret' => '',
                 'line_api_base' => 'https://api.line.me',
                 'debug' => false,
@@ -76,13 +78,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $envOk) {
             $written = file_put_contents($appDir . '/config.php', "<?php\n// install.php により自動生成。秘密情報を含むため公開しないこと。\nreturn " . var_export($config, true) . ";\n", LOCK_EX);
             if ($written === false) throw new RuntimeException('config.php を書き込めませんでした');
             @chmod($appDir . '/config.php', 0600);
+            $accessUrl = $v['base_url'] . '/?k=' . $config['access_key'];
             $deleted = @unlink(__FILE__);
             page('<div class="bg-white border rounded-lg p-6 space-y-3"><h1 class="text-lg font-semibold text-line">セットアップが完了しました</h1>'
-                . '<p class="text-sm">管理者としてログインできます。</p>'
+                . '<div class="bg-yellow-50 border border-yellow-300 rounded p-4 space-y-2"><div class="text-sm font-semibold">あなた専用のアクセス用 URL（必ず控えてください）</div>'
+                . '<input readonly onclick="this.select()" value="' . h($accessUrl) . '" class="w-full border rounded px-3 py-2 text-sm font-mono bg-white">'
+                . '<p class="text-xs text-gray-700">この URL を最初に開いた端末だけが、ログイン画面を見られるようになります。URL を知らない人がサイトを開いても「存在しないページ（404）」と表示されます。'
+                . 'スタッフには、この URL を安全な方法で共有してください（後から管理者画面の「LINE アカウント管理」でも確認できます）。</p></div>'
+                . '<p class="text-sm">開いた後、管理者のメールアドレスとパスワードでログインできます。</p>'
                 . ($deleted ? '<p class="text-sm text-gray-600">install.php は自動で削除しました。</p>'
                     : '<p class="text-sm text-red-600 font-medium">安全のため、サーバー上の install.php を今すぐ削除してください（自動削除できませんでした）。</p>')
                 . '<p class="text-sm text-gray-600">次に、定期実行（cron）を設定してください。手順は docs/Xserver導入手順書.md を参照。</p>'
-                . '<a class="inline-block bg-line text-white rounded px-4 py-2 text-sm" href="' . h(url('/login')) . '">ログイン画面へ</a></div>');
+                . '<a class="inline-block bg-line text-white rounded px-4 py-2 text-sm" href="' . h($accessUrl) . '">アクセス用 URL を開いてログイン画面へ</a></div>');
         } catch (Throwable $e) {
             $errors[] = '失敗しました：' . $e->getMessage();
         }
