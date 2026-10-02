@@ -49,7 +49,7 @@
   </ul>
   <form method="post" action="<?= url('/c/' . $channel['id'] . '/members') ?>" class="grid sm:grid-cols-4 gap-2 items-end">
     <?= csrf_field() ?>
-    <input type="email" name="email" required placeholder="メールアドレス" class="border rounded px-3 py-2 text-sm">
+    <input name="login_id" required placeholder="ログインID（半角英数字 3〜50文字）" autocapitalize="off" class="border rounded px-3 py-2 text-sm">
     <input name="name" placeholder="氏名（新規のみ）" class="border rounded px-3 py-2 text-sm">
     <input type="password" name="password" placeholder="パスワード（新規のみ・8文字以上）" class="border rounded px-3 py-2 text-sm">
     <button class="bg-line text-white rounded px-3 py-2 text-sm">追加</button>

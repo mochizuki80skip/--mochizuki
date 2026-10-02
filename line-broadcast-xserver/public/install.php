@@ -26,7 +26,7 @@ $v = [
     'db_host' => 'localhost', 'db_name' => '', 'db_user' => '', 'db_pass' => '',
     'base_url' => ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https' ? 'https' : 'http')
         . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . BASE_PATH,
-    'email' => '',
+    'login_id' => '',
 ];
 
 // 動作環境のチェック
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $envOk) {
     $password = (string)($_POST['password'] ?? '');
     $v['base_url'] = rtrim($v['base_url'], '/');
 
-    if (!filter_var($v['email'], FILTER_VALIDATE_EMAIL)) $errors[] = '管理者のメールアドレスが正しくありません。';
+    if (!valid_login_id($v['login_id'])) $errors[] = '管理者のログインIDは、半角英数字（. _ @ - も可）で 3〜50 文字にしてください。';
     if (mb_strlen($password) < 8) $errors[] = '管理者パスワードは 8 文字以上にしてください。';
     if (!preg_match('#^https?://#', $v['base_url'])) $errors[] = '公開URLは https:// から入力してください。';
     if ($v['db_name'] === '' || $v['db_user'] === '') $errors[] = 'データベース名とユーザー名を入力してください。';
@@ -63,7 +63,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $envOk) {
             $exists->execute();
             if ((int)$exists->fetchColumn() === 0) {
                 $pdo->prepare("INSERT INTO admin_users (email, password_hash, name, role, created_at) VALUES (?,?,?,'super_admin',?)")
-                    ->execute([$v['email'], password_hash($password, PASSWORD_DEFAULT), '管理者', gmdate('Y-m-d H:i:s')]);
+                    ->execute([$v['login_id'], password_hash($password, PASSWORD_DEFAULT), '管理者', gmdate('Y-m-d H:i:s')]);
             }
             $config = [
                 'db' => ['host' => $v['db_host'], 'name' => $v['db_name'], 'user' => $v['db_user'], 'pass' => $v['db_pass']],
@@ -85,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $envOk) {
                 . '<input readonly onclick="this.select()" value="' . h($accessUrl) . '" class="w-full border rounded px-3 py-2 text-sm font-mono bg-white">'
                 . '<p class="text-xs text-gray-700">この URL を最初に開いた端末だけが、ログイン画面を見られるようになります。URL を知らない人がサイトを開いても「存在しないページ（404）」と表示されます。'
                 . 'スタッフには、この URL を安全な方法で共有してください（後から管理者画面の「LINE アカウント管理」でも確認できます）。</p></div>'
-                . '<p class="text-sm">開いた後、管理者のメールアドレスとパスワードでログインできます。</p>'
+                . '<p class="text-sm">開いた後、管理者のログインIDとパスワードでログインできます。</p>'
                 . ($deleted ? '<p class="text-sm text-gray-600">install.php は自動で削除しました。</p>'
                     : '<p class="text-sm text-red-600 font-medium">安全のため、サーバー上の install.php を今すぐ削除してください（自動削除できませんでした）。</p>')
                 . '<p class="text-sm text-gray-600">次に、定期実行（cron）を設定してください。手順は docs/Xserver導入手順書.md を参照。</p>'
@@ -122,7 +122,7 @@ ob_start(); ?>
   </fieldset>
   <fieldset class="space-y-3">
     <legend class="text-sm font-semibold mb-1">管理者アカウント</legend>
-    <div><label class="block text-sm">メールアドレス</label><input type="email" name="email" value="<?= h($v['email']) ?>" class="mt-1 w-full border rounded px-3 py-2 text-sm"></div>
+    <div><label class="block text-sm">ログインID（半角英数字 3〜50文字。例: admin）</label><input name="login_id" value="<?= h($v['login_id']) ?>" autocapitalize="off" class="mt-1 w-full border rounded px-3 py-2 text-sm"></div>
     <div><label class="block text-sm">パスワード（8文字以上）</label><input type="password" name="password" class="mt-1 w-full border rounded px-3 py-2 text-sm"></div>
   </fieldset>
   <button class="bg-line text-white rounded px-5 py-2 text-sm">セットアップを実行</button>

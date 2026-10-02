@@ -13,8 +13,8 @@
     <h1 class="text-xl font-semibold text-line">接骨院 LINE 一括配信</h1>
     <?php if (!empty($error)): ?><div class="bg-red-50 border border-red-200 text-red-700 text-sm rounded p-3"><?= h($error) ?></div><?php endif; ?>
     <div>
-      <label class="block text-sm font-medium">メールアドレス</label>
-      <input type="email" name="email" required autofocus value="<?= h($email ?? '') ?>" class="mt-1 w-full border rounded px-3 py-2 text-sm">
+      <label class="block text-sm font-medium">ログインID</label>
+      <input type="text" name="login_id" required autofocus autocomplete="username" autocapitalize="off" value="<?= h($loginId ?? '') ?>" class="mt-1 w-full border rounded px-3 py-2 text-sm">
     </div>
     <div>
       <label class="block text-sm font-medium">パスワード</label>

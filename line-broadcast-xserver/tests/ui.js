@@ -25,7 +25,7 @@ const ok = (c, n, d = '') => { if (c) { pass++; console.log('  ✔ ' + n); } els
   ok(page.url() === BASE + '/login' || page.url().endsWith('/login'), 'キー付き URL を開くとログイン画面へ（URL からキーが消える）', page.url());
 
   console.log('\n== ログイン ==');
-  await page.fill('input[name=email]', 'admin@example.com');
+  await page.fill('input[name=login_id]', 'admin');
   await page.fill('input[name=password]', 'adminpass1');
   await page.click('button:has-text("ログイン")');
   await page.waitForURL('**/dashboard');

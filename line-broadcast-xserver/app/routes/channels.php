@@ -101,9 +101,9 @@ Router::post('/c/{id}/delete', function (array $p) {
 Router::post('/c/{id}/members', function (array $p) {
     Auth::requireAdmin();
     $ch = Auth::requireChannel((int)$p['id']);
-    $email = trim((string)($_POST['email'] ?? ''));
-    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-        flash('メールアドレスが正しくありません', 'error');
+    $email = trim((string)($_POST['login_id'] ?? '')); // DB の列名は email だが、中身はログインID
+    if (!valid_login_id($email)) {
+        flash('ログインIDは半角英数字（. _ @ - も可）で 3〜50 文字にしてください', 'error');
         redirect('/c/' . $ch['id'] . '/settings');
     }
     $user = Db::one('SELECT id FROM admin_users WHERE email = ?', [$email]);

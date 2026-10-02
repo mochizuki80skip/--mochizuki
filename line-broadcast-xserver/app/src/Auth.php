@@ -63,18 +63,18 @@ final class Auth
      * ログイン試行。失敗が続く IP は一定時間ブロック（15分で10回まで）
      * @return array{ok:bool,error?:string}
      */
-    public static function attempt(string $email, string $password, string $ip): array
+    public static function attempt(string $loginId, string $password, string $ip): array
     {
         Db::exec('DELETE FROM login_attempts WHERE attempted_at < ?', [gmdate('Y-m-d H:i:s', time() - 3600)]);
         $recent = (int)Db::val('SELECT COUNT(*) FROM login_attempts WHERE ip = ? AND attempted_at > ?', [$ip, gmdate('Y-m-d H:i:s', time() - 900)]);
         if ($recent >= 10) return ['ok' => false, 'error' => 'ログイン試行が多すぎます。15分ほど待ってからやり直してください。'];
 
-        $u = Db::one('SELECT * FROM admin_users WHERE email = ?', [trim($email)]);
+        $u = Db::one('SELECT * FROM admin_users WHERE email = ?', [trim($loginId)]);
         // 存在しないユーザーでも処理時間を揃える
         $hash = $u['password_hash'] ?? '$2y$10$abcdefghijklmnopqrstuuWnYV2Ys3v1o7VvT3t0d9N7Zb7G7q5QK';
         if (!password_verify($password, $hash) || !$u) {
             Db::exec('INSERT INTO login_attempts (ip, attempted_at) VALUES (?, ?)', [$ip, now_utc()]);
-            return ['ok' => false, 'error' => 'メールアドレスまたはパスワードが違います。'];
+            return ['ok' => false, 'error' => 'ログインIDまたはパスワードが違います。'];
         }
         session_regenerate_id(true);
         $_SESSION['uid'] = (int)$u['id'];

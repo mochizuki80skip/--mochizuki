@@ -127,3 +127,9 @@ function detect_base_path(string $publicDir): string
     }
     return rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '')), '/');
 }
+
+/** ログインID: 半角英数字で始まり、半角英数字と . _ @ - が使える 3〜50 文字（メールアドレス形式でもよい） */
+function valid_login_id(string $id): bool
+{
+    return (bool)preg_match('/^[A-Za-z0-9][A-Za-z0-9._@-]{2,49}$/', $id);
+}

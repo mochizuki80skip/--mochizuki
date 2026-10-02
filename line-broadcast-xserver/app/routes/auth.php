@@ -11,11 +11,11 @@ Router::get('/login', function () {
 });
 
 Router::post('/login', function () {
-    $email = (string)($_POST['email'] ?? '');
-    $r = Auth::attempt($email, (string)($_POST['password'] ?? ''), (string)($_SERVER['REMOTE_ADDR'] ?? ''));
+    $loginId = (string)($_POST['login_id'] ?? '');
+    $r = Auth::attempt($loginId, (string)($_POST['password'] ?? ''), (string)($_SERVER['REMOTE_ADDR'] ?? ''));
     if (!$r['ok']) {
         http_response_code(401);
-        View::render('auth/login', ['error' => $r['error'], 'email' => $email], null);
+        View::render('auth/login', ['error' => $r['error'], 'loginId' => $loginId], null);
         return;
     }
     redirect('/dashboard');
