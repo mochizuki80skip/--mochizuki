@@ -9,7 +9,7 @@ const Body = z.object({
   messages: z.array(z.record(z.any())).min(1).max(5),
   tagIds: z.array(z.string()).default([]),
   targetAllFollowers: z.boolean().default(true),
-  scheduledAt: z.string().optional(),
+  scheduledAt: z.string().datetime().optional(), // タイムゾーン付き ISO 8601
   sendNow: z.boolean().optional(),
 });
 
@@ -20,8 +20,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 403 });
   }
-  const body = Body.parse(await req.json());
+  const parsed = Body.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "入力が不正です" }, { status: 400 });
+  }
+  const body = parsed.data;
   const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
+  if (scheduledAt && scheduledAt.getTime() < Date.now() - 60_000) {
+    return NextResponse.json({ error: "予約日時が過去です" }, { status: 400 });
+  }
   const status = body.sendNow ? "draft" : scheduledAt ? "scheduled" : "draft";
 
   const broadcast = await prisma.broadcast.create({

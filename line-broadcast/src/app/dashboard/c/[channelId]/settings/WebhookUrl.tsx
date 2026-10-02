@@ -10,10 +10,13 @@ export function WebhookUrl({ channelId }: { channelId: string }) {
 
   return (
     <div className="bg-white border rounded p-5">
-      <h2 className="font-medium mb-2">LINE Webhook URL</h2>
-      <p className="text-sm text-gray-600 mb-2">
-        LINE Developers Console → 該当チャネル → Messaging API 設定 → Webhook URL に以下を設定してください。
-      </p>
+      <h2 className="font-medium mb-2">LINE Webhook URL（アカウントごとに異なります）</h2>
+      <ol className="text-sm text-gray-600 mb-3 list-decimal pl-5 space-y-0.5">
+        <li>下の URL をコピー</li>
+        <li>LINE Developers Console → 該当チャネル →「Messaging API設定」→「Webhook URL」に貼り付けて更新</li>
+        <li>「検証」を押して成功を確認</li>
+        <li>「Webhookの利用」をオンにする</li>
+      </ol>
       <div className="flex gap-2">
         <input
           readOnly

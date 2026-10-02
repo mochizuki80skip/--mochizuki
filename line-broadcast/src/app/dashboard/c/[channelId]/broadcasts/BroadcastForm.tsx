@@ -20,6 +20,7 @@ export function BroadcastForm({ channelId, tags }: { channelId: string; tags: Ta
 
   function submit(action: "save" | "send" | "schedule") {
     setError(null);
+    if (action === "send" && !window.confirm("全対象の友だちにいま配信します。よろしいですか？")) return;
     start(async () => {
       const messages = [{ type: "text", text }];
       const body: Record<string, unknown> = {
@@ -28,7 +29,8 @@ export function BroadcastForm({ channelId, tags }: { channelId: string; tags: Ta
         tagIds: targetTagIds,
         targetAllFollowers: targetTagIds.length === 0,
       };
-      if (action === "schedule") body.scheduledAt = scheduledAt;
+      // datetime-local はタイムゾーン情報を持たないため、ブラウザ（日本時間）で解釈して ISO 8601 にしてから送る
+      if (action === "schedule") body.scheduledAt = new Date(scheduledAt).toISOString();
       if (action === "send") body.sendNow = true;
 
       const res = await fetch(`/api/channels/${channelId}/broadcasts`, {
@@ -97,7 +99,7 @@ export function BroadcastForm({ channelId, tags }: { channelId: string; tags: Ta
       </div>
 
       <div>
-        <label className="block text-sm font-medium">予約日時（任意）</label>
+        <label className="block text-sm font-medium">予約日時（日本時間）</label>
         <input
           type="datetime-local"
           value={scheduledAt}

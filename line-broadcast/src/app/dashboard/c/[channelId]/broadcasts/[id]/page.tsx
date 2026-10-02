@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { ExecuteButton } from "./ExecuteButton";
+import { fmtJst } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -32,11 +33,11 @@ export default async function BroadcastDetail({
         </div>
         <div>
           <span className="text-gray-500">予約：</span>
-          {b.scheduledAt ? new Date(b.scheduledAt).toLocaleString("ja-JP") : "-"}
+          {b.scheduledAt ? fmtJst(b.scheduledAt) : "-"}
         </div>
         <div>
           <span className="text-gray-500">送信：</span>
-          {b.sentAt ? new Date(b.sentAt).toLocaleString("ja-JP") : "-"}
+          {b.sentAt ? fmtJst(b.sentAt) : "-"}
         </div>
         {b.errorMessage && <div className="text-red-600">エラー: {b.errorMessage}</div>}
         <pre className="bg-gray-50 p-3 rounded text-xs overflow-x-auto">

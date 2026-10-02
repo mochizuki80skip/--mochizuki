@@ -194,8 +194,10 @@ model ScenarioStep {
   id           String   @id @default(cuid())
   scenarioId   String
   order        Int
-  delayMinutes Int      @default(0)
-  messages     Json
+  delayMinutes Int      @default(0) // 前のステップ（先頭はトリガー）からの待ち時間（分）
+  sendTime     String?  // "HH:mm"（日本時間）。指定時は「delayMinutes/1440 日後のこの時刻」に送る
+  messages     Json     // LINE 形式
+  blocks       Json?    // 編集画面用のブロック定義（無ければ messages から復元）
   createdAt    DateTime @default(now())
 
   scenario      Scenario          @relation(fields: [scenarioId], references: [id], onDelete: Cascade)

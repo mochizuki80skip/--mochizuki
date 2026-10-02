@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { fmtJst } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function ChannelDashboard({ params }: { params: Promise<{ c
     { label: "累計友だち数", value: totalFriends },
     { label: "タグ数", value: tags },
     { label: "予約配信", value: scheduledBroadcasts },
-    { label: "稼働中シナリオ", value: runningScenarios },
+    { label: "ステップ配信 進行中", value: runningScenarios },
   ];
 
   return (
@@ -57,7 +58,7 @@ export default async function ChannelDashboard({ params }: { params: Promise<{ c
                 <div className="text-gray-700 truncate max-w-xl">{m.text ?? "(non-text)"}</div>
               </div>
               <div className="text-xs text-gray-400 shrink-0">
-                {new Date(m.receivedAt).toLocaleString("ja-JP")}
+                {fmtJst(m.receivedAt)}
               </div>
             </li>
           ))}

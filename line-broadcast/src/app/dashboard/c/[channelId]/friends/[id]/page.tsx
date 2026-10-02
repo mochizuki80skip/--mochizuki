@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { TagPicker } from "./TagPicker";
 import { NotesEditor } from "./NotesEditor";
+import { fmtJst } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -45,7 +46,7 @@ export default async function FriendDetail({
                 <span className="text-gray-400">ブロック中</span>
               )}
               <span className="ml-3 text-gray-500">
-                追加: {new Date(friend.followedAt).toLocaleString("ja-JP")}
+                追加: {fmtJst(friend.followedAt)}
               </span>
             </div>
           </div>
@@ -76,7 +77,7 @@ export default async function FriendDetail({
           {friend.inboundMessages.map((m) => (
             <li key={m.id} className="px-4 py-3 text-sm">
               <div className="text-xs text-gray-400">
-                [{m.type}] {new Date(m.receivedAt).toLocaleString("ja-JP")}
+                [{m.type}] {fmtJst(m.receivedAt)}
               </div>
               <div className="mt-1">{m.text ?? "(non-text)"}</div>
             </li>

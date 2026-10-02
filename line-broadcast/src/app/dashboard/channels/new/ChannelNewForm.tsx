@@ -33,7 +33,7 @@ export function ChannelNewForm() {
         return;
       }
       const j = await res.json();
-      router.push(`/dashboard/c/${j.id}`);
+      router.push(`/dashboard/c/${j.id}/settings`); // Webhook URL の設定へ進む
       router.refresh();
     });
   }
@@ -103,8 +103,8 @@ export function ChannelNewForm() {
       </div>
 
       <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm p-3 rounded">
-        💡 追加後、LINE Developers で Webhook URL を以下に設定してください：<br />
-        <code className="text-xs">https://{`{ドメイン}`}/api/line/webhook/{`{追加後に表示されるID}`}</code>
+        💡 追加後に表示される「設定」画面で、アカウント専用の Webhook URL を確認し、LINE Developers Console に設定してください
+        （設定しないと友だちが同期されず、タグ配信・ステップ配信が動きません）。
       </div>
 
       <button

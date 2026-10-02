@@ -3,7 +3,7 @@ import { getCurrentUser, listAccessibleChannels } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { CAMPAIGN_STATUS_LABEL, summarizeStatus } from "@/lib/campaign";
 import type { BlockInput } from "@/lib/campaign-blocks";
-import { BlockPreview } from "../BlockPreview";
+import { BlockPreview } from "@/components/message/BlockPreview";
 import { CampaignActions } from "./CampaignActions";
 
 export const dynamic = "force-dynamic";

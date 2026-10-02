@@ -29,6 +29,23 @@ export async function startScenariosForTag(channelId: string, friendId: string, 
   }
 }
 
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+// 各ステップの送信予定時刻を求める（前のステップの送信予定 `prev` が起点）
+//  - sendTime なし: prev + delayMinutes
+//  - sendTime あり: prev の日付（日本時間）の delayMinutes/1440 日後の HH:mm。
+//    ただし 0 日後で既にその時刻を過ぎている場合は prev（=すぐ）とする
+export function computeStepTime(prev: Date, delayMinutes: number, sendTime?: string | null): Date {
+  if (!sendTime || !/^([01]\d|2[0-3]):[0-5]\d$/.test(sendTime)) {
+    return new Date(prev.getTime() + delayMinutes * 60_000);
+  }
+  const [hh, mm] = sendTime.split(":").map(Number);
+  const days = Math.floor(delayMinutes / 1440);
+  const jst = new Date(prev.getTime() + JST_OFFSET_MS);
+  const target = Date.UTC(jst.getUTCFullYear(), jst.getUTCMonth(), jst.getUTCDate() + days, hh, mm) - JST_OFFSET_MS;
+  return new Date(Math.max(target, prev.getTime()));
+}
+
 export async function startScenarioForFriend(scenarioId: string, friendId: string) {
   const scenario = await prisma.scenario.findUnique({
     where: { id: scenarioId },
@@ -47,7 +64,7 @@ export async function startScenarioForFriend(scenarioId: string, friendId: strin
 
   let cursor = new Date();
   const runSteps = scenario.steps.map((step) => {
-    cursor = new Date(cursor.getTime() + step.delayMinutes * 60_000);
+    cursor = computeStepTime(cursor, step.delayMinutes, step.sendTime);
     return {
       runId: run.id,
       stepId: step.id,

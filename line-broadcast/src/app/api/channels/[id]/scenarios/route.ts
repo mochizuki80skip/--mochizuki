@@ -1,24 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireChannel } from "@/lib/permissions";
-
-const Body = z.object({
-  name: z.string().min(1).max(120),
-  description: z.string().max(500).nullable().optional(),
-  triggerType: z.enum(["follow", "tag_added", "manual"]),
-  triggerTagId: z.string().nullable().optional(),
-  isActive: z.boolean().default(true),
-  steps: z
-    .array(
-      z.object({
-        order: z.number().int().min(0),
-        delayMinutes: z.number().int().min(0).max(60 * 24 * 365),
-        messages: z.array(z.record(z.any())).min(1),
-      }),
-    )
-    .min(1),
-});
+import { ScenarioInput, buildStepRows } from "@/lib/scenario-input";
+import { publicBaseUrl } from "@/lib/base-url";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,16 +11,32 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 403 });
   }
-  const body = Body.parse(await req.json());
+  const parsed = ScenarioInput.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.issues[0]?.message ?? "入力が不正です" }, { status: 400 });
+  }
+  const body = parsed.data;
+
+  if (body.triggerType === "tag_added") {
+    const tag = await prisma.tag.findFirst({ where: { id: body.triggerTagId!, lineChannelId: id } });
+    if (!tag) return NextResponse.json({ error: "トリガーのタグがこのアカウントにありません" }, { status: 400 });
+  }
+
+  let steps;
+  try {
+    steps = buildStepRows(body, publicBaseUrl(req));
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+  }
   const created = await prisma.scenario.create({
     data: {
       lineChannelId: id,
       name: body.name,
       description: body.description ?? null,
       triggerType: body.triggerType,
-      triggerTagId: body.triggerTagId ?? null,
+      triggerTagId: body.triggerType === "tag_added" ? body.triggerTagId! : null,
       isActive: body.isActive,
-      steps: { create: body.steps },
+      steps: { create: steps },
     },
   });
   return NextResponse.json({ ok: true, id: created.id });

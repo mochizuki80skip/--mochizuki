@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { fmtJst } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,8 @@ const STATUS_LABEL: Record<string, string> = {
   sending: "送信中",
   sent: "送信済",
   failed: "失敗",
+  cancelled: "取消",
+  skipped: "対象なし",
 };
 
 export default async function BroadcastsPage({
@@ -50,9 +53,9 @@ export default async function BroadcastsPage({
                 <td className="px-4 py-2">{STATUS_LABEL[b.status] ?? b.status}</td>
                 <td className="px-4 py-2 text-gray-500">
                   {b.sentAt
-                    ? `送信: ${new Date(b.sentAt).toLocaleString("ja-JP")}`
+                    ? `送信: ${fmtJst(b.sentAt)}`
                     : b.scheduledAt
-                    ? `予約: ${new Date(b.scheduledAt).toLocaleString("ja-JP")}`
+                    ? `予約: ${fmtJst(b.scheduledAt)}`
                     : "-"}
                 </td>
                 <td className="px-4 py-2 text-right">

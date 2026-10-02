@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { fmtJstDate } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -101,7 +102,7 @@ export default async function FriendsPage({
                   )}
                 </td>
                 <td className="px-4 py-2 text-gray-500">
-                  {new Date(f.followedAt).toLocaleDateString("ja-JP")}
+                  {fmtJstDate(f.followedAt)}
                 </td>
                 <td className="px-4 py-2">
                   <Link
