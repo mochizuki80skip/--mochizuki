@@ -65,6 +65,13 @@ export default async function ChannelLayout({
         </nav>
 
         <div className="p-3 border-t space-y-2">
+          <Link
+            href="/dashboard/campaigns"
+            className="flex items-center gap-2 px-3 py-2 rounded text-sm text-line-dark bg-line-light hover:opacity-80"
+          >
+            <Send size={16} />
+            全店舗 一括配信
+          </Link>
           {user.role === "super_admin" && (
             <Link
               href="/dashboard/channels"

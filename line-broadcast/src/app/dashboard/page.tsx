@@ -33,10 +33,13 @@ export default async function DashboardHubPage() {
       <header className="bg-white border-b">
         <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <div className="text-lg font-bold text-line">LINE Platform</div>
+            <div className="text-lg font-bold text-line">接骨院 LINE 一括配信</div>
             <div className="text-xs text-gray-500">{user.email}（{user.role === "super_admin" ? "管理者" : "オペレーター"}）</div>
           </div>
           <div className="flex items-center gap-3">
+            <Link href="/dashboard/campaigns" className="text-sm font-medium text-line-dark hover:underline">
+              全店舗 一括配信
+            </Link>
             {user.role === "super_admin" && (
               <Link
                 href="/dashboard/channels"
