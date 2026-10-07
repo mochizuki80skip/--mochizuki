@@ -9,6 +9,7 @@ if (PHP_SAPI !== 'cli') {
 }
 require __DIR__ . '/bootstrap.php';
 
+Migrator::run();
 $r = Cron::run();
 if ($r === null) {
     echo date('c') . " skipped (already running)\n";

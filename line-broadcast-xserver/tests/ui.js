@@ -174,6 +174,31 @@ const ok = (c, n, d = '') => { if (c) { pass++; console.log('  ✔ ' + n); } els
   await page.waitForSelector('text=進行状況');
   ok(await page.locator('textarea').count() >= 4, '編集画面で既存ステップが復元される');
 
+  console.log('\n== 自動タグ付け（キーワード・QRコード） ==');
+  await page.goto(BASE + '/c/1/keywords');
+  ok(await page.locator('a:has-text("自動タグ付け")').count() > 0, 'サイドメニューに「自動タグ付け」がある');
+  await page.fill('input[placeholder*="静岡エリア"]', '沼津エリアUI');
+  await page.locator('select:has(option[value="__new"])').selectOption('__new');
+  await page.fill('input[placeholder*="新しいタグ名"]', 'エリア：沼津UI');
+  await page.fill('input[placeholder*="登録しました"]', '沼津エリアで登録しました');
+  await page.click('button:has-text("ルールを追加")');
+  await page.waitForSelector('td:has-text("沼津エリアUI")', { timeout: 10000 }).catch(async () => { throw new Error('ルール追加に失敗: ' + (await page.locator('.bg-red-50').allInnerTexts()).join(' / ')); });
+  ok(await page.locator('td:has-text("沼津エリアUI")').count() > 0, 'ルールを追加すると一覧に出る');
+  const row = page.locator('tr:has-text("沼津エリアUI")');
+  ok((await row.innerText()).includes('エリア：沼津UI'), '新しいタグが同時に作られて表示される');
+  await row.locator('button:has-text("QRコード")').click();
+  await page.waitForSelector('img[alt="QRコード"]');
+  const qrSrc = await page.locator('img[alt="QRコード"]').getAttribute('src');
+  ok(/^data:image\/gif;base64,/.test(qrSrc), 'QRコードが表示される');
+  ok((await page.locator('text=https://line.me/R/oaMessage/@mock123/?').count()) > 0, 'QRの中身（友だち追加URL）が表示される');
+  await page.screenshot({ path: '/tmp/ui-keywords.png' });
+  const box = await page.locator('img[alt="QRコード"]').boundingBox();
+  ok(box && box.y >= 0 && box.y < 800, 'QRコードは画面の手前（重ねて表示）に出る', JSON.stringify(box));
+  await page.click('button:has-text("閉じる")');
+  await row.locator('button:has-text("停止")').click();
+  await page.waitForSelector('tr:has-text("沼津エリアUI"):has-text("停止中")');
+  ok(true, 'ルールを停止できる');
+
   console.log('\n== 設定画面 ==');
   await page.goto(BASE + '/c/1/settings');
   ok((await page.locator('input[readonly]').inputValue()).endsWith('/webhook/1'), 'Webhook URL が表示される');

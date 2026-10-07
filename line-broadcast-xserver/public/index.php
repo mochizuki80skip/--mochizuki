@@ -24,6 +24,9 @@ if (BASE_PATH !== '' && str_starts_with($path, BASE_PATH)) $path = substr($path,
 $path = '/' . ltrim(rawurldecode($path), '/');
 if ($path === '/index.php') $path = '/';
 
+// データベースの自動更新（新しいバージョンのファイルを上げただけで、必要なテーブルが追加される）
+Migrator::run();
+
 // 検索エンジンに載せない（すべての応答に付ける）
 header('X-Robots-Tag: noindex, nofollow, noarchive');
 

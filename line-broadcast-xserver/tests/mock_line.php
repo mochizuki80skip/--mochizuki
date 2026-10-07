@@ -9,7 +9,7 @@ file_put_contents(__DIR__ . '/mock_line.log', json_encode($entry, JSON_UNESCAPED
 
 header('Content-Type: application/json');
 if (str_starts_with($auth, 'Bearer BAD')) { http_response_code(401); echo json_encode(['message' => 'Authentication failed']); exit; }
-if ($path === '/v2/bot/info') { echo json_encode(['userId' => 'Ubot', 'displayName' => 'Mock']); exit; }
+if ($path === '/v2/bot/info') { echo json_encode(['userId' => 'Ubot', 'basicId' => '@mock123', 'displayName' => 'Mock']); exit; }
 if (str_starts_with($path, '/v2/bot/profile/')) { echo json_encode(['displayName' => 'テスト太郎 ' . substr($path, -4), 'userId' => basename($path), 'language' => 'ja']); exit; }
 if ($path === '/v2/bot/message/multicast') {
     foreach ($entry['body']['to'] ?? [] as $to) if (str_starts_with($to, 'Ufail')) { http_response_code(400); echo json_encode(['message' => 'invalid user', 'details' => [['property' => 'to', 'message' => 'bad']]]); exit; }

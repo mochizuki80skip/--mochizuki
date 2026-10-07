@@ -9,6 +9,7 @@ $nav = [
     ['tags', $base . '/tags', 'タグ'],
     ['broadcasts', $base . '/broadcasts', '配信履歴'],
     ['scenarios', $base . '/scenarios', 'ステップ配信'],
+    ['keywords', $base . '/keywords', '自動タグ付け'],
     ['settings', $base . '/settings', '設定'],
 ];
 $channels = Auth::channels();

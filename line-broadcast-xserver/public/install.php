@@ -27,6 +27,7 @@ $v = [
     'base_url' => ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https' ? 'https' : 'http')
         . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost') . BASE_PATH,
     'login_id' => '',
+    'app_name' => '接骨院 LINE 一括配信',
 ];
 
 // 動作環境のチェック
@@ -68,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $envOk) {
             $config = [
                 'db' => ['host' => $v['db_host'], 'name' => $v['db_name'], 'user' => $v['db_user'], 'pass' => $v['db_pass']],
                 'base_url' => $v['base_url'],
+                'app_name' => $v['app_name'] !== '' ? $v['app_name'] : '接骨院 LINE 一括配信',
                 'app_key' => Crypto::generateKey(),
                 // 入口の保護キー。このキー付き URL を開いた端末だけが画面を見られる（空にすると無効）
                 'access_key' => bin2hex(random_bytes(16)),
@@ -114,6 +116,11 @@ ob_start(); ?>
     <?php foreach ([['db_host', 'MySQL ホスト名', 'text'], ['db_name', 'データベース名', 'text'], ['db_user', 'ユーザー名', 'text'], ['db_pass', 'パスワード', 'password']] as [$k, $label, $type]): ?>
       <div><label class="block text-sm"><?= h($label) ?></label><input type="<?= $type ?>" name="<?= $k ?>" value="<?= h($type === 'password' ? '' : $v[$k]) ?>" class="mt-1 w-full border rounded px-3 py-2 text-sm"></div>
     <?php endforeach; ?>
+  </fieldset>
+  <fieldset class="space-y-3">
+    <legend class="text-sm font-semibold mb-1">システム名（画面の左上・ログイン画面に表示）</legend>
+    <input name="app_name" value="<?= h($v['app_name']) ?>" maxlength="50" class="w-full border rounded px-3 py-2 text-sm">
+    <p class="text-xs text-gray-500">例：「接骨院 LINE 一括配信」「80SKIPグループ LINE 配信」。あとから <code>app/config.php</code> の <code>app_name</code> で変更できます。</p>
   </fieldset>
   <fieldset class="space-y-3">
     <legend class="text-sm font-semibold mb-1">このシステムの公開URL</legend>

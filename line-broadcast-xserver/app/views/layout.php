@@ -9,7 +9,7 @@ $f = flash();
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="<?= h(csrf_token()) ?>">
   <meta name="robots" content="noindex, nofollow">
-  <title><?= h(!empty($title) ? $title . ' | 接骨院 LINE 一括配信' : '接骨院 LINE 一括配信') ?></title>
+  <title><?= h(!empty($title) ? $title . ' | ' . app_name() : app_name()) ?></title>
   <link rel="stylesheet" href="<?= asset('app.css') ?>">
   <script>window.APP_BASE = <?= json_encode(defined('BASE_PATH') ? BASE_PATH : '') ?>;</script>
   <script defer src="<?= asset('editor.js') ?>"></script>
@@ -20,7 +20,7 @@ $f = flash();
 <?php if ($u): ?>
 <header class="bg-white border-b">
   <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-    <a href="<?= url('/dashboard') ?>" class="font-bold text-line">接骨院 LINE 一括配信</a>
+    <a href="<?= url('/dashboard') ?>" class="font-bold text-line"><?= h(app_name()) ?></a>
     <nav class="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-700">
       <a href="<?= url('/dashboard') ?>" class="hover:text-line-dark">アカウント一覧</a>
       <a href="<?= url('/campaigns') ?>" class="hover:text-line-dark font-medium text-line-dark">全店舗 一括配信</a>

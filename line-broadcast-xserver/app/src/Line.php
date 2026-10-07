@@ -82,6 +82,12 @@ final class Line
         self::request($token, 'POST', '/v2/bot/message/multicast', ['to' => array_values($userIds), 'messages' => $messages], true);
     }
 
+    /** 受信メッセージへの返信（replyToken は受信から 1 分程度で失効する） */
+    public static function reply(string $token, string $replyToken, array $messages): void
+    {
+        self::request($token, 'POST', '/v2/bot/message/reply', ['replyToken' => $replyToken, 'messages' => $messages]);
+    }
+
     public static function push(string $token, string $userId, array $messages): void
     {
         self::request($token, 'POST', '/v2/bot/message/push', ['to' => $userId, 'messages' => $messages], true);

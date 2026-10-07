@@ -133,3 +133,10 @@ function valid_login_id(string $id): bool
 {
     return (bool)preg_match('/^[A-Za-z0-9][A-Za-z0-9._@-]{2,49}$/', $id);
 }
+
+/** 画面に表示するシステム名（config.php の app_name。未設定なら既定名） */
+function app_name(): string
+{
+    $n = trim((string)Config::get('app_name', ''));
+    return $n !== '' ? $n : '接骨院 LINE 一括配信';
+}

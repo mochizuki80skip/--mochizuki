@@ -71,6 +71,9 @@ function handle_line_event(array $ch, array $ev): void
                 'INSERT INTO inbound_messages (friend_id, line_message_id, type, text, received_at) VALUES (?,?,?,?,?)',
                 [$f['id'], $msg['id'] ?? null, $msg['type'] ?? 'unknown', ($msg['type'] ?? '') === 'text' ? ($msg['text'] ?? null) : null, now_utc()]
             );
+            if (($msg['type'] ?? '') === 'text') {
+                Keywords::apply($ch, (int)$f['id'], (string)($msg['text'] ?? ''), $ev['replyToken'] ?? null);
+            }
             break;
     }
 }

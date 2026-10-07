@@ -443,6 +443,98 @@ ok(val('SELECT COUNT(*) FROM scenarios WHERE id = ?', [$tsid]) == 0, '削除');
 ok($admin->api("/api/c/{$ids['B']}/scenarios/$sid/delete")['status'] === 404, '他アカウントのシナリオは操作できない');
 
 // ============================================================
+section('キーワード自動タグ付け（エリア別URL・社員の合言葉）');
+// マイグレーション: テーブルが無くても、画面を開くと自動で作られる（旧バージョンからの更新を想定）
+db()->exec('SET FOREIGN_KEY_CHECKS = 0');
+db()->exec('DROP TABLE IF EXISTS keyword_rules');
+db()->exec('DROP TABLE IF EXISTS schema_migrations');
+db()->exec('SET FOREIGN_KEY_CHECKS = 1');
+$r = $admin->page("/c/{$ids['A']}/keywords");
+ok($r['status'] === 200 && val("SHOW TABLES LIKE 'keyword_rules'") && val("SHOW TABLES LIKE 'schema_migrations'"), 'テーブルが無くても画面を開くと自動で作られる（データベースの自動更新）');
+ok(str_contains($r['body'], '自動タグ付け') && str_contains($r['body'], 'ルールはまだありません'), '自動タグ付けの画面');
+
+$kw = fn(array $d, $c = null) => ($c ?? $admin)->api("/api/c/{$ids['A']}/keywords", $d);
+$r = $kw(['keyword' => '', 'matchType' => 'exact', 'newTagName' => 'x']);
+ok($r['status'] === 400 && str_contains($r['json']['error'], 'キーワード'), '空のキーワードは拒否');
+$r = $kw(['keyword' => 'あ', 'matchType' => 'contains', 'newTagName' => 'x']);
+ok($r['status'] === 400 && str_contains($r['json']['error'], '2 文字以上'), '「含む」で 1 文字のキーワードは拒否（誤反応を防ぐ）');
+$r = $kw(['keyword' => 'テスト', 'matchType' => 'exact']);
+ok($r['status'] === 400 && str_contains($r['json']['error'], 'タグ'), 'タグ未指定は拒否');
+$r = $kw(['keyword' => 'テスト', 'matchType' => 'exact', 'tagId' => $tagB]);
+ok($r['status'] === 400, '別アカウントのタグは使えない');
+
+$r = $kw(['keyword' => '静岡エリア', 'matchType' => 'exact', 'newTagName' => 'エリア：静岡', 'replyText' => '静岡エリアで登録しました。ありがとうございます！']);
+ok($r['status'] === 200, 'エリア用ルールを追加（新しいタグも同時に作成）');
+$ruleArea = (int)$r['json']['id'];
+$tagArea = (int)val('SELECT id FROM tags WHERE channel_id = ? AND name = "エリア：静岡"', [$ids['A']]);
+ok($tagArea > 0, 'タグ「エリア：静岡」が作られている');
+$r = $kw(['keyword' => '静岡エリア', 'matchType' => 'exact', 'tagId' => $tagArea]);
+ok($r['status'] === 400 && str_contains($r['json']['error'], 'すでに'), '同じキーワード・同じタグの重複は拒否');
+$r = $kw(['keyword' => '社員ひみつ合言葉', 'matchType' => 'contains', 'newTagName' => '社員']);
+ok($r['status'] === 200, '社員用の合言葉ルールを追加（含む一致・返信なし）');
+$ruleStaff = (int)$r['json']['id'];
+$tagStaff = (int)val('SELECT id FROM tags WHERE channel_id = ? AND name = "社員"', [$ids['A']]);
+
+// タグをきっかけにするステップ配信も、キーワードで付いたときに開始される
+$sc2 = $admin->api("/api/c/{$ids['A']}/scenarios", ['name' => 'エリア登録後', 'triggerType' => 'tag_added', 'triggerTagId' => $tagArea, 'isActive' => true, 'steps' => [['delayMinutes' => 0, 'blocks' => [['type' => 'text', 'text' => 'エリア登録ありがとう']]]]]);
+$scArea = (int)$sc2['json']['id'];
+
+$webhook = fn(string $u, string $text) => webhook($admin, $ids['A'], $secrets['A'], [['type' => 'message', 'source' => ['type' => 'user', 'userId' => $u], 'replyToken' => 'rt-' . bin2hex(random_bytes(4)), 'message' => ['id' => bin2hex(random_bytes(4)), 'type' => 'text', 'text' => $text]]]);
+$tagsOf = fn(string $u) => array_column(q('SELECT t.name FROM friend_tags ft JOIN tags t ON t.id = ft.tag_id JOIN friends f ON f.id = ft.friend_id WHERE f.line_user_id = ? AND f.channel_id = ? ORDER BY t.name', [$u, $ids['A']]), 'name');
+
+webhook($admin, $ids['A'], $secrets['A'], [$fol('Uk0001'), $fol('Uk0002'), $fol('Uk0003'), $fol('Uk0004')]);
+$before = count(mockLog());
+$webhook('Uk0001', '静岡エリア');
+ok($tagsOf('Uk0001') === ['エリア：静岡'], 'キーワードが一致するとタグが付く');
+$rep = array_values(array_filter(array_slice(mockLog(), $before), fn($e) => $e['path'] === '/v2/bot/message/reply'));
+ok(count($rep) === 1 && str_starts_with($rep[0]['body']['replyToken'], 'rt-') && str_contains($rep[0]['body']['messages'][0]['text'], '静岡エリアで登録しました'), '自動返信が replyToken で送られる');
+ok((int)val('SELECT COUNT(*) FROM scenario_runs r JOIN friends f ON f.id = r.friend_id WHERE r.scenario_id = ? AND f.line_user_id = "Uk0001"', [$scArea]) === 1, 'タグがきっかけのステップ配信が開始される');
+
+$before = count(mockLog());
+$webhook('Uk0001', '静岡エリア');
+ok($tagsOf('Uk0001') === ['エリア：静岡'] && (int)val('SELECT COUNT(*) FROM scenario_runs WHERE scenario_id = ?', [$scArea]) === 1, '同じ人が何度送ってもタグ・ステップ配信は重複しない');
+
+$webhook('Uk0002', " 静岡ｴﾘｱ\u{3000}");
+ok($tagsOf('Uk0002') === ['エリア：静岡'], '全角スペース・半角カナの違いを吸収して一致する');
+$webhook('Uk0003', 'こんにちは');
+ok($tagsOf('Uk0003') === [], '一致しないメッセージにはタグを付けない');
+$before = count(mockLog());
+$webhook('Uk0003', '静岡エリアについて質問です');
+ok($tagsOf('Uk0003') === [] && count(array_filter(array_slice(mockLog(), $before), fn($e) => $e['path'] === '/v2/bot/message/reply')) === 0, '「完全一致」のルールは、文章の一部では反応しない・返信もしない');
+$webhook('Uk0004', '私は社員ひみつ合言葉です');
+ok($tagsOf('Uk0004') === ['社員'], '「含む」のルールは、文章の中にあれば反応する（社員タグ）');
+
+// 配信での利用: 「エリア：静岡」タグの人だけに配信 / 「社員」タグの人だけに配信
+$before = count(mockLog());
+$r = $admin->api('/api/campaigns', ['title' => '静岡キャンペーン', 'blocks' => [['type' => 'text', 'text' => '静岡限定']], 'channelIds' => [$ids['A']], 'tagNames' => ['エリア：静岡'], 'mode' => 'now']);
+$mc = array_values(array_filter(array_slice(mockLog(), $before), fn($e) => $e['path'] === '/v2/bot/message/multicast'));
+$tos = array_merge(...array_map(fn($e) => $e['body']['to'], $mc ?: [['body' => ['to' => []]]]));
+sort($tos);
+ok($tos === ['Uk0001', 'Uk0002'], 'エリアのタグを付けた人だけに配信できる', json_encode($tos));
+$before = count(mockLog());
+$admin->api('/api/campaigns', ['title' => '社員連絡', 'blocks' => [['type' => 'text', 'text' => '社員向け']], 'channelIds' => [$ids['A']], 'tagNames' => ['社員'], 'mode' => 'now']);
+$mc = array_values(array_filter(array_slice(mockLog(), $before), fn($e) => $e['path'] === '/v2/bot/message/multicast'));
+ok(count($mc) === 1 && $mc[0]['body']['to'] === ['Uk0004'], '社員タグの人だけに配信できる');
+
+// 登録用URL
+$r = $admin->page("/c/{$ids['A']}/keywords");
+ok(str_contains($r['body'], 'https://line.me/R/oaMessage/@mock123/?' . rawurlencode('静岡エリア')), '登録用URL（LINE ID + キーワード入力済み）が作られる');
+ok(str_contains($r['body'], '社員ひみつ合言葉') && str_contains($r['body'], 'エリア：静岡'), 'ルール一覧にキーワードとタグが出る');
+
+// 停止・削除
+$admin->api("/api/c/{$ids['A']}/keywords/$ruleArea/toggle", ['isActive' => false]);
+webhook($admin, $ids['A'], $secrets['A'], [$fol('Uk0005')]);
+$webhook('Uk0005', '静岡エリア');
+ok($tagsOf('Uk0005') === [], '停止したルールは反応しない');
+$admin->api("/api/c/{$ids['A']}/keywords/$ruleArea/toggle", ['isActive' => true]);
+$webhook('Uk0005', '静岡エリア');
+ok($tagsOf('Uk0005') === ['エリア：静岡'], '再開すると反応する');
+$admin->api("/api/c/{$ids['A']}/keywords/$ruleStaff/delete");
+ok((int)val('SELECT COUNT(*) FROM keyword_rules WHERE id = ?', [$ruleStaff]) === 0, 'ルールを削除');
+ok($admin->api("/api/c/{$ids['B']}/keywords/$ruleArea/delete")['status'] === 404, '他のアカウントのルールは操作できない');
+ok($op->req('GET', "/c/{$ids['B']}/keywords")['status'] === 403, '担当外アカウントのルール画面は 403');
+
+// ============================================================
 section('アカウント設定・削除');
 $r = $admin->api("/api/c/{$ids['A']}/settings", ['name' => '本店(改)', 'color' => '#123456', 'isActive' => true, 'description' => 'd']);
 ok($r['status'] === 200 && val('SELECT name FROM line_channels WHERE id = ?', [$ids['A']]) === '本店(改)', '名前・色を変更');
@@ -489,6 +581,9 @@ foreach ([[['sent', 'sent'], 'sent'], [['sent', 'failed'], 'partial'], [['failed
 }
 ok(Scenarios::formatMinutes(10260) === '7日3時間' && Scenarios::formatMinutes(90) === '90分' && Scenarios::formatMinutes(180) === '3時間' && Scenarios::formatMinutes(1500) === '1日1時間', '待ち時間の表示（日・時間・分）');
 ok(Scenarios::cumulativeLabels([['delay_minutes' => 0, 'send_time' => null], ['delay_minutes' => 1440, 'send_time' => '10:00'], ['delay_minutes' => 4320, 'send_time' => '10:00']]) === ['すぐ', '1日後 10:00', '4日後 10:00'], '累計ラベル');
+
+ok(Keywords::normalize('ＡＢＣ　ｱｲｳ  Def') === 'abc アイウ def', '正規化（全角英数・半角カナ・空白・大文字小文字）');
+ok(Keywords::matches('ご質問 静岡エリア です', '静岡エリア', 'contains') && !Keywords::matches('ご質問 静岡エリア です', '静岡エリア', 'exact'), '一致判定（含む／完全一致）');
 
 echo "\n";
 echo "結果: $pass 件成功 / $fail 件失敗\n";

@@ -229,6 +229,48 @@
       };
     });
 
+    // キーワード自動タグ付けの画面
+    Alpine.data('keywordRules', function (cfg) {
+      return {
+        channelId: cfg.channelId, rules: cfg.rules, tags: cfg.tags,
+        form: { keyword: '', matchType: 'exact', tagChoice: '', newTagName: '', replyText: '' },
+        busy: false, error: '', copied: false,
+        qr: { open: false, src: '', url: '', label: '' },
+        async add() {
+          this.error = '';
+          this.busy = true;
+          var f = this.form, isNew = f.tagChoice === '__new';
+          var r = await Editor.post('/api/c/' + this.channelId + '/keywords', {
+            keyword: f.keyword, matchType: f.matchType, replyText: f.replyText,
+            tagId: isNew ? null : (f.tagChoice ? Number(f.tagChoice) : null), newTagName: isNew ? f.newTagName : ''
+          });
+          this.busy = false;
+          if (r.ok) { location.reload(); return; }
+          this.error = r.data.error || '追加に失敗しました';
+        },
+        async toggle(rule) {
+          var r = await Editor.post('/api/c/' + this.channelId + '/keywords/' + rule.id + '/toggle', { isActive: !rule.isActive });
+          if (r.ok) rule.isActive = !rule.isActive; else alert(r.data.error || '失敗しました');
+        },
+        async remove(rule) {
+          if (!confirm('「' + rule.keyword + '」のルールを削除します。よろしいですか？')) return;
+          var r = await Editor.post('/api/c/' + this.channelId + '/keywords/' + rule.id + '/delete');
+          if (r.ok) this.rules = this.rules.filter(function (x) { return x.id !== rule.id; }); else alert(r.data.error || '失敗しました');
+        },
+        copy(url) {
+          var self = this;
+          (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).catch(function () { prompt('このURLをコピーしてください', url); });
+          self.copied = true; setTimeout(function () { self.copied = false; }, 1500);
+        },
+        showQr(rule) {
+          var q = qrcode(0, 'M');
+          q.addData(rule.url);
+          q.make();
+          this.qr = { open: true, src: q.createDataURL(8, 16), url: rule.url, label: rule.keyword };
+        }
+      };
+    });
+
     // ステップ配信一覧の「他の店舗へコピー」
     Alpine.data('scenarioRow', function (cfg) {
       return {
