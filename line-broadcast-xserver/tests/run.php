@@ -305,6 +305,11 @@ ok(($d['overview']['uniqueImpression'] ?? 0) === 40, '統計を保存', json_enc
 $r = $admin->page("/campaigns/$cid1");
 ok(str_contains($r['body'], '40') && str_contains($r['body'], '40.0%'), '開封した人数・開封率（40/100 = 40.0%）を表示');
 
+db()->exec('RENAME TABLE broadcast_insights TO broadcast_insights_x');
+$r = $admin->api('/api/campaigns', ['title' => '統計テーブル無し', 'blocks' => [['type' => 'text', 'text' => 'x']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'now']);
+ok(val('SELECT status FROM broadcasts WHERE campaign_id = ?', [(int)$r['json']['campaignId']]) === 'sent', '統計テーブルが無くても、LINE へ配信済みなら「送信済」（失敗にしない）');
+db()->exec('RENAME TABLE broadcast_insights_x TO broadcast_insights');
+
 section('一括配信（タグ絞り込み）');
 $before = count(mockLog());
 $r = $admin->api('/api/campaigns', ['title' => 'タグ配信', 'blocks' => [['type' => 'text', 'text' => 'タグ限定']], 'channelIds' => [$ids['A'], $ids['B'], $ids['C']], 'tagNames' => ['イベント案内'], 'mode' => 'now']);
