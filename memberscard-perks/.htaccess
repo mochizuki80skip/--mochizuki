@@ -1,0 +1,31 @@
+# Xサーバー用設定（Apache互換）
+
+# HTTPSへ統一
+RewriteEngine On
+RewriteCond %{HTTPS} !on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# 公開しないファイル
+<FilesMatch "^(README\.md|DESIGN\.md|\.git.*)$">
+  Require all denied
+</FilesMatch>
+
+# WebPの種類を明示
+AddType image/webp .webp
+
+# 圧縮
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript image/svg+xml
+</IfModule>
+
+# キャッシュ：HTMLは毎回確認（更新がすぐ反映される）、画像は1週間
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache"
+  </FilesMatch>
+  <FilesMatch "\.(webp|png|jpg|svg)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

@@ -1,0 +1,53 @@
+# memberscard-perks/ を Xサーバーへ自動アップロードする
+# リポジトリの既定ブランチに memberscard-perks/ の変更が push されたときだけ動く。
+# 必要な Secrets（GitHub → Settings → Secrets and variables → Actions）:
+#   XSERVER_FTP_SERVER   例: sv12345.xserver.jp
+#   XSERVER_FTP_USERNAME FTPアカウント名
+#   XSERVER_FTP_PASSWORD FTPパスワード
+#   XSERVER_FTP_DIR      例: /example.com/public_html/memberscard/  （末尾 / 必須）
+name: Deploy memberscard-perks to Xserver
+
+on:
+  push:
+    paths: ["memberscard-perks/**"]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-memberscard-perks
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # 既定ブランチ以外（作業ブランチ）の push では本番に出さない
+    if: github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Secrets の確認
+        id: check
+        env:
+          SERVER: ${{ secrets.XSERVER_FTP_SERVER }}
+        run: |
+          if [ -z "$SERVER" ]; then
+            echo "XSERVER_FTP_SERVER が未設定のため、デプロイをスキップします。"
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.ok == 'true'
+
+      - name: FTPSでアップロード
+        if: steps.check.outputs.ok == 'true'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.XSERVER_FTP_SERVER }}
+          username: ${{ secrets.XSERVER_FTP_USERNAME }}
+          password: ${{ secrets.XSERVER_FTP_PASSWORD }}
+          protocol: ftps
+          local-dir: ./memberscard-perks/
+          server-dir: ${{ secrets.XSERVER_FTP_DIR }}
+          exclude: |
+            **/.git*
+            **/.git*/**
+            README.md
