@@ -44,7 +44,8 @@ final class Campaigns
         $tagNames = array_keys($tagNames);
 
         $blocks = Blocks::validate($in['blocks'] ?? null);
-        $messages = Blocks::build($blocks, public_base_url());
+        $trackedLinks = [];
+        $messages = Blocks::build($blocks, public_base_url(), Analytics::mapper($trackedLinks)); // https リンクはクリック計測用 URL に差し替える
 
         $tagsByChannel = [];
         if ($tagNames) {
@@ -55,12 +56,13 @@ final class Campaigns
             foreach ($rows as $r) $tagsByChannel[(int)$r['channel_id']][] = (int)$r['id'];
         }
 
-        $campaignId = Db::tx(function () use ($user, $title, $blocks, $messages, $tagNames, $scheduledAt, $channelIds, $mode, $tagsByChannel) {
+        $campaignId = Db::tx(function () use ($user, $title, $blocks, $messages, $tagNames, $scheduledAt, $channelIds, $mode, $tagsByChannel, $trackedLinks) {
             $cid = Db::insert(
                 'INSERT INTO campaigns (title, blocks, messages, audience_tag_names, scheduled_at, created_by, created_at) VALUES (?,?,?,?,?,?,?)',
                 [$title, json_encode($blocks, JSON_UNESCAPED_UNICODE), json_encode($messages, JSON_UNESCAPED_UNICODE),
                     json_encode($tagNames, JSON_UNESCAPED_UNICODE), $scheduledAt, $user['id'], now_utc()]
             );
+            Analytics::save((int)$cid, $trackedLinks);
             foreach ($channelIds as $ch) {
                 $tagIds = $tagsByChannel[$ch] ?? [];
                 // タグ指定なのに該当タグが無いアカウントは、全員に送ってしまわないよう「対象なし」にする

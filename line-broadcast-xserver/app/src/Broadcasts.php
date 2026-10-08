@@ -29,7 +29,10 @@ final class Broadcasts
 
             if ((int)$b['target_all']) {
                 $count = (int)Db::val('SELECT COUNT(*) FROM friends WHERE channel_id = ? AND is_following = 1', [$channel['id']]);
-                Line::broadcast($token, $messages);
+                $requestId = Line::broadcast($token, $messages);
+                if ($requestId) {
+                    Db::exec('INSERT INTO broadcast_insights (broadcast_id, request_id) VALUES (?, ?) ON DUPLICATE KEY UPDATE request_id = VALUES(request_id)', [$id, $requestId]);
+                }
                 self::finish($id, 'sent', $count, $count, 0, null);
                 return ['ok' => true];
             }

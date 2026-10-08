@@ -60,7 +60,14 @@ Router::get('/campaigns/{id}', function (array $p) {
         return;
     }
     $statuses = array_column($broadcasts, 'status');
+    $insightRows = [];
+    foreach (Db::all('SELECT * FROM broadcast_insights WHERE broadcast_id IN (' . Db::in(array_column($broadcasts, 'id') ?: [0]) . ')', array_column($broadcasts, 'id') ?: [0]) as $r) {
+        $insightRows[(int)$r['broadcast_id']] = Analytics::insightView($r);
+    }
+    $links = Analytics::linkStats((int)$c['id']);
     View::render('campaigns/show', [
+        'links' => $links, 'clicksByDay' => Analytics::clicksByDay((int)$c['id']), 'insights' => $insightRows,
+        'sentTotal' => array_sum(array_map(fn($b) => (int)$b['success_count'], $broadcasts)),
         'title' => $c['title'], 'c' => $c, 'broadcasts' => $broadcasts,
         'status' => Campaigns::summarize($statuses),
         'pending' => count(array_filter($statuses, fn($s) => in_array($s, ['draft', 'scheduled'], true))),
@@ -88,4 +95,45 @@ Router::post('/api/campaigns/{id}/execute', function (array $p) {
 Router::post('/api/campaigns/{id}/cancel', function (array $p) {
     Auth::requireLogin();
     json_out(['ok' => true, 'cancelled' => Campaigns::cancel((int)$p['id'], Auth::channelIds())]);
+});
+
+// LINE の配信統計（開封・クリック）を取得し直す
+Router::post('/api/campaigns/{id}/insights', function (array $p) {
+    Auth::requireLogin();
+    $ids = Auth::channelIds();
+    $sql = 'SELECT b.id FROM broadcasts b JOIN broadcast_insights bi ON bi.broadcast_id = b.id WHERE b.campaign_id = ?';
+    $params = [(int)$p['id']];
+    if (!Auth::isAdmin()) {
+        $sql .= ' AND b.channel_id IN (' . Db::in($ids ?: [0]) . ')';
+        $params = array_merge($params, $ids ?: [0]);
+    }
+    $rows = Db::all($sql, $params);
+    if (!$rows) json_error('LINE の統計を取得できる配信がありません（全員配信のみ対象です）', 404);
+    $errors = [];
+    foreach ($rows as $r) {
+        $res = Analytics::refreshInsight((int)$r['id']);
+        if (!$res['ok']) $errors[] = $res['error'];
+    }
+    json_out(['ok' => !$errors, 'errors' => array_values(array_unique($errors)), 'error' => $errors ? implode(' / ', array_unique($errors)) : null]);
+});
+
+// リンクごとのクリック数を CSV でダウンロード
+Router::get('/campaigns/{id}/links.csv', function (array $p) {
+    Auth::requireLogin();
+    $c = Db::one('SELECT id, title FROM campaigns WHERE id = ?', [(int)$p['id']]);
+    $ids = Auth::channelIds();
+    $allowed = $c && (Auth::isAdmin() || Db::val('SELECT 1 FROM broadcasts WHERE campaign_id = ? AND channel_id IN (' . Db::in($ids ?: [0]) . ') LIMIT 1', array_merge([$c['id']], $ids ?: [0])));
+    if (!$allowed) {
+        http_response_code(404);
+        View::render('error', ['title' => '見つかりません', 'message' => '配信が見つかりません。'], 'layout');
+        return;
+    }
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: attachment; filename="clicks-' . (int)$c['id'] . '.csv"');
+    $out = fopen('php://output', 'w');
+    fwrite($out, "\xEF\xBB\xBF");
+    fputcsv($out, ['リンク', 'URL', 'クリック数', 'クリックした人数(概数)']);
+    foreach (Analytics::linkStats((int)$c['id']) as $l) fputcsv($out, [$l['label'], $l['url'], $l['clicks'], $l['people']]);
+    fclose($out);
+    exit;
 });

@@ -7,7 +7,7 @@ define('APP_DIR', __DIR__);
 date_default_timezone_set('UTC'); // DB には UTC で保存し、表示時に日本時間へ変換する
 mb_internal_encoding('UTF-8');
 
-foreach (['helpers', 'Config', 'Db', 'Crypto', 'Auth', 'Line', 'Blocks', 'Broadcasts', 'Campaigns', 'Scenarios', 'View', 'Router', 'Cron', 'Migrator', 'Keywords'] as $f) {
+foreach (['helpers', 'Config', 'Db', 'Crypto', 'Auth', 'Line', 'Blocks', 'Broadcasts', 'Campaigns', 'Scenarios', 'View', 'Router', 'Cron', 'Migrator', 'Keywords', 'Analytics'] as $f) {
     require_once APP_DIR . '/src/' . $f . '.php';
 }
 

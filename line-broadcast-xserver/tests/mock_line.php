@@ -9,6 +9,13 @@ file_put_contents(__DIR__ . '/mock_line.log', json_encode($entry, JSON_UNESCAPED
 
 header('Content-Type: application/json');
 if (str_starts_with($auth, 'Bearer BAD')) { http_response_code(401); echo json_encode(['message' => 'Authentication failed']); exit; }
+if (str_starts_with($path, '/v2/bot/message/') && in_array(basename($path), ['broadcast', 'multicast'], true)) header('X-Line-Request-Id: req-' . bin2hex(random_bytes(4)));
+if ($path === '/v2/bot/insight/message/event') {
+    parse_str((string)parse_url($_SERVER['REQUEST_URI'], PHP_URL_QUERY), $qs);
+    if (str_contains($qs['requestId'] ?? '', 'none')) { echo json_encode(['overview' => ['requestId' => $qs['requestId'], 'timestamp' => 1]]); exit; }
+    echo json_encode(['overview' => ['requestId' => $qs['requestId'] ?? '', 'timestamp' => 1, 'delivered' => 100, 'uniqueImpression' => 40, 'uniqueClick' => 10], 'clicks' => [['seq' => 1, 'url' => 'https://example.com/a', 'click' => 12, 'uniqueClick' => 10, 'uniqueClickRate' => 10]]]);
+    exit;
+}
 if ($path === '/v2/bot/info') { echo json_encode(['userId' => 'Ubot', 'basicId' => '@mock123', 'displayName' => 'Mock']); exit; }
 if (str_starts_with($path, '/v2/bot/profile/')) { echo json_encode(['displayName' => 'テスト太郎 ' . substr($path, -4), 'userId' => basename($path), 'language' => 'ja']); exit; }
 if ($path === '/v2/bot/message/multicast') {

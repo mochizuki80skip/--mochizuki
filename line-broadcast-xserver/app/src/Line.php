@@ -19,7 +19,7 @@ final class Line
         return rtrim((string)Config::get('line_api_base', 'https://api.line.me'), '/');
     }
 
-    /** @return array{status:int, body:?array} */
+    /** @return array{status:int, body:?array, requestId:?string} */
     public static function request(string $token, string $method, string $path, ?array $body = null, bool $idempotent = false): array
     {
         $retryKey = $idempotent ? new_uuid() : null; // 再試行しても二重送信にならないようにする LINE の仕組み
@@ -39,15 +39,20 @@ final class Line
                 CURLOPT_CONNECTTIMEOUT => 10,
             ]);
             if ($body !== null) curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $requestId = null;
+            curl_setopt($ch, CURLOPT_HEADERFUNCTION, function ($c, string $line) use (&$requestId): int {
+                if (stripos($line, 'x-line-request-id:') === 0) $requestId = trim(substr($line, 18));
+                return strlen($line);
+            });
             $raw = curl_exec($ch);
             $status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
             $err = curl_error($ch);
             curl_close($ch);
 
             $decoded = is_string($raw) && $raw !== '' ? json_decode($raw, true) : null;
-            $last = ['status' => $status, 'body' => is_array($decoded) ? $decoded : null, 'error' => $err];
-            if ($status === 409 && $retryKey) return ['status' => 200, 'body' => null]; // 同じキーで受付済み = 成功
-            if ($status >= 200 && $status < 300) return ['status' => $status, 'body' => $last['body']];
+            $last = ['status' => $status, 'body' => is_array($decoded) ? $decoded : null, 'error' => $err, 'requestId' => $requestId];
+            if ($status === 409 && $retryKey) return ['status' => 200, 'body' => null, 'requestId' => null]; // 同じキーで受付済み = 成功
+            if ($status >= 200 && $status < 300) return ['status' => $status, 'body' => $last['body'], 'requestId' => $requestId];
             if ($status !== 0 && $status < 500) break; // 4xx は再試行しても無駄
         }
 
@@ -72,9 +77,16 @@ final class Line
         }
     }
 
-    public static function broadcast(string $token, array $messages): void
+    /** @return ?string LINE のリクエスト ID（配信の統計を引くために使う） */
+    public static function broadcast(string $token, array $messages): ?string
     {
-        self::request($token, 'POST', '/v2/bot/message/broadcast', ['messages' => $messages], true);
+        return self::request($token, 'POST', '/v2/bot/message/broadcast', ['messages' => $messages], true)['requestId'] ?? null;
+    }
+
+    /** 配信ごとの開封・クリック統計（broadcast / narrowcast の配信だけが対象） */
+    public static function insightEvent(string $token, string $requestId): array
+    {
+        return self::request($token, 'GET', '/v2/bot/insight/message/event?requestId=' . rawurlencode($requestId))['body'] ?? [];
     }
 
     public static function multicast(string $token, array $userIds, array $messages): void

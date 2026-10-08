@@ -31,7 +31,7 @@ Migrator::run();
 header('X-Robots-Tag: noindex, nofollow, noarchive');
 
 // LINE からの Webhook・画像取得・cron は外部から届く必要がある（アクセスキー不要）
-$isPublicEndpoint = str_starts_with($path, '/webhook/') || str_starts_with($path, '/media/') || $path === '/cron';
+$isPublicEndpoint = str_starts_with($path, '/webhook/') || str_starts_with($path, '/media/') || str_starts_with($path, '/r/') || $path === '/cron';
 
 // アクセスキーによる入口の保護: URL を知っている人（キー付き URL を開いた端末）だけが画面にたどり着ける。
 // 知らない人には「存在しないサイト」と同じ 404 を返す。キーは config.php の access_key（空なら無効）。

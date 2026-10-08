@@ -161,8 +161,11 @@ final class Blocks
         return rtrim($baseUrl, '/') . '/media/' . $id;
     }
 
-    /** @param array $blocks validate() 済みのブロック */
-    public static function build(array $blocks, string $baseUrl): array
+    /**
+     * @param array $blocks validate() 済みのブロック
+     * @param ?callable $linkMapper (string $url, string $label): string  リンクの差し替え（クリック計測用）
+     */
+    public static function build(array $blocks, string $baseUrl, ?callable $linkMapper = null): array
     {
         $messages = [];
         foreach ($blocks as $b) {
@@ -175,13 +178,13 @@ final class Blocks
                     $messages[] = ['type' => 'image', 'originalContentUrl' => $u, 'previewImageUrl' => $u];
                     break;
                 case 'rich':
-                    $messages[] = self::buildRich($b, $baseUrl);
+                    $messages[] = self::buildRich($b, $baseUrl, $linkMapper);
                     break;
                 case 'cards':
                     $messages[] = [
                         'type' => 'flex',
                         'altText' => $b['altText'],
-                        'contents' => ['type' => 'carousel', 'contents' => array_map(fn($c) => self::bubble($c, $baseUrl), $b['cards'])],
+                        'contents' => ['type' => 'carousel', 'contents' => array_map(fn($c, $i) => self::bubble($c, $baseUrl, $linkMapper, $i + 1), $b['cards'], array_keys($b['cards']))],
                     ];
                     break;
             }
@@ -189,7 +192,7 @@ final class Blocks
         return $messages;
     }
 
-    private static function buildRich(array $b, string $baseUrl): array
+    private static function buildRich(array $b, string $baseUrl, ?callable $linkMapper = null): array
     {
         $width = 1040;
         $height = (int)min(2080, max(1, round($width * $b['ratio'])));
@@ -198,7 +201,7 @@ final class Blocks
             $area = ['x' => (int)round($x * $width), 'y' => (int)round($y * $height), 'width' => (int)round($w * $width), 'height' => (int)round($h * $height)];
             $a = $b['areas'][$i];
             $actions[] = $a['kind'] === 'uri'
-                ? ['type' => 'uri', 'linkUri' => $a['value'], 'area' => $area]
+                ? ['type' => 'uri', 'linkUri' => $linkMapper ? $linkMapper($a['value'], 'リッチメッセージ ' . ($i + 1) . ' つ目のエリア') : $a['value'], 'area' => $area]
                 : ['type' => 'message', 'text' => $a['value'], 'area' => $area];
         }
         return [
@@ -210,7 +213,7 @@ final class Blocks
         ];
     }
 
-    private static function bubble(array $c, string $baseUrl): array
+    private static function bubble(array $c, string $baseUrl, ?callable $linkMapper = null, int $no = 1): array
     {
         $body = [['type' => 'text', 'text' => $c['title'], 'weight' => 'bold', 'size' => 'lg', 'wrap' => true]];
         if ($c['description'] !== '') {
@@ -225,7 +228,7 @@ final class Blocks
                 'type' => 'box', 'layout' => 'vertical', 'spacing' => 'sm',
                 'contents' => array_map(fn($btn, $i) => [
                     'type' => 'button', 'style' => $i === 0 ? 'primary' : 'secondary', 'height' => 'sm',
-                    'action' => ['type' => 'uri', 'label' => $btn['label'], 'uri' => $btn['uri']],
+                    'action' => ['type' => 'uri', 'label' => $btn['label'], 'uri' => $linkMapper ? $linkMapper($btn['uri'], 'カード' . $no . '「' . $c['title'] . '」のボタン「' . $btn['label'] . '」') : $btn['uri']],
                 ], $c['buttons'], array_keys($c['buttons'])),
             ];
         }
