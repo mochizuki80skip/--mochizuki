@@ -12,7 +12,7 @@
 memberscard-perks/
 ├─ index.html          画面・スタイル・データ・スクリプト
 ├─ .htaccess           Xサーバー用（HTTPS統一・キャッシュ・圧縮）
-├─ logo-80skip.webp  HACHIMARU SKIPロゴ（640x226）
+├─ logo-80skip.webp  HACHIMARU SKIPロゴ（640x216）
 ├─ card.webp  MEMBER'S CARD画面（360x640）
 ├─ banner.webp  受け取りバナー（900x506）
 └─ spopia.webp  スポーピアシラトリのロゴ（176x176）
