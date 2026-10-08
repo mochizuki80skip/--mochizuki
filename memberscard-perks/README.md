@@ -4,6 +4,7 @@
 ビルドなし・単一の `index.html`。ハッシュで画面を切り替える（`#top` = 一覧、`#sporpia` = 詳細）。
 
 - リポジトリ: GitHub（このフォルダ `memberscard-perks/`）
+- 公開URL: https://partnership.hachimaru-80skip.com/
 - サーバー: Xサーバー（GitHub Actions で FTPS 自動アップロード）
 
 ## ファイル
@@ -21,9 +22,7 @@ memberscard-perks/
 
 ## 公開手順（GitHub → Xサーバー）
 
-1. Xサーバーのサーバーパネルで、公開先を決める
-   - 例: `https://example.com/memberscard/` → `/example.com/public_html/memberscard/`
-   - サブドメインにする場合は、先にサブドメインを作成し、その `public_html/`
+1. Xサーバーのサーバーパネル → サブドメイン設定で `partnership.hachimaru-80skip.com` を追加（無料独自SSLも有効にする）
 2. サーバーパネル → FTPアカウント設定 で、公開先フォルダに限定したFTPアカウントを作る（推奨）
 3. GitHub → Settings → Secrets and variables → Actions に4つ登録
 
@@ -40,7 +39,7 @@ memberscard-perks/
    - Secrets 未設定の間は、デプロイをスキップする
 5. スマホのLINEアプリ内ブラウザで、表示・固定ボタン・電話・地図・ハッシュ遷移を確認
 6. リッチメニュー等にURLを設定（UTM付き）
-   - `…/memberscard/?utm_source=line&utm_medium=richmenu`
+   - `https://partnership.hachimaru-80skip.com/?utm_source=line&utm_medium=richmenu`
    - `…?utm_source=line&utm_medium=greeting` / `…?utm_source=line&utm_medium=broadcast`
 
 ## 計測
