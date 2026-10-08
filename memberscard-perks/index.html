@@ -129,9 +129,9 @@
 
   /* ブランド帯 */
   .brandbar { background: #fff; border-bottom: 1px solid #d2e1f1; }
-  .brandbar .wrap { display: flex; align-items: center; height: 56px; }
+  .brandbar .wrap { display: flex; align-items: center; height: 60px; }
   .brandbar a { display: inline-flex; align-items: center; text-decoration: none; color: #0c2550; }
-  .brandbar img { height: 32px; width: auto; }
+  .brandbar img { height: 44px; width: auto; }
   .fallback-text { font-family: var(--font-head); font-weight: 900; letter-spacing: .04em; color: #0c2550; }
 
   /* ヒーロー */
@@ -266,7 +266,7 @@
   /* フッター */
   footer { margin-top: 40px; padding: 28px 0 24px; border-top: 1px solid var(--line); text-align: center; }
   .footer-logo { display: inline-block; background: #fff; border-radius: 10px; padding: 8px 14px; }
-  .footer-logo img { height: 28px; width: auto; }
+  .footer-logo img { height: 40px; width: auto; }
   footer p { margin: 10px 0 0; font-size: 13px; color: var(--muted); }
 
   /* 固定CTA */
@@ -291,7 +291,7 @@
 <header class="brandbar">
   <div class="wrap">
     <a href="#top" data-tap="brand_logo" aria-label="提携店舗の一覧へ">
-      <img src="logo-80skip.webp" width="640" height="226" alt="HACHIMARU SKIP" data-fallback="HACHIMARU SKIP">
+      <img src="logo-80skip.webp" width="640" height="216" alt="HACHIMARU SKIP" data-fallback="HACHIMARU SKIP">
     </a>
   </div>
 </header>
@@ -308,7 +308,7 @@
 
 <footer>
   <div class="wrap">
-    <span class="footer-logo"><img src="logo-80skip.webp" width="640" height="226" alt="" data-fallback="HACHIMARU SKIP"></span>
+    <span class="footer-logo"><img src="logo-80skip.webp" width="640" height="216" alt="" data-fallback="HACHIMARU SKIP"></span>
     <p>運営：株式会社80SKIPホールディングス</p>
   </div>
 </footer>
@@ -333,7 +333,8 @@ var IMG = {
 
 /* ===== 提携先データ =====
    1要素 = 1提携先。追加すると一覧と詳細ページ（#id）が自動で増える。
-   addr / tel が空の店舗は「要確認」と表示される（公開前に埋めること）。 */
+   addr / tel が空の店舗は「要確認」と表示される（公開前に埋めること）。
+   住所・電話の正本：【80スキップ】カード利用規約（FAX番号は掲載しない）。 */
 var PARTNERS = [
   {
     id: "sporpia",
@@ -350,9 +351,9 @@ var PARTNERS = [
 
     details: [
       "店頭の販売価格から10%OFFになります。",
-      "お取り寄せの商品も対象です。",
+      "店頭に希望のサイズが無いときの、他店舗やメーカーからのお取り寄せも対象です。",
       "一部、対象外の商品があります。",
-      "スポーピアシラトリのアプリに登録すると、ポイントも加算されます。"
+      "スポーピアアプリに登録すると、さらにスポーピアポイントが付きます。"
     ],
 
     team: {
@@ -369,17 +370,17 @@ var PARTNERS = [
 
     stores: [
       { title: "スポーピアシラトリ 静岡店", pref: "静岡県", addr: "静岡県静岡市葵区東町66", tel: "054-254-0171", wd: "10:00〜20:30", we: "10:00〜20:30", off: "年中無休" },
-      { title: "スポーピアシラトリ 藤枝店", pref: "静岡県", addr: "", tel: "", wd: "10:30〜20:30", we: "10:00〜20:30", off: "年中無休" },
-      { title: "スポーピアシラトリ 袋井店", pref: "静岡県", addr: "", tel: "", wd: "10:00〜20:00", we: "10:00〜20:00", off: "年中無休" },
-      { title: "スポーピアシラトリ 浜松中央店", pref: "静岡県", addr: "", tel: "", wd: "10:00〜20:00", we: "10:00〜20:00", off: "年中無休" },
-      { title: "スポーピアシラトリ イオンモール浜松志都呂店", pref: "静岡県", addr: "", tel: "", wd: "10:00〜21:00", we: "10:00〜21:00", off: "年中無休", note: "天災・保守等により臨時休業する場合があります。" },
-      { title: "スポーピアシラトリ 富士店", pref: "静岡県", addr: "", tel: "", wd: "10:00〜20:00", we: "10:00〜20:00", off: "年中無休" },
-      { title: "スポーピアシラトリ 黄瀬川店", pref: "静岡県", addr: "", tel: "", wd: "10:00〜20:30", we: "10:00〜20:30", off: "年中無休" },
-      { title: "スポーピアシラトリ 小田原ダイナシティ店", pref: "神奈川県", addr: "", tel: "", wd: "10:00〜20:00", we: "10:00〜20:00", off: "年中無休", note: "年3回、館の休館日は休業します。" },
-      { title: "スポーピアシラトリ 平塚店", pref: "神奈川県", addr: "", tel: "", wd: "11:00〜20:30", we: "10:00〜20:30", off: "年中無休" },
-      { title: "スポーピアシラトリ 湘南藤沢店", pref: "神奈川県", addr: "", tel: "", wd: "10:00〜21:00", we: "10:00〜21:00", off: "年中無休" },
-      { title: "韋駄天湘南", pref: "神奈川県", addr: "", tel: "", wd: "10:00〜21:00", we: "10:00〜21:00", off: "年中無休", note: "スポーピアシラトリ 湘南藤沢店と同じ建物内にあります。" },
-      { title: "スポーピアシラトリ イオンモール甲府昭和店", pref: "山梨県", addr: "", tel: "", wd: "10:00〜21:00", we: "10:00〜21:00", off: "年中無休", note: "天災・保守等により臨時休業する場合があります。" }
+      { title: "スポーピアシラトリ 藤枝店", pref: "静岡県", addr: "静岡県藤枝市築地575-1", tel: "054-646-2200", wd: "10:30〜20:30", we: "10:00〜20:30", off: "年中無休" },
+      { title: "スポーピアシラトリ 袋井店", pref: "静岡県", addr: "静岡県袋井市国本2543-1", tel: "0538-44-8100", wd: "10:00〜20:00", we: "10:00〜20:00", off: "年中無休" },
+      { title: "スポーピアシラトリ 浜松中央店", pref: "静岡県", addr: "静岡県浜松市中央区上西町906", tel: "053-466-7700", wd: "10:00〜20:00", we: "10:00〜20:00", off: "年中無休" },
+      { title: "スポーピアシラトリ イオンモール浜松志都呂店", pref: "静岡県", addr: "静岡県浜松市中央区志都呂2丁目37-1", tel: "053-488-6277", wd: "10:00〜21:00", we: "10:00〜21:00", off: "年中無休", note: "天災・保守等により臨時休業する場合があります。" },
+      { title: "スポーピアシラトリ 富士店", pref: "静岡県", addr: "静岡県富士市青葉町564", tel: "0545-60-3300", wd: "10:00〜20:00", we: "10:00〜20:00", off: "年中無休" },
+      { title: "スポーピアシラトリ 黄瀬川店", pref: "静岡県", addr: "静岡県駿東郡清水町八幡6-1", tel: "055-930-8888", wd: "10:00〜20:30", we: "10:00〜20:30", off: "年中無休" },
+      { title: "スポーピアシラトリ 小田原ダイナシティ店", pref: "神奈川県", addr: "神奈川県小田原市中里208（ダイナシティWEST 2階）", tel: "0465-48-4880", wd: "10:00〜20:00", we: "10:00〜20:00", off: "年中無休", note: "年3回、ダイナシティウエストの休館日は休業します。" },
+      { title: "スポーピアシラトリ 平塚店", pref: "神奈川県", addr: "神奈川県平塚市東八幡3-2-6", tel: "0463-24-2444", wd: "11:00〜20:30", we: "10:00〜20:30", off: "年中無休" },
+      { title: "スポーピアシラトリ 湘南藤沢店", pref: "神奈川県", addr: "神奈川県藤沢市辻堂新町4-3-5 ミスターマックス湘南藤沢SC内", tel: "0466-99-0001", wd: "10:00〜21:00", we: "10:00〜21:00", off: "年中無休" },
+      { title: "韋駄天湘南", pref: "神奈川県", addr: "神奈川県藤沢市辻堂新町4-3-5 ミスターマックス湘南藤沢SC内", tel: "0466-97-0002", wd: "10:00〜21:00", we: "10:00〜21:00", off: "年中無休", note: "スポーピアシラトリ 湘南藤沢店と同じ建物内にあります。" },
+      { title: "スポーピアシラトリ イオンモール甲府昭和店", pref: "山梨県", addr: "山梨県中巨摩郡昭和町飯喰1505-1 区画2111", tel: "055-287-9090", wd: "10:00〜21:00", we: "10:00〜21:00", off: "年中無休", note: "天災・保守等により臨時休業する場合があります。" }
     ]
   }
 ];
