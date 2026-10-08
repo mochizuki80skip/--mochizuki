@@ -7,12 +7,15 @@ declare(strict_types=1);
  */
 final class Keywords
 {
-    /** 全角/半角・大文字小文字・余分な空白の違いを吸収して比べる */
+    /**
+     * 全角/半角・大文字小文字・**空白（全角・半角・見えない空白を含む）の有無**の違いを吸収して比べる。
+     * LINE の入力欄・トークでは、英数字と日本語の間に空白が入って見えることがあるため、空白はすべて無視する。
+     */
     public static function normalize(string $s): string
     {
-        $s = mb_convert_kana($s, 'asKV', 'UTF-8'); // 全角英数→半角、半角カナ→全角カナ、スペースを半角に
-        $s = preg_replace('/\s+/u', ' ', $s) ?? $s;
-        return mb_strtolower(trim($s));
+        $s = mb_convert_kana($s, 'asKV', 'UTF-8'); // 全角英数→半角、半角カナ→全角カナ
+        $s = preg_replace('/[\s\x{00A0}\x{1680}\x{2000}-\x{200F}\x{2028}\x{2029}\x{202F}\x{205F}\x{2060}\x{3000}\x{FEFF}]+/u', '', $s) ?? $s;
+        return mb_strtolower($s);
     }
 
     public static function matches(string $text, string $keyword, string $type): bool

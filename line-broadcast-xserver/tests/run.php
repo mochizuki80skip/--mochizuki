@@ -582,7 +582,9 @@ foreach ([[['sent', 'sent'], 'sent'], [['sent', 'failed'], 'partial'], [['failed
 ok(Scenarios::formatMinutes(10260) === '7日3時間' && Scenarios::formatMinutes(90) === '90分' && Scenarios::formatMinutes(180) === '3時間' && Scenarios::formatMinutes(1500) === '1日1時間', '待ち時間の表示（日・時間・分）');
 ok(Scenarios::cumulativeLabels([['delay_minutes' => 0, 'send_time' => null], ['delay_minutes' => 1440, 'send_time' => '10:00'], ['delay_minutes' => 4320, 'send_time' => '10:00']]) === ['すぐ', '1日後 10:00', '4日後 10:00'], '累計ラベル');
 
-ok(Keywords::normalize('ＡＢＣ　ｱｲｳ  Def') === 'abc アイウ def', '正規化（全角英数・半角カナ・空白・大文字小文字）');
+ok(Keywords::normalize('ＡＢＣ　ｱｲｳ  Def') === 'abcアイウdef', '正規化（全角英数・半角カナ・空白・大文字小文字）');
+ok(Keywords::matches('80SKIP 社員', '80SKIP社員', 'exact') && Keywords::matches("80SKIP\u{00A0}社員", '80skip社員', 'exact') && Keywords::matches("80SKIP\u{200B}社員", '80SKIP社員', 'exact'), '空白の有無・種類（半角/全角/改行なし空白/見えない空白）を問わず一致する');
+ok(!Keywords::matches('80SKIP 社員です', '80SKIP社員', 'exact'), '完全一致は、余計な文字があれば一致しない');
 ok(Keywords::matches('ご質問 静岡エリア です', '静岡エリア', 'contains') && !Keywords::matches('ご質問 静岡エリア です', '静岡エリア', 'exact'), '一致判定（含む／完全一致）');
 
 echo "\n";
