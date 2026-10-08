@@ -42,6 +42,14 @@ memberscard-perks/
    - `https://partnership.hachimaru-80skip.com/?utm_source=line&utm_medium=richmenu`
    - `…?utm_source=line&utm_medium=greeting` / `…?utm_source=line&utm_medium=broadcast`
 
+## 検索エンジンに載せない設定
+
+LINEの会員向けLPのため、検索に出ないようにしている。
+- `index.html` の `<meta name="robots" content="noindex, nofollow, noarchive">`
+- `.htaccess` の `X-Robots-Tag`（画像にも効く）
+
+`robots.txt` でクロールを禁止すると、検索エンジンが noindex を読めず、URLだけが検索結果に残ることがあるため、`robots.txt` は置かない。
+
 ## 計測
 
 ### GA4
