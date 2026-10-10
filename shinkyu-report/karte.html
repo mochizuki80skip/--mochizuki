@@ -36,17 +36,13 @@
         <label class="field">氏名の列（任意・確認用）
           <select id="colName"></select>
         </label>
-        <label class="field">日付の列（任意・月別集計用）
-          <select id="colDate"></select>
-          <small>初検日・最終来院日など。選ぶと月別の枚数が出ます</small>
-        </label>
       </div>
       <div class="kc-opts">
         <label class="chk"><input type="checkbox" id="optHeader" checked /> 1行目は見出し</label>
         <label class="chk"><input type="checkbox" id="optZero" checked /> 先頭の0は無視する（0125 と 125 を同じにする）</label>
       </div>
       <p class="hint">まとめ方：カルテ番号の<b>数字の部分</b>が同じものを1枚と数えます。
-        例）125・125a・125b・125-2・１２５Ａ → すべて「125」の1枚</p>
+        例）125・125a・125x → すべて「125」の1枚</p>
       <div class="preview-table" id="rawPreview"></div>
     </section>
 
@@ -55,7 +51,7 @@
         <h2><span class="step">3</span>結果</h2>
         <div class="kc-stats">
           <div class="stat"><div class="stat-label">レセコンの件数（行数）</div><div class="stat-num" id="stRows">-</div></div>
-          <div class="stat main"><div class="stat-label">正確なカルテ枚数</div><div class="stat-num" id="stUnique">-</div></div>
+          <div class="stat main"><div class="stat-label">正確なカルテ枚数（被りを除いた顧客数）</div><div class="stat-num" id="stUnique">-</div></div>
           <div class="stat"><div class="stat-label">枝番をまとめて減った数</div><div class="stat-num" id="stMerged">-</div></div>
         </div>
         <p class="hint" id="stNote"></p>
@@ -68,27 +64,12 @@
         </div>
       </section>
 
-      <section class="panel" id="secMonthly" hidden>
-        <h2>期間・月別の枚数</h2>
-        <div class="grid2">
-          <label class="field">期間（開始月）<input type="month" id="from" /></label>
-          <label class="field">期間（終了月）<input type="month" id="to" /></label>
-        </div>
-        <div class="kc-stats small">
-          <div class="stat main"><div class="stat-label">期間内のカルテ枚数</div><div class="stat-num" id="stPeriod">-</div></div>
-          <div class="stat"><div class="stat-label">うち期間内に初めて出てきた番号（新規）</div><div class="stat-num" id="stPeriodNew">-</div></div>
-        </div>
-        <p class="hint">「カルテ枚数」はその月の日付を持つ番号の数（同じ番号の枝番は1枚）。
-          「新規」はその番号（枝番も含む）の一番古い日付がその月のもの。枝番で作り直したカルテは新規に数えません。</p>
-        <div class="table-wrap"><table class="kc-table" id="monthTable"></table></div>
-      </section>
-
       <section class="panel">
         <h2>確認用の一覧</h2>
         <div class="tabs" role="tablist">
           <button type="button" class="btn small active" data-tab="merged">まとめたカルテ <span id="cntMerged"></span></button>
           <button type="button" class="btn small" data-tab="names">同じ氏名で番号が違う <span id="cntNames"></span></button>
-          <button type="button" class="btn small" data-tab="prefix">番号の前に文字がある <span id="cntPrefix"></span></button>
+          <button type="button" class="btn small" data-tab="odd">決まりと違う番号 <span id="cntOdd"></span></button>
           <button type="button" class="btn small" data-tab="bad">番号が読めない行 <span id="cntBad"></span></button>
         </div>
         <p class="hint" id="tabHint"></p>

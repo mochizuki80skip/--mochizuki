@@ -1,6 +1,7 @@
 /* カルテ枚数計算
- * レセコンの顧客リストを読み込み、カルテ番号の数字部分が同じもの（125・125a・125-2 など）を
- * 1枚にまとめて正確なカルテ枚数を出す。ファイルはブラウザ内だけで処理する。
+ * レセコンの顧客リストを読み込み、カルテ番号の数字部分が同じもの（125・125a・125x）を
+ * 1枚にまとめて正確なカルテ枚数（被りを除いた顧客数）を出す。ファイルはブラウザ内だけで処理する。
+ * カルテ番号の決まりは「数字」「数字+a」「数字+x」。それ以外の形は確認用に一覧へ出す。
  */
 (function () {
   'use strict';
@@ -43,57 +44,27 @@
     return { key: digits, prefix: s.slice(0, m.index).trim(), suffix: s.slice(m.index + m[0].length).trim(), text: s };
   }
 
-  const ERAS = { R: 2018, '令和': 2018, H: 1988, '平成': 1988, S: 1925, '昭和': 1925 };
-
-  // 日付を YYYY-MM-DD に（西暦・和暦・Excel の日付に対応）。読めなければ null
-  function parseDate(v) {
-    if (v == null || v === '') return null;
-    if (v instanceof Date && !isNaN(v)) return fmt(v.getFullYear(), v.getMonth() + 1, v.getDate());
-    if (typeof v === 'number' && v > 20000 && v < 80000) {
-      // Excel のシリアル値
-      const d = new Date(Math.round((v - 25569) * 86400000));
-      return fmt(d.getUTCFullYear(), d.getUTCMonth() + 1, d.getUTCDate());
-    }
-    const s = String(v).normalize('NFKC').trim();
-    let m = s.match(/^(令和|平成|昭和|[RHS])\s*(\d{1,2}|元)\s*[年./-]\s*(\d{1,2})\s*[月./-]\s*(\d{1,2})/i);
-    if (m) {
-      const y = ERAS[m[1].toUpperCase()] ?? ERAS[m[1]];
-      return fmt(y + (m[2] === '元' ? 1 : Number(m[2])), Number(m[3]), Number(m[4]));
-    }
-    m = s.match(/^(\d{4})\s*[年./-]\s*(\d{1,2})\s*[月./-]\s*(\d{1,2})/);
-    if (m) return fmt(Number(m[1]), Number(m[2]), Number(m[3]));
-    m = s.match(/^(\d{4})(\d{2})(\d{2})$/);
-    if (m) return fmt(Number(m[1]), Number(m[2]), Number(m[3]));
-    return null;
-  }
-  function fmt(y, mo, d) {
-    if (!(y > 1900 && y < 2200 && mo >= 1 && mo <= 12 && d >= 1 && d <= 31)) return null;
-    return `${y}-${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-  }
+  // 院のカルテ番号の決まり：数字のみ・数字+a・数字+x
+  const isStandard = (text) => /^\d+[ax]?$/i.test(text);
 
   /**
    * 集計
    * @param rows データ行（見出しを除く）
-   * @param cols {no, name, date} 列番号（name/date は -1 で無し）
+   * @param cols {no, name} 列番号（name は -1 で無し）
    */
   function analyze(rows, cols, ignoreZero) {
-    const groups = new Map(); // key → {key, items:[{no, name, date, row}], names:Set, minDate, dates:Set}
+    const groups = new Map(); // key → {key, items:[{no, name}], names:Set}
     const bad = [];
-    const prefixed = [];
+    const odd = [];
     rows.forEach((r, i) => {
       const k = karteKey(r[cols.no], ignoreZero);
       const name = cols.name >= 0 ? String(r[cols.name] ?? '').trim() : '';
-      const date = cols.date >= 0 ? parseDate(r[cols.date]) : null;
       if (!k) { bad.push({ row: i, no: String(r[cols.no] ?? ''), name }); return; }
-      if (k.prefix) prefixed.push({ row: i, no: k.text, key: k.key, name });
+      if (!isStandard(k.text)) odd.push({ row: i, no: k.text, key: k.key, name });
       let g = groups.get(k.key);
-      if (!g) { g = { key: k.key, items: [], names: new Set(), minDate: null, months: new Set() }; groups.set(k.key, g); }
-      g.items.push({ no: k.text, name, date });
+      if (!g) { g = { key: k.key, items: [], names: new Set() }; groups.set(k.key, g); }
+      g.items.push({ no: k.text, name });
       if (name) g.names.add(name.replace(/[\s　]+/g, ''));
-      if (date) {
-        if (!g.minDate || date < g.minDate) g.minDate = date;
-        g.months.add(date.slice(0, 7));
-      }
     });
 
     const list = [...groups.values()].sort((a, b) => Number(a.key) - Number(b.key) || a.key.localeCompare(b.key));
@@ -109,37 +80,10 @@
       .map(([name, gs]) => ({ name, groups: gs }))
       .sort((a, b) => Number(a.groups[0].key) - Number(b.groups[0].key));
 
-    // 月別
-    const months = new Map();
-    list.forEach((g) => {
-      g.months.forEach((m) => { months.set(m, (months.get(m) || { total: 0, fresh: 0 })); months.get(m).total++; });
-      if (g.minDate) {
-        const m = g.minDate.slice(0, 7);
-        if (!months.has(m)) months.set(m, { total: 0, fresh: 0 });
-        months.get(m).fresh++;
-      }
-    });
-    const monthly = [...months.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([month, v]) => ({ month, ...v }));
-
-    return { rows: rows.length, list, merged, bad, prefixed, sameName, monthly, datedRows: list.some((g) => g.minDate) };
+    return { rows: rows.length, list, merged, bad, odd, sameName };
   }
 
-  function periodCount(list, from, to) {
-    let total = 0;
-    let fresh = 0;
-    list.forEach((g) => {
-      let hit = false;
-      g.months.forEach((m) => { if ((!from || m >= from) && (!to || m <= to)) hit = true; });
-      if (hit) total++;
-      if (g.minDate) {
-        const m = g.minDate.slice(0, 7);
-        if ((!from || m >= from) && (!to || m <= to)) fresh++;
-      }
-    });
-    return { total, fresh };
-  }
-
-  const KC = { parseCsv, karteKey, parseDate, analyze, periodCount };
+  const KC = { parseCsv, karteKey, isStandard, analyze };
   if (typeof module !== 'undefined') { module.exports = KC; return; }
 
   // ---------- 画面 ----------
@@ -211,9 +155,8 @@
       no = best < 0 ? 0 : best;
     }
     const name = find(/氏名|患者名|名前|^名$|カナ|フリガナ/);
-    const date = find(/初検|初診|最終来院|来院日|受診日|登録日|日付/);
     const looksHeader = h.some((c) => /[^\d\s./-]/.test(c)) && !/^\s*\d/.test(String(table[0]?.[no] ?? ''));
-    return { no, name, date, looksHeader };
+    return { no, name, looksHeader };
   }
 
   function setupColumns() {
@@ -235,21 +178,19 @@
     const none = '<option value="-1">（使わない）</option>';
     $('#colNo').innerHTML = opts.join('');
     $('#colName').innerHTML = none + opts.join('');
-    $('#colDate').innerHTML = none + opts.join('');
     $('#colNo').value = String(g.no);
     $('#colName').value = String(g.name);
-    $('#colDate').value = String(g.date);
   }
 
   function cols() {
-    return { no: Number($('#colNo').value), name: Number($('#colName').value), date: Number($('#colDate').value) };
+    return { no: Number($('#colNo').value), name: Number($('#colName').value) };
   }
 
   function renderRawPreview() {
     const c = cols();
     const h = header();
     const body = table.slice(h ? 1 : 0, (h ? 1 : 0) + 6);
-    const cls = (i) => (i === c.no || i === c.name || i === c.date ? ' class="sel"' : '');
+    const cls = (i) => (i === c.no || i === c.name ? ' class="sel"' : '');
     const w = width();
     const head = h ? `<tr>${Array.from({ length: w }, (_, i) => `<th>${esc(h[i])}</th>`).join('')}</tr>` : '';
     $('#rawPreview').innerHTML = `<table class="kc-table">${head}${body.map((r) =>
@@ -268,7 +209,6 @@
       ? `※ カルテ番号が読めない行が ${num(result.bad.length)} 件あり、枚数に入れていません（下の「番号が読めない行」で確認できます）。`
       : '';
     renderCompare();
-    renderMonthly();
     renderDetail();
   }
 
@@ -282,31 +222,10 @@
         `<br><small>参考：枝番をまとめる前のレセコンの件数（${num(result.rows)}）と比べると、予約システムの方が ${num(Math.abs(Number(v) - result.rows))} 枚${Number(v) >= result.rows ? '多い' : '少ない'}。</small>`;
   }
 
-  function renderMonthly() {
-    $('#secMonthly').hidden = !result.datedRows;
-    if (!result.datedRows) return;
-    const months = result.monthly.map((m) => m.month);
-    if (!$('#from').value || !months.includes($('#from').value)) $('#from').value = months[Math.max(0, months.length - 12)];
-    if (!$('#to').value || !months.includes($('#to').value)) $('#to').value = months[months.length - 1];
-    const from = $('#from').value;
-    const to = $('#to').value;
-    const p = periodCount(result.list, from, to);
-    $('#stPeriod').textContent = num(p.total);
-    $('#stPeriodNew').textContent = num(p.fresh);
-    const max = Math.max(1, ...result.monthly.map((m) => m.total));
-    $('#monthTable').innerHTML = `<tr><th>月</th><th class="n">カルテ枚数</th><th class="n">うち新規</th><th></th></tr>` +
-      result.monthly.slice().reverse().map((m) => {
-        const inP = (!from || m.month >= from) && (!to || m.month <= to);
-        const [y, mo] = m.month.split('-');
-        return `<tr class="${inP ? 'in-period' : ''}"><td>${y}年${Number(mo)}月</td><td class="n">${num(m.total)}</td><td class="n">${num(m.fresh)}</td>` +
-          `<td><span class="bar" style="width:${Math.round((m.total / max) * 160)}px"></span></td></tr>`;
-      }).join('');
-  }
-
   const TAB_HINT = {
     merged: '数字の部分が同じため1枚にまとめたカルテです。まとめ方が正しいか確認してください。',
     names: '番号は違うが氏名が同じものです。同じ患者様の二重登録の可能性があります（自動ではまとめていません）。同姓同名の別人の場合もあります。',
-    prefix: '番号の前に文字が付いているものです（例：A125）。数字の部分だけでまとめているので、文字で別の患者様を区別している場合はお知らせください。',
+    odd: '「数字」「数字+a」「数字+x」以外の形の番号です（例：125b、A125、125-2）。数字の部分でまとめて数えていますが、入力ミスの可能性があります。',
     bad: 'カルテ番号の列に数字が無い行です。枚数には入れていません。',
   };
 
@@ -314,7 +233,7 @@
     const r = result;
     $('#cntMerged').textContent = `(${num(r.merged.length)})`;
     $('#cntNames').textContent = `(${num(r.sameName.length)})`;
-    $('#cntPrefix').textContent = `(${num(r.prefixed.length)})`;
+    $('#cntOdd').textContent = `(${num(r.odd.length)})`;
     $('#cntBad').textContent = `(${num(r.bad.length)})`;
     $$('.tabs [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     $('#tabHint').textContent = TAB_HINT[tab];
@@ -322,19 +241,18 @@
     const more = (n) => (n > LIMIT ? `<tr><td colspan="4">ほか ${num(n - LIMIT)} 件（CSV で全件を確認できます）</td></tr>` : '');
     let html = '';
     if (tab === 'merged') {
-      html = '<tr><th>まとめた番号</th><th>レセコンの番号</th><th>氏名</th><th>日付</th></tr>' +
+      html = '<tr><th>まとめた番号</th><th>レセコンの番号</th><th>氏名</th></tr>' +
         r.merged.slice(0, LIMIT).map((g) => `<tr><td><b>${esc(g.key)}</b></td>` +
           `<td>${g.items.map((i) => `<span class="tag">${esc(i.no)}</span>`).join('')}</td>` +
-          `<td>${esc([...new Set(g.items.map((i) => i.name).filter(Boolean))].join('、'))}</td>` +
-          `<td>${esc(g.items.map((i) => i.date || '').filter(Boolean).join('、'))}</td></tr>`).join('') + more(r.merged.length);
+          `<td>${esc([...new Set(g.items.map((i) => i.name).filter(Boolean))].join('、'))}</td></tr>`).join('') + more(r.merged.length);
     } else if (tab === 'names') {
       html = '<tr><th>氏名</th><th>番号</th></tr>' +
         r.sameName.slice(0, LIMIT).map((s) => `<tr><td>${esc(s.groups[0].items.find((i) => i.name)?.name || s.name)}</td>` +
           `<td>${s.groups.map((g) => g.items.map((i) => `<span class="tag">${esc(i.no)}</span>`).join('')).join(' ／ ')}</td></tr>`).join('') + more(r.sameName.length);
       if (cols().name < 0) html = '<tr><td>氏名の列を選ぶと確認できます。</td></tr>';
-    } else if (tab === 'prefix') {
+    } else if (tab === 'odd') {
       html = '<tr><th>レセコンの番号</th><th>まとめた番号</th><th>氏名</th></tr>' +
-        r.prefixed.slice(0, LIMIT).map((p) => `<tr><td>${esc(p.no)}</td><td>${esc(p.key)}</td><td>${esc(p.name)}</td></tr>`).join('') + more(r.prefixed.length);
+        r.odd.slice(0, LIMIT).map((p) => `<tr><td>${esc(p.no)}</td><td>${esc(p.key)}</td><td>${esc(p.name)}</td></tr>`).join('') + more(r.odd.length);
     } else {
       const off = $('#optHeader').checked ? 2 : 1;
       html = '<tr><th>行</th><th>カルテ番号の列の値</th><th>氏名</th></tr>' +
@@ -346,10 +264,10 @@
   function downloadCsv() {
     if (!result) return;
     const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const lines = [['カルテ番号（まとめた番号）', 'レセコンの番号', '件数', '氏名', '最初の日付'].map(q).join(',')];
+    const lines = [['カルテ番号（まとめた番号）', 'レセコンの番号', '件数', '氏名'].map(q).join(',')];
     result.list.forEach((g) => lines.push([
       g.key, g.items.map((i) => i.no).join(' '), g.items.length,
-      [...new Set(g.items.map((i) => i.name).filter(Boolean))].join(' '), g.minDate || '',
+      [...new Set(g.items.map((i) => i.name).filter(Boolean))].join(' '),
     ].map(q).join(',')));
     // Excel で文字化けしないよう BOM 付き UTF-8
     const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv' });
@@ -366,10 +284,9 @@
   ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
-  ['#colNo', '#colName', '#colDate', '#optZero'].forEach((s) => $(s).addEventListener('change', run));
+  ['#colNo', '#colName', '#optZero'].forEach((s) => $(s).addEventListener('change', run));
   $('#optHeader').addEventListener('change', () => { fillSelects(cols()); run(); });
   $('#cmpBooking').addEventListener('input', renderCompare);
-  ['#from', '#to'].forEach((s) => $(s).addEventListener('change', renderMonthly));
   $$('.tabs [data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; renderDetail(); }));
   $('#btnCsv').addEventListener('click', downloadCsv);
 })();
