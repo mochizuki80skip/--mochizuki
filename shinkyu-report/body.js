@@ -1,6 +1,7 @@
-/* 人体図（前面・背面）の部位定義と SVG 描画
- * 座標系：1体あたり viewBox 0 0 200 400。左右は x=100 を軸に反転して作る。
- * 前面図は向かって左が患者様の「右」、背面図は向かって左が患者様の「左」。
+/* 人体図の部位定義と SVG 描画
+ * 身体（前面・背面）と頭部（顔の前面・右側面・左側面・後頭部）の2種類。
+ * 座標系：幅 200。身体は高さ 392、頭部は高さ 200（同じ線の太さ・色・部位の塗りで描く）。
+ * 左右は x=100 を軸に反転して作る。前面図は向かって左が患者様の「右」、背面図は向かって左が「左」。
  */
 (function () {
   'use strict';
@@ -55,10 +56,11 @@
 
   const REGIONS = [];
   const baseSeq = {};
+  let curSet = 'body';
   const add = (id, view, name, side, group, shape) => {
     const base = id.replace(/-[rl]$/, '');
     if (!(base in baseSeq)) baseSeq[base] = Object.keys(baseSeq).length;
-    REGIONS.push({ id, view, name, side, group, shape, base: baseSeq[base] });
+    REGIONS.push({ id, view, name, side, group, shape, base: baseSeq[base], set: curSet });
   };
 
   // ---- 前面 ----
@@ -101,11 +103,111 @@
   };
   REGIONS.sort((a, b) => orderOf(a) - orderOf(b));
 
+  // =====================================================================
+  // 頭部（顔の前面・右側面・左側面・後頭部）。描画は追加した順（後のものが上）
+  // =====================================================================
+  curSet = 'head';
+  // 楕円上の点列（角度は度。0=右、90=下）
+  const arc = (cx, cy, rx, ry, a0, a1, n = 14) => Array.from({ length: n + 1 }, (_, i) => {
+    const a = ((a0 + ((a1 - a0) * i) / n) * Math.PI) / 180;
+    return [Math.round((cx + rx * Math.cos(a)) * 10) / 10, Math.round((cy + ry * Math.sin(a)) * 10) / 10];
+  });
+  const deg = (v) => (Math.asin(v) * 180) / Math.PI;
+
+  // 顔（前面）・後頭部で使う頭の楕円
+  const HX = 100, HY = 80, HRX = 46, HRY = 58;
+  const hA = (y) => deg((y - HY) / HRY);            // 右側（向かって右）の角度
+  const hL = (y) => 180 - hA(y);                     // 左側（向かって左）の角度
+  const hArc = (a0, a1, n) => arc(HX, HY, HRX, HRY, a0, a1, n);
+  const SHOULDER = P([74, 170], [100.5, 170], [100.5, 200], [14, 200], [22, 190], [56, 180]);
+
+  // 顔（前面）：向かって左が患者様の右
+  const FACE = [
+    // [キー, 名称, グループ, 向かって左側のシェイプ, 左右あり]
+    ['shoulder', '鎖骨・肩上部', '首・肩', SHOULDER, true],
+    ['neck', '首（前面）', '首・肩', P([80, 126], [100.5, 126], [100.5, 178], [74, 178]), true],
+    ['ear', '耳', '耳', E(52, 86, 7, 14), true],
+    ['top', '前頭部', '頭', P(...hArc(hL(60), 360 + hA(60), 20)), false],
+    ['temple', 'こめかみ', '頭', P(...hArc(hL(60), hL(92), 6), [70, 92], [70, 60]), true],
+    ['eye', '目の周り', '顔', R(70, 60, 30.5, 32, 4), true],
+    ['cheek', '頬', '顔', P(...hArc(hL(92), hL(120), 6), [84, 120], [84, 92]), true],
+    ['nose', '鼻・口周り', '顔', R(84, 92, 32, 28, 6), false],
+    ['chin', '顎', '顔', P(...hArc(hL(120), hA(120), 16)), false],
+  ];
+  FACE.forEach(([key, name, group, shape, lr]) => {
+    if (!lr) { add(`hf-${key}`, 'hf', name, '', group, shape); return; }
+    add(`hf-${key}-r`, 'hf', name, '右', group, shape);
+    add(`hf-${key}-l`, 'hf', name, '左', group, mirror(shape));
+  });
+
+  // 側面（右側面を作り、左側面は反転）。顔は向かって右を向く
+  const SX = 95, SY = 78, SRX = 50, SRY = 56;
+  const sA = (y) => deg((y - SY) / SRY);
+  const sArc = (a0, a1, n) => arc(SX, SY, SRX, SRY, a0, a1, n);
+  const SIDE = [
+    ['shoulder', '肩上部', '首・肩', P([46, 172], [124, 172], [160, 200], [10, 200], [24, 186]), true],
+    ['neck', '首（側面）', '首・肩', P([60, 112], [112, 132], [118, 180], [56, 180], [54, 146]), true],
+    ['back', '後頭部', '頭', P(...sArc(180 - sA(58), 180 - sA(112), 8), [72, 112], [72, 58]), false],
+    ['temple', '側頭部', '頭', R(72, 58, 52, 44, 4), true],
+    ['top', '頭頂部', '頭', P(...sArc(180 - sA(58), 360 + sA(58), 16)), false],
+    ['behind', '耳の後ろ・耳下', '耳', P([72, 100], [100, 100], [104, 132], [60, 118]), true],
+    ['face', '頬・顎（側面）', '顔', P([124, 58], [140, 57], [146, 68], [147, 82], [157, 96], [148, 101], [149, 108],
+      [145, 113], [147, 119], [140, 131], [126, 137], [104, 132], [100, 100], [124, 100]), true],
+    ['ear', '耳', '耳', E(92, 88, 9, 15), true],
+  ];
+  // 側面の部位はすべて左右どちらかの面
+  SIDE.forEach(([key, name, group, shape]) => add(`hr-${key}`, 'hr', name, '右', group, shape));
+  SIDE.forEach(([key, name, group, shape]) => add(`hl-${key}`, 'hl', name, '左', group, mirror(shape)));
+
+  // 後頭部（背面）：向かって左が患者様の左
+  const BACK = [
+    ['shoulder', '肩上部（僧帽筋）', '首・肩', SHOULDER, true],
+    ['neck', '首（後面）', '首・肩', P([78, 124], [100.5, 124], [100.5, 178], [72, 178]), true],
+    ['ear', '耳', '耳', E(52, 86, 7, 14), true],
+    ['top', '頭頂部', '頭', P(...hArc(hL(60), 360 + hA(60), 20)), false],
+    ['occ', '後頭部', '頭', P(...hArc(hL(60), hL(108), 8), [100.5, 108], [100.5, 60]), true],
+    ['nape', '後頭下部（盆の窪）', '頭', P(...hArc(hL(108), 90, 8), [100.5, 138], [100.5, 108]), true],
+  ];
+  BACK.forEach(([key, name, group, shape, lr]) => {
+    if (!lr) { add(`hb-${key}`, 'hb', name, '', group, shape); return; }
+    add(`hb-${key}-l`, 'hb', name, '左', group, shape);
+    add(`hb-${key}-r`, 'hb', name, '右', group, mirror(shape));
+  });
+
   const BY_ID = Object.fromEntries(REGIONS.map((r) => [r.id, r]));
   const GROUPS = ['頭・首', '肩', '腕', '体幹', '背中・腰', '脚'];
+  // 切り替えできる人体図の種類
+  const SETS = {
+    body: { name: '身体', views: ['f', 'b'], groups: GROUPS },
+    // 頭部のチェック一覧は図ごとに並べる（同じ名前の部位が図ごとにあるため）
+    head: { name: '頭部', views: ['hf', 'hr', 'hl', 'hb'], groups: ['頭', '顔', '耳', '首・肩'], byView: true },
+  };
+  // 図ごとの高さ・見出し・左右の表示
+  const VIEWS = {
+    f: { h: H, cap: '前面', sides: ['右', '左'] },
+    b: { h: H, cap: '背面', sides: ['左', '右'] },
+    hf: { h: 200, cap: '顔（前面）', sides: ['右', '左'] },
+    hr: { h: 200, cap: '右側面', sides: null },
+    hl: { h: 200, cap: '左側面', sides: null },
+    hb: { h: 200, cap: '後頭部（背面）', sides: ['左', '右'] },
+  };
+  // 目・鼻・口・耳の内側などの飾り線（クリックの邪魔をしない）
+  const mirrorPath = (d) => d.replace(/(-?\d+(?:\.\d+)?) (-?\d+(?:\.\d+)?)/g, (_, x, y) => `${W - Number(x)} ${y}`);
+  const FACE_DECO = ['M76 70 Q85 66 94 70', 'M78 80 Q85 76 92 80 Q85 83 78 80', 'M50 79 Q46 86 50 95'];
+  const SIDE_DECO = ['M130 71 Q138 68 145 71', 'M133 79 Q138 77 143 79', 'M140 116 L146 116', 'M91 79 Q84 88 91 98', 'M104 131 Q114 136 126 137'];
+  const DECO = {
+    hf: FACE_DECO.concat(FACE_DECO.map(mirrorPath), ['M100 86 L96 104 Q100 107 104 104', 'M90 113 Q100 117 110 113']),
+    hr: SIDE_DECO,
+    hl: SIDE_DECO.map(mirrorPath),
+    hb: ['M50 79 Q46 86 50 95', mirrorPath('M50 79 Q46 86 50 95')],
+  };
+  const DASH = { hb: ['M58 100 Q72 126 100 132 Q128 126 142 100'] };
 
-  // 前面・背面で名称が重ならないようにしてあるので、左右＋名称で一意になる
-  const label = (r) => `${r.side}${r.name}`;
+  // 名前は「左右＋名称」。頭部で同じ名前が別の図にもある時（耳・後頭部など）は図の名前を添える
+  const VIEW_SHORT = { hf: '前面', hr: '側面', hl: '側面', hb: '後面' };
+  const nameCount = {};
+  REGIONS.forEach((r) => { const k = r.side + r.name; nameCount[k] = (nameCount[k] || 0) + 1; });
+  const label = (r) => `${r.side}${r.name}${r.set === 'head' && nameCount[r.side + r.name] > 1 ? `（${VIEW_SHORT[r.view]}）` : ''}`;
 
   const shapeSvg = (s, attrs) => {
     if (s.t === 'e') return `<ellipse cx="${s.cx}" cy="${s.cy}" rx="${s.rx}" ry="${s.ry}" ${attrs}/>`;
@@ -128,6 +230,7 @@
    * @param {{selected: Object<string, number>, pins: Array}} st selected: 部位id → 表示番号
    */
   function figure(view, st, opts = {}) {
+    const v = VIEWS[view];
     const regs = REGIONS.filter((r) => r.view === view);
     const sil = regs.map((r) => shapeSvg(r.shape, '')).join('');
     const parts = regs.map((r) => {
@@ -141,13 +244,12 @@
     const pins = (st.pins || []).map((p, i) => ({ p, i })).filter(({ p }) => p.view === view).map(({ p, i }) =>
       `<g class="pin" data-pin="${i}"><circle cx="${p.x}" cy="${p.y}" r="2.6"/><text x="${p.x + 4}" y="${p.y - 3}">${pinLabel(i)}</text></g>`
     ).join('');
-    const isFront = view === 'f';
-    const sideL = isFront ? '右' : '左';
-    const sideR = isFront ? '左' : '右';
-    return `<svg class="body-svg${opts.cls ? ' ' + opts.cls : ''}" viewBox="0 -14 ${W} ${H + 14}" data-view="${view}" xmlns="http://www.w3.org/2000/svg">
-      <text class="cap" x="${W / 2}" y="-3">${isFront ? '前面' : '背面'}</text>
-      <text class="side" x="40" y="-3">${sideL}</text><text class="side" x="${W - 40}" y="-3">${sideR}</text>
-      <g class="sil">${sil}</g><g class="parts">${parts}</g>${badges}${pins}
+    const sides = v.sides ? `<text class="side" x="40" y="-3">${v.sides[0]}</text><text class="side" x="${W - 40}" y="-3">${v.sides[1]}</text>` : '';
+    const deco = (DECO[view] || []).map((d) => `<path d="${d}"/>`).join('') +
+      (DASH[view] || []).map((d) => `<path d="${d}" stroke-dasharray="3 3"/>`).join('');
+    return `<svg class="body-svg${opts.cls ? ' ' + opts.cls : ''}" viewBox="0 -14 ${W} ${v.h + 14}" data-view="${view}" xmlns="http://www.w3.org/2000/svg">
+      <text class="cap" x="${W / 2}" y="-3">${v.cap}</text>${sides}
+      <g class="sil">${sil}</g><g class="parts">${parts}</g><g class="deco" pointer-events="none">${deco}</g>${badges}${pins}
     </svg>`;
   }
 
@@ -176,5 +278,5 @@
     return null;
   }
 
-  window.Body = { REGIONS, BY_ID, GROUPS, figure, label, pinLabel, regionAt, esc };
+  window.Body = { REGIONS, BY_ID, GROUPS, SETS, VIEWS, figure, label, pinLabel, regionAt, esc };
 })();

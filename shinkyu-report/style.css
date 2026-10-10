@@ -158,6 +158,10 @@ a.card.link:hover { border-color: var(--c-main); }
 .body-svg .pin text { fill: #d62828; font-size: 8px; font-weight: 700; font-family: Arial, sans-serif; paint-order: stroke; stroke: #fff; stroke-width: 2px; }
 .body-svg .cap { font-size: 10px; text-anchor: middle; fill: #4a5560; font-weight: 700; }
 .body-svg .side { font-size: 9px; text-anchor: middle; fill: #8a96a2; }
+.body-svg .deco path { fill: none; stroke: #4a5560; stroke-width: 1.2; stroke-linecap: round; }
+.toggles { display: flex; flex-wrap: wrap; gap: 8px; }
+.diagram-toggle, .mode-toggle { display: inline-flex; gap: 4px; }
+.diagram-toggle .cnt { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #123f66; color: #fff; font-size: 11px; }
 .pin-mode .body-svg .rg { cursor: crosshair; }
 .pin-mode .body-svg .rg:hover { fill: #fff; }
 .pin-mode .body-svg .rg.on:hover { fill: var(--c-sel); }
@@ -235,7 +239,18 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
 .sh-mid { display: flex; gap: 3mm; flex: 0 0 auto; }
 .sh-figs { flex: 0 0 auto; border: 0.3mm solid #000; border-radius: 1.5mm; padding: 1.2mm 2mm; }
 .sh-figs .figs { display: flex; gap: 1mm; }
-.sh-figs .body-svg { height: calc(90mm * var(--s)); width: auto; }
+.sh-figs .figset { display: flex; gap: 1mm; }
+.sh-figs .figset-body .body-svg { height: calc(90mm * var(--s)); width: auto; }
+/* 頭部は 2×2。身体の2体と同じ大きさの枠に収める */
+.sh-figs .figset-head { display: grid; grid-template-columns: auto auto; gap: 1mm 1.5mm; }
+.sh-figs .figset-head .body-svg { height: calc(44.5mm * var(--s)); width: auto; }
+.sh-figs .figs { gap: 4mm; }
+/* 身体と頭部の両方に印がある時は横に並べ、主訴などは下に回す */
+.sh-mid.both { flex-direction: column; }
+.sh-mid.both .sh-figs { align-self: stretch; }
+.sh-mid.both .figs { justify-content: space-around; }
+.sh-mid.both .sh-side { flex-direction: row; }
+.sh-mid.both .sh-side > .sh-box { flex: 1 1 0; min-height: calc(18mm * var(--s)); }
 .sh-side { flex: 1; display: flex; flex-direction: column; gap: calc(2.2mm * var(--s)); min-width: 0; }
 .sh-side .sh-complaint { flex: 1 0 auto; }
 .sh-reaction { flex: 1 0 auto; min-height: calc(14mm * var(--s)); }
@@ -249,6 +264,7 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
 .body-svg.print .pin circle { fill: #d00; }
 .body-svg.print .pin text { fill: #d00; }
 .body-svg.print .cap, .body-svg.print .side { fill: #000; }
+.body-svg.print .deco path { stroke: #000; stroke-width: 1; }
 
 /* 施術内容の表 */
 .rtable { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .95em; line-height: 1.35; }

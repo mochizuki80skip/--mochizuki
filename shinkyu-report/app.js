@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const { REGIONS, BY_ID, GROUPS, figure, label, pinLabel, regionAt, esc } = window.Body;
+  const { REGIONS, BY_ID, SETS, VIEWS, figure, label, pinLabel, regionAt, esc } = window.Body;
 
   const KEY_REC = 'shinq:rec:';
   const KEY_SETTINGS = 'shinq:settings';
@@ -150,7 +150,7 @@
       id: newId(), rev: 0, createdAt: Date.now(), updatedAt: Date.now(),
       staff: me, staffName: me,
       clinic: '', patient: '', date: today(), time: nowTime(),
-      complaint: '', regions: {}, regionOrder: [], pins: [],
+      complaint: '', regions: {}, regionOrder: [], pins: [], diagram: 'body',
       ...init,
       reactions: [], reaction: '', next: '', nextTime: '',
       change: '', guidance: '', request: '',
@@ -463,21 +463,51 @@
   // ---------- 人体図 ----------
   const numbers = () => Object.fromEntries(rec.regionOrder.map((id, i) => [id, i + 1]));
 
+  // 身体／頭部のどちらの人体図に印があるか
+  const setOfView = (view) => (SETS.head.views.includes(view) ? 'head' : 'body');
+  const usedSets = (r) => Object.keys(SETS).filter((k) =>
+    r.regionOrder.some((id) => BY_ID[id]?.set === k) || r.pins.some((p) => setOfView(p.view) === k));
+  const diagramOf = (r) => r.diagram || (usedSets(r).length === 1 ? usedSets(r)[0] : 'body');
+
   function renderBody() {
     const st = { selected: numbers(), pins: rec.pins };
-    $('#bodyFigs').innerHTML = figure('f', st) + figure('b', st);
-    $('#bodyFigs').classList.toggle('pin-mode', mode === 'pin');
+    const d = diagramOf(rec);
+    $('#bodyFigs').innerHTML = SETS[d].views.map((v) => figure(v, st)).join('');
+    $('#bodyFigs').className = `body-figs figs-${d}${mode === 'pin' ? ' pin-mode' : ''}`;
+    // 切り替えボタン：選択中の種類と、それぞれの印の数
+    $$('.diagram-toggle [data-diagram]').forEach((b) => {
+      const k = b.dataset.diagram;
+      const n = rec.regionOrder.filter((id) => BY_ID[id]?.set === k).length + rec.pins.filter((p) => setOfView(p.view) === k).length;
+      b.classList.toggle('active', k === d);
+      b.innerHTML = `${SETS[k].name}${n ? ` <span class="cnt">${n}</span>` : ''}`;
+    });
     renderRegionChecks();
     renderSummary();
   }
 
+  $$('.diagram-toggle [data-diagram]').forEach((b) => b.addEventListener('click', () => {
+    if (!rec) return;
+    rec.diagram = b.dataset.diagram;
+    renderBody();
+    scheduleSave();
+  }));
+
   function renderRegionChecks() {
     const nums = numbers();
-    $('#regionChecks').innerHTML = GROUPS.map((g) => {
-      // 前面→背面、上→下（定義順）、右→左の順に並べる
-      const regs = REGIONS.filter((r) => r.group === g)
-        .sort((a, b) => (a.view === b.view ? 0 : a.view === 'f' ? -1 : 1) || a.base - b.base || (a.side === '右' ? -1 : 1));
-      return `<div class="rc-group"><div class="rc-title">${g}</div><div class="rc-items">${regs.map((r) =>
+    const d = diagramOf(rec);
+    const views = SETS[d].views;
+    // 身体は部位のグループごと、頭部は図ごとに並べる
+    const sections = SETS[d].byView
+      ? views.map((v) => [VIEWS[v].cap, (r) => r.view === v])
+      : SETS[d].groups.map((g) => [g, (r) => r.group === g]);
+    const GROUP_ORDER = SETS[d].groups;
+    $('#regionChecks').innerHTML = sections.map(([title, match]) => {
+      // 図の順、グループ順、上→下（定義順）、右→左の順に並べる
+      const regs = REGIONS.filter((r) => r.set === d && match(r))
+        .sort((a, b) => views.indexOf(a.view) - views.indexOf(b.view) ||
+          (SETS[d].byView ? GROUP_ORDER.indexOf(a.group) - GROUP_ORDER.indexOf(b.group) : 0) ||
+          a.base - b.base || (a.side === '右' ? -1 : 1));
+      return `<div class="rc-group"><div class="rc-title">${title}</div><div class="rc-items">${regs.map((r) =>
         `<button type="button" class="rc${nums[r.id] ? ' on' : ''}" data-id="${r.id}">${nums[r.id] ? `<b>${nums[r.id]}</b>` : '<i></i>'}${esc(label(r))}</button>`
       ).join('')}</div></div>`;
     }).join('');
@@ -622,6 +652,8 @@
   function sheetHtml(r) {
     const nums = Object.fromEntries(r.regionOrder.map((id, i) => [id, i + 1]));
     const st = { selected: nums, pins: r.pins };
+    // 印のある人体図（身体・頭部）を載せる。両方に印があれば両方
+    const sets = usedSets(r).length ? usedSets(r) : [diagramOf(r)];
     // 施術内容は表にする（番号・部位・施術方法・本数・時間・ツボを列で揃えて読みやすく）
     const shortMethod = (m) => m.replace('（低周波）', '');
     const regionRows = r.regionOrder.map((id, i) => {
@@ -643,10 +675,10 @@
         <div class="sh-patient"><span class="lbl">患者様氏名</span><span class="ul grow">${esc(r.patient)}</span><span>様</span></div>
         <div class="sh-visit"><span class="lbl">来院日時</span><span class="ul">${esc(fmtDate(r.date))}　${esc(r.time || '')}</span></div>
       </div>
-      <div class="sh-mid">
+      <div class="sh-mid${sets.length > 1 ? ' both' : ''}">
         <div class="sh-figs">
           <div class="lbl">施術部位</div>
-          <div class="figs">${figure('f', st, { cls: 'print' })}${figure('b', st, { cls: 'print' })}</div>
+          <div class="figs">${sets.map((k) => `<div class="figset figset-${k}">${SETS[k].views.map((v) => figure(v, st, { cls: 'print' })).join('')}</div>`).join('')}</div>
         </div>
         <div class="sh-side">
           <div class="sh-box sh-complaint"><div class="lbl">主訴</div><div class="txt">${nl2br(r.complaint)}</div></div>

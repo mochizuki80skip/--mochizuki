@@ -134,9 +134,15 @@
         <div class="field">
           <div class="field-head">
             <span>施術部位（どこに刺したか）</span>
-            <div class="mode-toggle" role="group" aria-label="入力方法">
-              <button type="button" class="btn small active" data-mode="region">部位をタップ</button>
-              <button type="button" class="btn small" data-mode="pin">点（ツボ）を打つ</button>
+            <div class="toggles">
+              <div class="diagram-toggle" role="group" aria-label="人体図の種類">
+                <button type="button" class="btn small active" data-diagram="body">身体</button>
+                <button type="button" class="btn small" data-diagram="head">頭部</button>
+              </div>
+              <div class="mode-toggle" role="group" aria-label="入力方法">
+                <button type="button" class="btn small active" data-mode="region">部位をタップ</button>
+                <button type="button" class="btn small" data-mode="pin">点（ツボ）を打つ</button>
+              </div>
             </div>
           </div>
           <p class="hint" id="modeHint">人体図の部位をタップすると選択され、詳細を入力できます。</p>
