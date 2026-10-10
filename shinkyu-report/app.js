@@ -36,7 +36,6 @@
   const DEFAULT_SETTINGS = {
     staff: ['スタッフA', 'スタッフB', 'スタッフC', 'スタッフD'],
     clinics: [],
-    font: window.Fonts.DEFAULT,
     name: 'ミツカル接骨院',
     tel: '054-262-6040',
     fax: '054-262-6090',
@@ -978,13 +977,6 @@
     $('#s-name').value = settings.name;
     $('#s-tel').value = settings.tel;
     $('#s-fax').value = settings.fax;
-    window.Fonts.loadSamples();
-    $('#fontChoices').innerHTML = window.Fonts.CHOICES.map((c) => `
-      <label class="font-choice">
-        <input type="radio" name="font" value="${c.key}"${c.key === (settings.font || window.Fonts.DEFAULT) ? ' checked' : ''} />
-        <span class="fc-name">${esc(c.label)}<span class="fc-note">${esc(c.note)}</span></span>
-        <span class="fc-sample" style="font-family:'${c.family}', ${c.fallback}">${esc(window.Fonts.SAMPLE)}</span>
-      </label>`).join('');
     $('#phraseEdit').innerHTML = PHRASE_CATS.map(([k, n]) =>
       `<label class="field">${n}<textarea rows="3" data-cat="${k}">${esc((settings.phrases[k] || []).join('\n'))}</textarea></label>`).join('');
   }
@@ -997,7 +989,6 @@
       name: $('#s-name').value.trim(),
       tel: $('#s-tel').value.trim(),
       fax: $('#s-fax').value.trim(),
-      font: document.querySelector('#fontChoices input:checked')?.value || window.Fonts.DEFAULT,
       phrases,
     };
     store.set(KEY_SETTINGS, settings);
@@ -1005,11 +996,7 @@
     alert('設定を保存しました。');
   });
 
-  // 選んだ時点で見た目を切り替える（保存するまで他の端末には反映しない）
-  $('#fontChoices').addEventListener('change', (e) => { if (e.target.name === 'font') window.Fonts.apply(e.target.value); });
-
   function applySettings() {
-    window.Fonts.apply(settings.font);
     renderStaffSelect();
     renderPhraseChips();
     $('#clinicList').innerHTML = settings.clinics.map((c) => `<option value="${esc(c)}">`).join('');

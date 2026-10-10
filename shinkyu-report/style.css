@@ -317,12 +317,3 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
   .sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
-/* フォントの選択（設定） */
-.font-choices { display: grid; gap: 8px; margin-top: 6px; font-weight: 400; }
-.font-choice { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--c-line); border-radius: 10px; cursor: pointer; background: #fff; }
-.font-choice:has(input:checked) { border-color: var(--c-main); background: var(--c-main-weak); }
-.font-choice input { width: auto; margin: 0; }
-.font-choice .fc-name { font-size: 13px; color: var(--c-sub); min-width: 12em; }
-.font-choice .fc-sample { font-size: 20px; }
-.font-choice .fc-note { display: block; font-size: 12px; color: var(--c-sub); }
-@media (max-width: 640px) { .font-choice { flex-wrap: wrap; } .font-choice .fc-name { min-width: 0; } }
