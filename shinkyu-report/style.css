@@ -8,12 +8,14 @@
   --c-bg: #f4f6f8;
   --c-warn: #fff4d6;
   --c-danger: #c0392b;
+  /* 文字のフォント（設定で変更。fonts.js が上書きする） */
+  --font: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
 }
 
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+  font-family: var(--font);
   color: var(--c-text);
   background: var(--c-bg);
   font-size: 15px;
@@ -152,7 +154,7 @@ a.card.link:hover { border-color: var(--c-main); }
 .body-svg .rg:hover { fill: var(--c-main-weak); }
 .body-svg .rg.on { fill: var(--c-sel); stroke: var(--c-main); stroke-width: 1; }
 .body-svg .badge circle { fill: #123f66; }
-.body-svg .badge text { fill: #fff; font-size: 7.5px; font-weight: 700; text-anchor: middle; font-family: Arial, sans-serif; }
+.body-svg .badge text { fill: #fff; font-size: 7.5px; font-weight: 700; text-anchor: middle; font-family: var(--font); }
 /* 鍼（赤）と電気（青） */
 :root { --c-needle: #d62828; --c-electric: #1f63d8; }
 .body-svg .pin .dot { fill: var(--c-needle); stroke: #fff; stroke-width: 0.9; }
@@ -198,7 +200,7 @@ a.card.link:hover { border-color: var(--c-main); }
 .selected-summary li span { color: var(--c-sub); }
 .num, .pinl {
   min-width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center;
-  font-size: 11px; color: #fff; background: #123f66; font-family: Arial, sans-serif;
+  font-size: 11px; color: #fff; background: #123f66; font-family: var(--font);
 }
 .pinl { background: #d62828; }
 
@@ -228,7 +230,7 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
   background: #fff; color: #000;
   font-size: calc(10.5pt * var(--s)); line-height: 1.45;
   display: flex; flex-direction: column; gap: calc(2.2mm * var(--s));
-  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+  font-family: var(--font);
 }
 .sheet .lbl { font-weight: 700; white-space: nowrap; }
 .sheet .ul { border-bottom: 0.3mm solid #000; padding: 0 2mm; min-height: 1.5em; display: inline-block; }
@@ -314,3 +316,13 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
   .print-area { position: static; }
   .sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* フォントの選択（設定） */
+.font-choices { display: grid; gap: 8px; margin-top: 6px; font-weight: 400; }
+.font-choice { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--c-line); border-radius: 10px; cursor: pointer; background: #fff; }
+.font-choice:has(input:checked) { border-color: var(--c-main); background: var(--c-main-weak); }
+.font-choice input { width: auto; margin: 0; }
+.font-choice .fc-name { font-size: 13px; color: var(--c-sub); min-width: 12em; }
+.font-choice .fc-sample { font-size: 20px; }
+.font-choice .fc-note { display: block; font-size: 12px; color: var(--c-sub); }
+@media (max-width: 640px) { .font-choice { flex-wrap: wrap; } .font-choice .fc-name { min-width: 0; } }

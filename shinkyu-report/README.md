@@ -48,6 +48,23 @@
   決まりと違う番号（125b・125-2 など。入力ミスの可能性）／番号が読めない行
 - 正確なカルテ一覧を CSV で保存できる
 
+## 文字のフォント
+
+「設定 → 文字のフォント」で、画面・内容書（PDF）・カルテ枚数計算の文字をまとめて切り替える（全員の端末で共通）。
+候補は **𠮷・髙・﨑・德・濵・邉・鍼 がすべて表示できることを確認したもの**だけ（Google Fonts から読み込み）。
+
+| 候補 | 書体 |
+|---|---|
+| Noto Sans JP（既定・おすすめ） | ゴシック |
+| Noto Serif JP | 明朝 |
+| しっぽり明朝 | 明朝 |
+| Klee One | 教科書体 |
+| しっぽりアンチック | 丸みのある書体（太字なし） |
+
+BIZ UD ゴシック・Zen 角ゴシック・IBM Plex Sans JP などは 𠮷 が無いため候補から外している。
+PDF にはフォントが埋め込まれるので、受け取った側の端末に関係なく同じ見た目になる。
+インターネットにつながっていない時は端末のフォントで表示される。
+
 ## 4人同時に使っても上書きされない仕組み
 
 - 内容書は **1件ずつ別々に保存**（`localStorage` のキー `shinq:rec:<id>`）。
@@ -67,7 +84,7 @@
 2. **ファイルをアップロード**：このフォルダの中身を、ファイルマネージャーか FTP で
    `ドメイン名/public_html/shinkyu/` などに置く（`.htaccess` と `data/.htaccess` も忘れずに。
    FTP ソフトで「隠しファイルを表示」にすると見える）
-   - 置くもの：`index.html` `style.css` `body.js` `app.js` `sync.js` `api.php` `config.sample.php` `karte.html` `karte.js` `karte.css` `.htaccess` `data/.htaccess`
+   - 置くもの：`index.html` `style.css` `body.js` `fonts.js` `app.js` `sync.js` `api.php` `config.sample.php` `karte.html` `karte.js` `karte.css` `.htaccess` `data/.htaccess`
 3. **パスワードを決める**：`config.sample.php` をコピーして `config.php` という名前にし、
    `'password' => 'change-me'` を院内スタッフ共通のパスワードに書き換える（長く推測されにくいもの）
 4. ブラウザで `https://ドメイン名/shinkyu/` を開き、パスワードでログインできれば完了
@@ -120,6 +137,7 @@ php -S localhost:8080             # http://localhost:8080 （サーバー同期�
 |---|---|
 | `index.html` | 画面 |
 | `body.js` | 人体図の部位定義と SVG 描画 |
+| `fonts.js` | フォントの候補と読み込み |
 | `karte.html` / `karte.js` / `karte.css` | カルテ枚数計算 |
 | `app.js` | 入力・保存・一覧・患者様・ログ・設定・A4 シート生成 |
 | `sync.js` | サーバーとの同期（送信待ちの管理・取り込み・ログイン画面） |

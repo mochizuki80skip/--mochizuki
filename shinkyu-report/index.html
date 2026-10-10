@@ -211,6 +211,10 @@
           <input type="text" id="s-fax" />
         </label>
       </div>
+      <div class="field">文字のフォント（画面・内容書・カルテ枚数計算で共通）
+        <p class="hint">どれも「𠮷」「髙」「﨑」などの人名の漢字が表示できるものです。選ぶとすぐ見た目が変わり、「設定を保存」で全員の端末に反映されます。</p>
+        <div class="font-choices" id="fontChoices"></div>
+      </div>
       <div class="field">定型文（ボタンで挿入する文章。1行に1つ）
         <div class="phrase-edit" id="phraseEdit"></div>
       </div>
@@ -287,6 +291,7 @@
     </form>
   </div>
 
+  <script src="fonts.js"></script>
   <script src="sync.js"></script>
   <script src="body.js"></script>
   <script src="app.js"></script>
