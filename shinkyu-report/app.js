@@ -6,6 +6,8 @@
  *   - 各内容書は rev（版番号）を持つ。開いた後に別の画面で同じ内容書が保存されていたら、
  *     自動保存を止めて知らせる（相手の内容を上書きしない）。
  *   - 担当者の選択はタブごと（sessionStorage）なので、1台を交代で使っても混ざらない。
+ *   - 患者様（shinq:pat:<氏名>）とログ（shinq:log:<時刻+乱数>）も1件ずつ別キー。
+ *     ログは追記のみで、作成・PDF出力・削除のたびに残る（PDF出力・削除はその時点の内容も保存）。
  */
 (function () {
   'use strict';
@@ -15,6 +17,10 @@
   const KEY_REC = 'shinq:rec:';
   const KEY_SETTINGS = 'shinq:settings';
   const KEY_ME = 'shinq:me';
+  const KEY_PAT = 'shinq:pat:';
+  const KEY_LOG = 'shinq:log:';
+
+  const LOG_ACTIONS = { create: '新規作成', copy: 'コピーして作成', pdf: 'PDF出力', del: '削除' };
 
   const METHODS = ['置鍼', '単刺', 'パルス（低周波）', '灸', '円皮鍼'];
   const PHRASE_CATS = [
@@ -49,18 +55,58 @@
       localStorage.setItem(key, JSON.stringify(val));
     },
     del(key) { localStorage.removeItem(key); },
-    records() {
+    all(prefix) {
       const out = [];
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
-        if (k && k.startsWith(KEY_REC)) {
-          const r = store.get(k);
-          if (r && r.id) out.push(r);
+        if (k && k.startsWith(prefix)) {
+          const v = store.get(k);
+          if (v) out.push(v);
         }
       }
-      return out.sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.updatedAt - a.updatedAt);
+      return out;
+    },
+    records() {
+      return store.all(KEY_REC).filter((r) => r.id)
+        .sort((a, b) => (b.date || '').localeCompare(a.date || '') || b.updatedAt - a.updatedAt);
+    },
+    patients() {
+      return store.all(KEY_PAT).filter((p) => p.name).sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+    },
+    logs() {
+      return store.all(KEY_LOG).filter((l) => l.id).sort((a, b) => b.at - a.at);
     },
   };
+
+  // 氏名の空白（全角・半角）を除いたものを患者様のキーにする（「山田 花子」と「山田花子」を同一人物に）
+  const patKey = (name) => String(name || '').replace(/[\s\u3000]+/g, '');
+
+  // 患者様を登録・更新。自動保存のたびではなく、氏名欄の入力確定時・内容書を閉じる時・出力時に呼ぶ
+  // （入力途中の「山」「山田」などが登録されないように）
+  function upsertPatient(r) {
+    if (conflict) return;
+    const key = patKey(r.patient);
+    if (!key) return;
+    const cur = store.get(KEY_PAT + key);
+    const name = r.patient.trim();
+    if (cur && cur.name === name && (cur.clinic === r.clinic || !r.clinic)) return;
+    store.set(KEY_PAT + key, {
+      key, memo: '', createdAt: Date.now(), ...(cur || {}),
+      name, clinic: r.clinic || cur?.clinic || '', updatedAt: Date.now(),
+    });
+  }
+
+  // ログは1件ずつ別キーに追記する（既存のログを書き換えない）
+  function addLog(action, r, withSnapshot) {
+    const at = Date.now();
+    const id = at.toString(36) + Math.random().toString(36).slice(2, 8);
+    const entry = {
+      id, at, action, staff: getMe(),
+      recId: r.id, patient: r.patient || '', clinic: r.clinic || '', date: r.date || '',
+    };
+    if (withSnapshot) entry.snapshot = JSON.parse(JSON.stringify(r));
+    try { store.set(KEY_LOG + id, entry); } catch { /* 容量不足でも本来の操作は止めない */ }
+  }
 
   const loadSettings = () => {
     const s = store.get(KEY_SETTINGS) || {};
@@ -92,13 +138,14 @@
   const nl2br = (t) => esc(t || '').replace(/\n/g, '<br>');
   const lines = (t) => String(t || '').split('\n').map((s) => s.trim()).filter(Boolean);
 
-  const blankRecord = () => {
+  const blankRecord = (init = {}) => {
     const me = getMe();
     return {
       id: newId(), rev: 0, createdAt: Date.now(), updatedAt: Date.now(),
       staff: me, staffName: me,
       clinic: '', patient: '', date: today(), time: nowTime(),
       complaint: '', regions: {}, regionOrder: [], pins: [],
+      ...init,
       reactions: [], reaction: '', next: '', nextTime: '',
       change: '', guidance: '', request: '',
     };
@@ -122,6 +169,7 @@
   let routed = null;
   function go(hash) {
     flushSave();
+    if (rec) upsertPatient(rec);
     rec = null;
     location.hash = hash;
     route();
@@ -129,6 +177,7 @@
 
   function route() {
     flushSave();
+    if (rec) upsertPatient(rec);
     const h = location.hash;
     if (h === routed && rec) return;
     routed = h;
@@ -138,6 +187,13 @@
       if (r) { openRecord(r); return; }
     }
     if (h === '#/settings') { renderSettings(); show('settings'); return; }
+    const pm = h.match(/^#\/patient\/(.+)$/);
+    if (pm) {
+      rec = null;
+      if (renderPatient(decodeURIComponent(pm[1]))) { show('patient'); return; }
+    }
+    if (h === '#/patients') { rec = null; renderPatients(); show('patients'); return; }
+    if (h === '#/log') { rec = null; renderLog(); show('log'); return; }
     rec = null;
     renderList();
     show('list');
@@ -164,12 +220,47 @@
       $('#listBody').innerHTML = `<p class="empty">内容書はまだありません。「＋ 新規作成」から作成してください。</p>`;
       return;
     }
-    $('#listBody').innerHTML = rows.map((r) => `
+    $('#listBody').innerHTML = rows.map((r) => recordCard(r)).join('');
+  }
+
+  // 一覧・患者様ページ共通のカード操作
+  function cardAction(e, after) {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    const card = e.target.closest('.card[data-id]');
+    if (!act || !card) return;
+    const r = store.get(KEY_REC + card.dataset.id);
+    if (!r) { after(); return; }
+    if (act === 'open') go(`#/edit/${r.id}`);
+    if (act === 'copy') {
+      const me = getMe();
+      const c = {
+        ...JSON.parse(JSON.stringify(r)),
+        id: newId(), rev: 1, createdAt: Date.now(), updatedAt: Date.now(),
+        staff: me || r.staff, staffName: me || r.staffName,
+        date: today(), time: nowTime(), next: '', nextTime: '',
+        reactions: [], reaction: '', change: '',
+      };
+      store.set(KEY_REC + c.id, c);
+      addLog('copy', c);
+      go(`#/edit/${c.id}`);
+    }
+    if (act === 'print') printRecord(r);
+    if (act === 'del') {
+      if (confirm(`${r.patient || '（氏名未入力）'} 様（${fmtDate(r.date)}）の内容書を削除しますか？\n（削除前の内容はログに残ります）`)) {
+        addLog('del', r, true);
+        store.del(KEY_REC + r.id);
+        after();
+      }
+    }
+  }
+
+  const recordCard = (r, showPatient = true) => `
       <div class="card" data-id="${r.id}">
         <div class="card-main" data-act="open">
           <div class="card-date">${esc(fmtDate(r.date))} ${esc(r.time || '')}</div>
-          <div class="card-name">${esc(r.patient || '（氏名未入力）')} <small>様</small></div>
+          ${showPatient ? `<div class="card-name">${esc(r.patient || '（氏名未入力）')} <small>様</small></div>` : ''}
           <div class="card-meta">${esc(r.clinic ? r.clinic + '接骨院' : '宛先未入力')} ／ 担当：${esc(r.staffName || r.staff || '-')} ／ 施術部位 ${r.regionOrder.length}か所${r.pins.length ? `・点 ${r.pins.length}` : ''}</div>
+          ${showPatient ? '' : recordDigest(r)}
         </div>
         <div class="card-acts">
           <button type="button" class="btn small" data-act="open">開く</button>
@@ -177,36 +268,21 @@
           <button type="button" class="btn small" data-act="print">PDF</button>
           <button type="button" class="btn small danger" data-act="del">削除</button>
         </div>
-      </div>`).join('');
-  }
+      </div>`;
 
-  $('#listBody').addEventListener('click', (e) => {
-    const act = e.target.closest('[data-act]')?.dataset.act;
-    const card = e.target.closest('.card');
-    if (!act || !card) return;
-    const r = store.get(KEY_REC + card.dataset.id);
-    if (!r) { renderList(); return; }
-    if (act === 'open') go(`#/edit/${r.id}`);
-    if (act === 'copy') {
-      const me = getMe();
-      const c = {
-        ...JSON.parse(JSON.stringify(r)),
-        id: newId(), rev: 0, createdAt: Date.now(), updatedAt: Date.now(),
-        staff: me || r.staff, staffName: me || r.staffName,
-        date: today(), time: nowTime(), next: '', nextTime: '',
-        reactions: [], reaction: '', change: '',
-      };
-      store.set(KEY_REC + c.id, { ...c, rev: 1 });
-      go(`#/edit/${c.id}`);
-    }
-    if (act === 'print') printRecord(r);
-    if (act === 'del') {
-      if (confirm(`${r.patient || '（氏名未入力）'} 様（${fmtDate(r.date)}）の内容書を削除しますか？`)) {
-        store.del(KEY_REC + r.id);
-        renderList();
-      }
-    }
-  });
+  // 患者様ページで経過を見返すための要約
+  const recordDigest = (r) => {
+    const rows = [
+      ['主訴', r.complaint],
+      ['部位', r.regionOrder.map((id) => label(BY_ID[id])).join('、')],
+      ['好転反応', [r.reactions.join('、'), r.reaction].filter(Boolean).join(' ')],
+      ['術後', r.change],
+      ['次回', r.next ? fmtDate(r.next) + (r.nextTime ? ' ' + r.nextTime : '') : ''],
+    ].filter(([, v]) => v);
+    return rows.length ? `<dl class="digest">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : '';
+  };
+
+  $('#listBody').addEventListener('click', (e) => cardAction(e, renderList));
   $('#listSearch').addEventListener('input', renderList);
   $('#listMine').addEventListener('change', renderList);
 
@@ -225,18 +301,32 @@
     show('edit');
   }
 
-  function newRecord() {
+  function newRecord(init) {
     if (!getMe()) {
       alert('先に画面上の「担当者」を選んでください。');
       $('#staffSelect').focus();
       return;
     }
-    const r = blankRecord();
+    const r = blankRecord(init);
     r.rev = 1;
     store.set(KEY_REC + r.id, r);
+    addLog('create', r);
     go(`#/edit/${r.id}`);
   }
-  $('#btnNew').addEventListener('click', newRecord);
+  $('#btnNew').addEventListener('click', () => newRecord());
+
+  // 登録済みの患者様を選んだら、宛先の接骨院が空なら前回の接骨院を入れる
+  $('#f-patient').addEventListener('change', () => {
+    const p = store.get(KEY_PAT + patKey($('#f-patient').value));
+    if (p && p.clinic && !$('#f-clinic').value) {
+      $('#f-clinic').value = p.clinic;
+      scheduleSave();
+    }
+    collect();
+    upsertPatient(rec);
+    renderPatientList();
+  });
+  $('#f-clinic').addEventListener('change', () => { collect(); upsertPatient(rec); });
 
   function collect() {
     FIELDS.forEach((k) => { rec[k] = fieldEl(k).value; });
@@ -284,6 +374,7 @@
     collect();
     const c = { ...JSON.parse(JSON.stringify(rec)), id: newId(), rev: 1, createdAt: Date.now(), updatedAt: Date.now() };
     store.set(KEY_REC + c.id, c);
+    addLog('create', c);
     go(`#/edit/${c.id}`);
   });
 
@@ -293,6 +384,12 @@
   // 別のタブ・画面での変更を検知
   window.addEventListener('storage', (e) => {
     if (e.key === KEY_SETTINGS) { settings = loadSettings(); renderStaffSelect(); return; }
+    if (e.key && (e.key.startsWith(KEY_PAT) || e.key.startsWith(KEY_LOG))) {
+      renderPatientList();
+      if (!$('#view-patients').hidden) renderPatients();
+      if (!$('#view-log').hidden) renderLog();
+      return;
+    }
     if (!e.key || !e.key.startsWith(KEY_REC)) return;
     if (rec && e.key === KEY_REC + rec.id) {
       const r = store.get(e.key);
@@ -300,6 +397,8 @@
       if ((r.rev || 0) > loadedRev) setConflict(true);
     } else if (!$('#view-list').hidden) {
       renderList();
+    } else if (!$('#view-patient').hidden) {
+      route();
     }
   });
 
@@ -560,7 +659,9 @@
     return fitSheet(sheet);
   }
 
-  function printRecord(r) {
+  // PDF出力のたびに、その時点の内容をログに残す（後から同じ内容を見返せる）
+  function printRecord(r, { log = true } = {}) {
+    if (log) addLog('pdf', r, true);
     buildSheet(r);
     const title = document.title;
     document.title = `鍼施術内容書_${r.patient || '氏名未入力'}_${(r.date || '').replace(/-/g, '')}`;
@@ -568,21 +669,165 @@
     window.print();
   }
 
-  $('#btnPrint').addEventListener('click', () => { flushSave(); collect(); printRecord(rec); });
-  $('#btnPreview').addEventListener('click', () => {
-    flushSave();
-    collect();
-    const fits = buildSheet(rec);
+  $('#btnPrint').addEventListener('click', () => { flushSave(); collect(); upsertPatient(rec); printRecord(rec); });
+  let previewRec = null;
+  let previewNote = '';
+  function showPreview(r, note = '') {
+    previewRec = r;
+    previewNote = note;
+    const fits = buildSheet(r);
     const host = $('#previewHost');
     host.innerHTML = '';
+    if (note) host.insertAdjacentHTML('beforeend', `<p class="banner">${esc(note)}</p>`);
     if (!fits) host.insertAdjacentHTML('beforeend', '<p class="banner warn">文章が多く、A4 1枚に収まりきりません。文章を短くしてください。</p>');
     const clone = $('#sheet').cloneNode(true);
     clone.removeAttribute('id');
     host.appendChild(clone);
     $('#previewDialog').showModal();
+  }
+  $('#btnPreview').addEventListener('click', () => {
+    flushSave();
+    collect();
+    upsertPatient(rec);
+    showPreview(rec);
   });
   $('#pv-close').addEventListener('click', () => $('#previewDialog').close());
-  $('#pv-print').addEventListener('click', () => { $('#previewDialog').close(); printRecord(rec); });
+  $('#pv-print').addEventListener('click', () => {
+    $('#previewDialog').close();
+    // ログから開いた過去の内容を再出力した場合もログに残す
+    printRecord(previewRec);
+  });
+
+  // ---------- 患者様 ----------
+  function renderPatientList() {
+    $('#patientList').innerHTML = store.patients().map((p) => `<option value="${esc(p.name)}">${esc(p.clinic ? p.clinic + '接骨院' : '')}</option>`).join('');
+  }
+
+  function renderPatients() {
+    const q = patKey($('#patSearch').value);
+    const recs = store.records();
+    const rows = store.patients().filter((p) => !q || p.key.includes(q) || (p.clinic || '').includes(q)).map((p) => {
+      const mine = recs.filter((r) => patKey(r.patient) === p.key);
+      const next = mine.map((r) => r.next).filter(Boolean).sort().pop() || '';
+      return { p, count: mine.length, last: mine[0]?.date || '', next };
+    });
+    if (!rows.length) {
+      $('#patBody').innerHTML = '<p class="empty">登録された患者様はまだいません。内容書に患者様氏名を入力すると自動で登録されます。</p>';
+      return;
+    }
+    $('#patBody').innerHTML = rows.map(({ p, count, last, next }) => `
+      <a class="card link" href="#/patient/${encodeURIComponent(p.key)}">
+        <div class="card-main">
+          <div class="card-name">${esc(p.name)} <small>様</small></div>
+          <div class="card-meta">${esc(p.clinic ? p.clinic + '接骨院' : '宛先未登録')} ／ 内容書 ${count}件${last ? ` ／ 最終来院 ${esc(fmtDate(last))}` : ''}${next ? ` ／ 次回 ${esc(fmtDate(next))}` : ''}</div>
+          ${p.memo ? `<div class="card-memo">${esc(p.memo)}</div>` : ''}
+        </div>
+        <span class="chev">›</span>
+      </a>`).join('');
+  }
+  $('#patSearch').addEventListener('input', renderPatients);
+
+  let curPatKey = null;
+  function renderPatient(key) {
+    const p = store.get(KEY_PAT + key);
+    if (!p) return false;
+    curPatKey = key;
+    $('#pt-name').textContent = p.name;
+    $('#pt-clinic').value = p.clinic || '';
+    $('#pt-memo').value = p.memo || '';
+    const recs = store.records().filter((r) => patKey(r.patient) === key);
+    $('#pt-count').textContent = `内容書 ${recs.length}件`;
+    $('#pt-records').innerHTML = recs.length
+      ? recs.map((r) => recordCard(r, false)).join('')
+      : '<p class="empty">この患者様の内容書はありません。</p>';
+    const all = store.logs();
+    const logs = all.filter((l) => patKey(logPatient(l, all)) === key);
+    $('#pt-logs').innerHTML = logs.length ? logTable(logs) : '<p class="hint">ログはまだありません。</p>';
+    return true;
+  }
+  $('#pt-records').addEventListener('click', (e) => cardAction(e, () => renderPatient(curPatKey)));
+  $('#pt-logs').addEventListener('click', logAction);
+  $('#pt-new').addEventListener('click', () => {
+    const p = store.get(KEY_PAT + curPatKey);
+    if (p) newRecord({ patient: p.name, clinic: p.clinic || '' });
+  });
+  $('#pt-save').addEventListener('click', () => {
+    const p = store.get(KEY_PAT + curPatKey);
+    if (!p) return;
+    store.set(KEY_PAT + curPatKey, {
+      ...p, clinic: $('#pt-clinic').value.trim().replace(/接骨院(御中)?$/, ''), memo: $('#pt-memo').value.trim(), updatedAt: Date.now(),
+    });
+    renderPatientList();
+    alert('保存しました。');
+  });
+  $('#pt-del').addEventListener('click', () => {
+    const p = store.get(KEY_PAT + curPatKey);
+    if (!p) return;
+    if (!confirm(`${p.name} 様を患者様一覧から外しますか？\n（内容書とログは消えません）`)) return;
+    store.del(KEY_PAT + curPatKey);
+    renderPatientList();
+    go('#/patients');
+  });
+
+  // ---------- ログ ----------
+  const fmtAt = (t) => {
+    const d = new Date(t);
+    return `${d.getFullYear()}/${d.getMonth() + 1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  // ログに残る患者様氏名。作成時は氏名が空なので、今の内容書か同じ内容書の他のログ（PDF出力・削除）から引く
+  function logPatient(l, all) {
+    const r = store.get(KEY_REC + l.recId);
+    if (r?.patient) return r.patient;
+    if (l.patient) return l.patient;
+    const other = all.find((x) => x.recId === l.recId && x.patient);
+    return other ? other.patient : '';
+  }
+
+  function logTable(logs) {
+    const all = store.logs();
+    return `<div class="log-list">${logs.map((l) => {
+      const r = store.get(KEY_REC + l.recId);
+      const patient = logPatient(l, all) || '（氏名未入力）';
+      return `<div class="log-row" data-log="${l.id}">
+        <span class="log-at">${esc(fmtAt(l.at))}</span>
+        <span class="log-act act-${l.action}">${esc(LOG_ACTIONS[l.action] || l.action)}</span>
+        <span class="log-who">${esc(l.staff || '-')}</span>
+        <span class="log-what">${esc(patient)} 様${l.date ? `（${esc(fmtDate(l.date))}来院分）` : ''}</span>
+        <span class="log-btns">
+          ${l.snapshot ? '<button type="button" class="btn small" data-lact="view">その時の内容</button>' : ''}
+          ${r ? '<button type="button" class="btn small" data-lact="open">開く</button>' : '<span class="log-gone">内容書は削除済み</span>'}
+        </span>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  function logAction(e) {
+    const act = e.target.closest('[data-lact]')?.dataset.lact;
+    const row = e.target.closest('.log-row');
+    if (!act || !row) return;
+    const l = store.get(KEY_LOG + row.dataset.log);
+    if (!l) return;
+    if (act === 'open') go(`#/edit/${l.recId}`);
+    if (act === 'view' && l.snapshot) {
+      showPreview(l.snapshot, `${fmtAt(l.at)} に${LOG_ACTIONS[l.action] || ''}した時点の内容です（担当：${l.staff || '-'}）`);
+    }
+  }
+
+  function renderLog() {
+    const q = $('#logSearch').value.trim();
+    const act = $('#logAction').value;
+    const who = $('#logStaff').value;
+    const staffs = [...new Set(settings.staff.concat(store.logs().map((l) => l.staff).filter(Boolean)))];
+    $('#logStaff').innerHTML = '<option value="">全員</option>' + staffs.map((s) => `<option${s === who ? ' selected' : ''}>${esc(s)}</option>`).join('');
+    const all = store.logs();
+    const logs = all.filter((l) =>
+      (!act || l.action === act) && (!who || l.staff === who) &&
+      (!q || patKey(logPatient(l, all)).includes(patKey(q))));
+    $('#logBody').innerHTML = logs.length ? logTable(logs.slice(0, 500)) : '<p class="empty">ログはまだありません。</p>';
+  }
+  ['#logSearch', '#logAction', '#logStaff'].forEach((s) => $(s).addEventListener('input', renderLog));
+  $('#logBody').addEventListener('click', logAction);
 
   // ---------- 設定 ----------
   function renderSettings() {
@@ -618,7 +863,10 @@
 
   // バックアップ
   $('#btnExport').addEventListener('click', () => {
-    const data = { version: 1, exportedAt: new Date().toISOString(), settings, records: store.records() };
+    const data = {
+      version: 2, exportedAt: new Date().toISOString(), settings,
+      records: store.records(), patients: store.patients(), logs: store.logs(),
+    };
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
     a.download = `鍼施術内容書_バックアップ_${today().replace(/-/g, '')}.json`;
@@ -641,7 +889,26 @@
         store.set(KEY_REC + r.id, r);
         added++;
       });
-      alert(`読み込みました：${added}件（同じか新しい内容が既にあるため ${skipped}件はそのまま）`);
+      // 患者様は端末に無いもの・新しいものだけ、ログは無いものだけ追加（どちらも上書きで消さない）
+      let pats = 0;
+      let logs = 0;
+      (Array.isArray(data.patients) ? data.patients : []).forEach((p) => {
+        if (!p || !p.name) return;
+        const key = patKey(p.name);
+        const cur = store.get(KEY_PAT + key);
+        if (cur && (cur.updatedAt || 0) >= (p.updatedAt || 0)) return;
+        store.set(KEY_PAT + key, { ...p, key });
+        pats++;
+      });
+      (Array.isArray(data.logs) ? data.logs : []).forEach((l) => {
+        if (!l || !l.id || store.get(KEY_LOG + l.id)) return;
+        store.set(KEY_LOG + l.id, l);
+        logs++;
+      });
+      // 古いバックアップ（患者様一覧が無い）からも患者様を登録する
+      recs.forEach((r) => { if (r.patient && !store.get(KEY_PAT + patKey(r.patient))) { upsertPatient(r); pats++; } });
+      alert(`読み込みました：内容書 ${added}件・患者様 ${pats}件・ログ ${logs}件（同じか新しい内容が既にある内容書 ${skipped}件はそのまま）`);
+      renderPatientList();
       renderList();
     } catch {
       alert('ファイルを読み込めませんでした。');
@@ -650,7 +917,7 @@
 
   // ---------- 上部メニュー ----------
   $$('.topbar-nav [data-view]').forEach((b) => b.addEventListener('click', () => {
-    go(b.dataset.view === 'settings' ? '#/settings' : '#/list');
+    go(`#/${b.dataset.view}`);
   }));
   $('#staffSelect').addEventListener('change', (e) => {
     setMe(e.target.value);
@@ -660,6 +927,10 @@
   window.addEventListener('pagehide', flushSave);
   document.addEventListener('visibilitychange', () => { if (document.hidden) flushSave(); });
 
+  // 患者様一覧ができる前に作った内容書の氏名も登録しておく
+  store.records().forEach((r) => { if (r.patient && !store.get(KEY_PAT + patKey(r.patient))) upsertPatient(r); });
+
   applySettings();
+  renderPatientList();
   route();
 })();

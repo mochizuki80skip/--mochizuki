@@ -32,7 +32,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 }
 .topbar h1 { margin: 0; font-size: 18px; color: var(--c-main); }
 .topbar-staff select { margin-left: 6px; padding: 6px 8px; border: 1px solid var(--c-line); border-radius: 6px; background: #fff; }
-.topbar-nav { display: flex; gap: 6px; margin-left: auto; }
+.topbar-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+@media (max-width: 480px) { .topbar-nav .btn { padding: 6px 10px; } }
 
 .view { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
@@ -70,7 +71,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .chips[data-target] .chip::before { content: "＋"; color: var(--c-main); margin-right: 2px; }
 .chip.on { background: var(--c-main); border-color: var(--c-main); color: #fff; }
 
-.banner { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+.banner { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; background: var(--c-main-weak); }
 .banner.warn { background: var(--c-warn); border: 1px solid #f0d27a; }
 .banner .btn { margin: 4px 4px 0 0; }
 
@@ -94,6 +95,40 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .card-meta { font-size: 13px; color: var(--c-sub); }
 .card-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .empty { padding: 32px 0; text-align: center; color: var(--c-sub); }
+
+/* ---------- 患者様・ログ ---------- */
+.list-tools select { padding: 9px 10px; border: 1px solid var(--c-line); border-radius: 8px; background: #fff; }
+a.card.link { color: inherit; text-decoration: none; }
+a.card.link:hover { border-color: var(--c-main); }
+.chev { font-size: 24px; color: var(--c-sub); }
+.card-memo { margin-top: 2px; font-size: 13px; color: #7a5b00; }
+.back { color: var(--c-main); text-decoration: none; font-size: 14px; }
+.pt-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin-bottom: 12px; }
+.pt-head h2 { margin: 0; font-size: 22px; }
+.pt-head .btn { margin-left: auto; }
+.panel { background: #fff; border: 1px solid var(--c-line); border-radius: 12px; padding: 14px 16px 4px; }
+.sec-title { font-size: 15px; margin: 20px 0 8px; color: var(--c-sub); }
+.digest { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 6px 0 0; font-size: 13px; }
+.digest dt { color: var(--c-sub); }
+.digest dd { margin: 0; word-break: break-all; }
+.log-list { background: #fff; border: 1px solid var(--c-line); border-radius: 10px; overflow: hidden; }
+.log-row {
+  display: grid; grid-template-columns: 9.5em 8em 7em 1fr auto; align-items: center; gap: 4px 10px;
+  padding: 8px 12px; border-top: 1px solid var(--c-line); font-size: 14px;
+}
+.log-row:first-child { border-top: none; }
+.log-at { color: var(--c-sub); font-size: 13px; }
+.log-act { justify-self: start; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: #eef1f4; }
+.log-act.act-pdf { background: var(--c-main-weak); color: var(--c-main); }
+.log-act.act-del { background: #fde8e6; color: var(--c-danger); }
+.log-act.act-create, .log-act.act-copy { background: #e6f5ea; color: #217a3c; }
+.log-btns { display: flex; gap: 6px; align-items: center; }
+.log-gone { font-size: 12px; color: var(--c-sub); }
+@media (max-width: 760px) {
+  .log-row { grid-template-columns: 1fr auto; }
+  .log-what { grid-column: 1 / -1; }
+  .log-btns { grid-column: 1 / -1; }
+}
 
 /* ---------- 人体図（入力） ---------- */
 .body-wrap { display: grid; grid-template-columns: minmax(280px, 1.1fr) 1fr; gap: 16px; align-items: start; font-weight: 400; }

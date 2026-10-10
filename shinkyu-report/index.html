@@ -19,6 +19,8 @@
       </div>
       <nav class="topbar-nav">
         <button type="button" class="btn" data-view="list">一覧</button>
+        <button type="button" class="btn" data-view="patients">患者様</button>
+        <button type="button" class="btn" data-view="log">ログ</button>
         <button type="button" class="btn primary" id="btnNew">＋ 新規作成</button>
         <button type="button" class="btn" data-view="settings">設定</button>
       </nav>
@@ -32,6 +34,60 @@
       </div>
       <p class="hint">内容書はそれぞれ別々に保存されます。4人が同時に入力しても、他の人の内容書が上書きされることはありません。</p>
       <div id="listBody" class="list-body"></div>
+    </section>
+
+    <!-- 患者様一覧 -->
+    <section id="view-patients" class="view" hidden>
+      <div class="list-tools">
+        <input type="search" id="patSearch" placeholder="患者様氏名・接骨院名で検索" />
+      </div>
+      <p class="hint">内容書に入力した患者様氏名は自動で登録されます。患者様を選ぶと、これまでの内容書とログを見返せます。</p>
+      <div id="patBody" class="list-body"></div>
+    </section>
+
+    <!-- 患者様ページ -->
+    <section id="view-patient" class="view" hidden>
+      <p><a href="#/patients" class="back">‹ 患者様一覧</a></p>
+      <div class="pt-head">
+        <h2><span id="pt-name"></span> <small>様</small></h2>
+        <span id="pt-count" class="hint"></span>
+        <button type="button" class="btn primary" id="pt-new">この患者様の内容書を作成</button>
+      </div>
+      <div class="panel">
+        <div class="grid2">
+          <label class="field">送り元の接骨院
+            <input type="text" id="pt-clinic" list="clinicList" />
+          </label>
+          <label class="field">メモ（スタッフ間の共有事項など。PDFには出ません）
+            <input type="text" id="pt-memo" />
+          </label>
+        </div>
+        <div class="edit-actions">
+          <button type="button" class="btn small danger" id="pt-del">患者様一覧から外す</button>
+          <button type="button" class="btn small" id="pt-save">保存</button>
+        </div>
+      </div>
+      <h3 class="sec-title">内容書（新しい順）</h3>
+      <div id="pt-records" class="list-body"></div>
+      <h3 class="sec-title">ログ</h3>
+      <div id="pt-logs"></div>
+    </section>
+
+    <!-- ログ -->
+    <section id="view-log" class="view" hidden>
+      <div class="list-tools">
+        <input type="search" id="logSearch" placeholder="患者様氏名で検索" />
+        <select id="logAction">
+          <option value="">すべての操作</option>
+          <option value="create">新規作成</option>
+          <option value="copy">コピーして作成</option>
+          <option value="pdf">PDF出力</option>
+          <option value="del">削除</option>
+        </select>
+        <select id="logStaff"></select>
+      </div>
+      <p class="hint">内容書の作成・PDF出力・削除のたびに記録されます。PDF出力と削除は、その時点の内容を「その時の内容」から見返し・再出力できます。</p>
+      <div id="logBody"></div>
     </section>
 
     <!-- 編集 -->
@@ -55,7 +111,9 @@
             <small>「接骨院御中」は自動で付きます</small>
           </label>
           <label class="field">患者様氏名
-            <input type="text" id="f-patient" placeholder="例：山田 花子" />
+            <input type="text" id="f-patient" list="patientList" placeholder="例：山田 花子" />
+            <datalist id="patientList"></datalist>
+            <small>一度入力した氏名は候補に出ます</small>
           </label>
           <label class="field">来院日
             <input type="date" id="f-date" />
