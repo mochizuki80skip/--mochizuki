@@ -39,10 +39,10 @@
       </div>
       <div class="kc-opts">
         <label class="chk"><input type="checkbox" id="optHeader" checked /> 1行目は見出し</label>
-        <label class="chk"><input type="checkbox" id="optZero" checked /> 先頭の0は無視する（0125 と 125 を同じにする）</label>
+        <label class="chk"><input type="checkbox" id="optZero" checked /> 先頭の0は無視する（000125x と 125 を同じにする）</label>
       </div>
       <p class="hint">まとめ方：カルテ番号の<b>数字の部分</b>が同じものを1枚と数えます。
-        例）125・125a・125x → すべて「125」の1枚</p>
+        例）125・125a・125x・000125x → すべて「125」の1枚</p>
       <div class="preview-table" id="rawPreview"></div>
     </section>
 
@@ -68,10 +68,12 @@
         <h2>確認用の一覧</h2>
         <div class="tabs" role="tablist">
           <button type="button" class="btn small active" data-tab="merged">まとめたカルテ <span id="cntMerged"></span></button>
+          <button type="button" class="btn small" data-tab="all">全カルテ <span id="cntAll"></span></button>
           <button type="button" class="btn small" data-tab="names">同じ氏名で番号が違う <span id="cntNames"></span></button>
           <button type="button" class="btn small" data-tab="odd">決まりと違う番号 <span id="cntOdd"></span></button>
           <button type="button" class="btn small" data-tab="bad">番号が読めない行 <span id="cntBad"></span></button>
         </div>
+        <input type="search" id="search" class="kc-search" placeholder="番号（例：100）や氏名で探す" />
         <p class="hint" id="tabHint"></p>
         <div class="table-wrap"><table class="kc-table" id="detailTable"></table></div>
         <div class="edit-actions left">

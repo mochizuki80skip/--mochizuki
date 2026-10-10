@@ -144,17 +144,32 @@
     const h = (table[0] || []).map((c) => String(c).normalize('NFKC'));
     const find = (re) => h.findIndex((c) => re.test(c));
     let no = find(/カルテ|患者(番号|No|ID|コード)|診察券|受付番号|^(No|ID|番号|コード)\.?$/i);
-    if (no < 0) {
-      // 見出しで分からなければ、数字で始まる値が一番多い列
+    // 見出しが無い時（レセコンの書き出しは見出し無し）は、値の形から列を当てる
+    const sample = table.slice(0, 300);
+    const bestCol = (scoreOf) => {
       let best = -1;
       let bestScore = 0;
       for (let c = 0; c < width(); c++) {
-        const score = table.slice(1, 200).filter((r) => /^\s*[0-9０-９]+[A-Za-zＡ-Ｚａ-ｚ\-ー]?\s*$/.test(String(r[c] ?? ''))).length;
+        const score = sample.reduce((n, r) => n + scoreOf(String(r[c] ?? '').normalize('NFKC')), 0);
         if (score > bestScore) { best = c; bestScore = score; }
       }
-      no = best < 0 ? 0 : best;
+      return best;
+    };
+    if (no < 0) {
+      // カルテ番号：数字（+英字1文字）。英字付き（000054x）や 0 埋め（000054）を強く評価し、
+      // 郵便番号・生年月日のような数字だけの列より優先する
+      no = bestCol((v) => {
+        if (!/^\s*\d+[a-z]?\s*$/i.test(v)) return 0;
+        return 1 + (/\d[a-z]\s*$/i.test(v) ? 5 : 0) + (/^\s*0/.test(v) ? 2 : 0);
+      });
+      if (no < 0) no = 0;
     }
-    const name = find(/氏名|患者名|名前|^名$|カナ|フリガナ/);
+    let name = find(/氏名|患者名|名前|^名$/);
+    if (name < 0) name = find(/カナ|フリガナ/);
+    if (name < 0) {
+      // 氏名：漢字を含み、姓と名の間に空白があり、数字を含まない値
+      name = bestCol((v) => (/[\u4e00-\u9fff]/.test(v) && /\S[\s\u3000]+\S/.test(v) && !/\d/.test(v) && v.length <= 20 ? 1 : 0));
+    }
     const looksHeader = h.some((c) => /[^\d\s./-]/.test(c)) && !/^\s*\d/.test(String(table[0]?.[no] ?? ''));
     return { no, name, looksHeader };
   }
@@ -224,6 +239,7 @@
 
   const TAB_HINT = {
     merged: '数字の部分が同じため1枚にまとめたカルテです。まとめ方が正しいか確認してください。',
+    all: 'まとめた後の全カルテです。上の検索欄で番号（例：100）や氏名を入れると、枝番（000100x など）も含めて探せます。',
     names: '番号は違うが氏名が同じものです。同じ患者様の二重登録の可能性があります（自動ではまとめていません）。同姓同名の別人の場合もあります。',
     odd: '「数字」「数字+a」「数字+x」以外の形の番号です（例：125b、A125、125-2）。数字の部分でまとめて数えていますが、入力ミスの可能性があります。',
     bad: 'カルテ番号の列に数字が無い行です。枚数には入れていません。',
@@ -232,27 +248,40 @@
   function renderDetail() {
     const r = result;
     $('#cntMerged').textContent = `(${num(r.merged.length)})`;
+    $('#cntAll').textContent = `(${num(r.list.length)})`;
     $('#cntNames').textContent = `(${num(r.sameName.length)})`;
     $('#cntOdd').textContent = `(${num(r.odd.length)})`;
     $('#cntBad').textContent = `(${num(r.bad.length)})`;
     $$('.tabs [data-tab]').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
     $('#tabHint').textContent = TAB_HINT[tab];
     const LIMIT = 1000;
+    // 検索（番号は数字部分で、氏名は空白を除いて部分一致）
+    const q = $('#search').value.normalize('NFKC').replace(/[\s\u3000]+/g, '');
+    const qNo = /^\d+[a-z]?$/i.test(q) ? karteKey(q, $('#optZero').checked).key : null;
+    const hitGroup = (g) => !q || (qNo ? g.key === qNo : [...g.names].some((n) => n.normalize('NFKC').includes(q)));
+    const hitItem = (it) => !q || (qNo ? it.key === qNo : String(it.name).normalize('NFKC').replace(/[\s\u3000]+/g, '').includes(q));
     const more = (n) => (n > LIMIT ? `<tr><td colspan="4">ほか ${num(n - LIMIT)} 件（CSV で全件を確認できます）</td></tr>` : '');
     let html = '';
-    if (tab === 'merged') {
+    const groupRows = (gs) => '<tr><th>まとめた番号</th><th>レセコンの番号</th><th>氏名</th></tr>' +
+      gs.slice(0, LIMIT).map((g) => `<tr><td><b>${esc(g.key)}</b></td>` +
+        `<td>${g.items.map((i) => `<span class="tag">${esc(i.no)}</span>`).join('')}</td>` +
+        `<td>${esc([...new Set(g.items.map((i) => i.name).filter(Boolean))].join('、'))}</td></tr>`).join('') + more(gs.length) +
+      (gs.length ? '' : '<tr><td colspan="3">該当なし</td></tr>');
+    if (tab === 'all') {
+      html = groupRows(r.list.filter(hitGroup));
+    } else if (tab === 'merged') {
       html = '<tr><th>まとめた番号</th><th>レセコンの番号</th><th>氏名</th></tr>' +
-        r.merged.slice(0, LIMIT).map((g) => `<tr><td><b>${esc(g.key)}</b></td>` +
+        r.merged.filter(hitGroup).slice(0, LIMIT).map((g) => `<tr><td><b>${esc(g.key)}</b></td>` +
           `<td>${g.items.map((i) => `<span class="tag">${esc(i.no)}</span>`).join('')}</td>` +
           `<td>${esc([...new Set(g.items.map((i) => i.name).filter(Boolean))].join('、'))}</td></tr>`).join('') + more(r.merged.length);
     } else if (tab === 'names') {
       html = '<tr><th>氏名</th><th>番号</th></tr>' +
-        r.sameName.slice(0, LIMIT).map((s) => `<tr><td>${esc(s.groups[0].items.find((i) => i.name)?.name || s.name)}</td>` +
+        r.sameName.filter((s) => s.groups.some(hitGroup)).slice(0, LIMIT).map((s) => `<tr><td>${esc(s.groups[0].items.find((i) => i.name)?.name || s.name)}</td>` +
           `<td>${s.groups.map((g) => g.items.map((i) => `<span class="tag">${esc(i.no)}</span>`).join('')).join(' ／ ')}</td></tr>`).join('') + more(r.sameName.length);
       if (cols().name < 0) html = '<tr><td>氏名の列を選ぶと確認できます。</td></tr>';
     } else if (tab === 'odd') {
       html = '<tr><th>レセコンの番号</th><th>まとめた番号</th><th>氏名</th></tr>' +
-        r.odd.slice(0, LIMIT).map((p) => `<tr><td>${esc(p.no)}</td><td>${esc(p.key)}</td><td>${esc(p.name)}</td></tr>`).join('') + more(r.odd.length);
+        r.odd.filter(hitItem).slice(0, LIMIT).map((p) => `<tr><td>${esc(p.no)}</td><td>${esc(p.key)}</td><td>${esc(p.name)}</td></tr>`).join('') + more(r.odd.length);
     } else {
       const off = $('#optHeader').checked ? 2 : 1;
       html = '<tr><th>行</th><th>カルテ番号の列の値</th><th>氏名</th></tr>' +
@@ -289,4 +318,5 @@
   $('#cmpBooking').addEventListener('input', renderCompare);
   $$('.tabs [data-tab]').forEach((b) => b.addEventListener('click', () => { tab = b.dataset.tab; renderDetail(); }));
   $('#btnCsv').addEventListener('click', downloadCsv);
+  $('#search').addEventListener('input', renderDetail);
 })();

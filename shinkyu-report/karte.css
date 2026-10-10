@@ -37,3 +37,4 @@ a.btn { text-decoration: none; color: inherit; }
 .preview-table .kc-table td { color: var(--c-sub); }
 .preview-table .kc-table .sel { background: var(--c-main-weak); color: var(--c-text); font-weight: 600; }
 .tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.kc-search { width: 100%; max-width: 360px; padding: 8px 12px; border: 1px solid var(--c-line); border-radius: 8px; font-size: 16px; margin: 4px 0; }
