@@ -33,6 +33,13 @@ button, input, select, textarea { font: inherit; color: inherit; }
   background: #fff; border-bottom: 1px solid var(--c-line);
 }
 .topbar h1 { margin: 0; font-size: 18px; color: var(--c-main); }
+/* ロゴ */
+.brand { display: inline-flex; align-items: center; gap: 12px; text-decoration: none; }
+.brand img { height: 34px; width: auto; display: block; }
+.brand h1 { padding-left: 12px; border-left: 1px solid var(--c-line); }
+@media (max-width: 480px) { .brand img { height: 26px; } .brand h1 { font-size: 15px; padding-left: 8px; } .brand { gap: 8px; } }
+.login-logo { width: 100%; max-width: 260px; height: auto; margin: 0 auto 4px; display: block; }
+.login-box h1 { text-align: center; }
 .topbar-staff select { margin-left: 6px; padding: 6px 8px; border: 1px solid var(--c-line); border-radius: 6px; background: #fff; }
 .topbar-nav { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
 @media (max-width: 480px) { .topbar-nav .btn { padding: 6px 10px; } }

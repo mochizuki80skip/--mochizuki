@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="theme-color" content="#1f6fb2" />
+  <link rel="icon" href="img/favicon.ico" sizes="any" />
+  <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
   <link rel="stylesheet" href="style.css" />
   <title>鍼施術内容書</title>
 </head>
@@ -11,7 +14,7 @@
   <!-- ===== 画面（入力） ===== -->
   <div id="app" class="screen">
     <header class="topbar">
-      <h1>鍼施術内容書</h1>
+      <a class="brand" href="#/list"><img src="img/logo.png" alt="ミツカル接骨院" /><h1>鍼施術内容書</h1></a>
       <button type="button" id="syncState" class="sync-state" hidden title=""></button>
       <div class="topbar-staff">
         <label>担当者
@@ -279,6 +282,7 @@
   <!-- ログイン（サーバーに置いた時だけ表示） -->
   <div id="login" class="login" hidden>
     <form id="loginForm" class="login-box">
+      <img class="login-logo" src="img/logo.png" alt="ミツカル接骨院" />
       <h1>鍼施術内容書</h1>
       <p class="hint">院内スタッフ用のパスワードを入力してください。</p>
       <input type="password" id="loginPassword" autocomplete="current-password" placeholder="パスワード" required />

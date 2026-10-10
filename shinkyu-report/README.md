@@ -74,7 +74,7 @@ PDF にはフォントが埋め込まれるので、受け取った側の端末�
 2. **ファイルをアップロード**：このフォルダの中身を、ファイルマネージャーか FTP で
    `ドメイン名/public_html/shinkyu/` などに置く（`.htaccess` と `data/.htaccess` も忘れずに。
    FTP ソフトで「隠しファイルを表示」にすると見える）
-   - 置くもの：`index.html` `style.css` `body.js` `fonts.js` `app.js` `sync.js` `api.php` `config.sample.php` `karte.html` `karte.js` `karte.css` `.htaccess` `data/.htaccess`
+   - 置くもの：`index.html` `style.css` `body.js` `fonts.js` `app.js` `sync.js` `api.php` `config.sample.php` `karte.html` `karte.js` `karte.css` `img/`（フォルダごと） `.htaccess` `data/.htaccess`
 3. **パスワードを決める**：`config.sample.php` をコピーして `config.php` という名前にし、
    `'password' => 'change-me'` を院内スタッフ共通のパスワードに書き換える（長く推測されにくいもの）
 4. ブラウザで `https://ドメイン名/shinkyu/` を開き、パスワードでログインできれば完了
@@ -128,6 +128,7 @@ php -S localhost:8080             # http://localhost:8080 （サーバー同期�
 | `index.html` | 画面 |
 | `body.js` | 人体図の部位定義と SVG 描画 |
 | `fonts.js` | フォント（Noto Sans JP）の読み込み |
+| `img/` | ロゴ（画面上部・ログイン画面）とブラウザのタブ・ホーム画面のアイコン |
 | `karte.html` / `karte.js` / `karte.css` | カルテ枚数計算 |
 | `app.js` | 入力・保存・一覧・患者様・ログ・設定・A4 シート生成 |
 | `sync.js` | サーバーとの同期（送信待ちの管理・取り込み・ログイン画面） |
