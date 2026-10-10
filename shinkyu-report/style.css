@@ -1,0 +1,225 @@
+:root {
+  --c-main: #1f6fb2;
+  --c-main-weak: #e3effa;
+  --c-sel: #8cc0ec;
+  --c-text: #1d2733;
+  --c-sub: #5e6b78;
+  --c-line: #d5dce3;
+  --c-bg: #f4f6f8;
+  --c-warn: #fff4d6;
+  --c-danger: #c0392b;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+  color: var(--c-text);
+  background: var(--c-bg);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+
+/* ---------- 上部 ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 10px 16px;
+  background: #fff; border-bottom: 1px solid var(--c-line);
+}
+.topbar h1 { margin: 0; font-size: 18px; color: var(--c-main); }
+.topbar-staff select { margin-left: 6px; padding: 6px 8px; border: 1px solid var(--c-line); border-radius: 6px; background: #fff; }
+.topbar-nav { display: flex; gap: 6px; margin-left: auto; }
+
+.view { max-width: 1100px; margin: 0 auto; padding: 16px; }
+
+/* ---------- 部品 ---------- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  min-height: 40px; padding: 6px 14px;
+  border: 1px solid var(--c-line); border-radius: 8px; background: #fff;
+  cursor: pointer; white-space: nowrap;
+}
+.btn:hover { border-color: var(--c-main); }
+.btn.active { background: var(--c-main-weak); border-color: var(--c-main); color: var(--c-main); font-weight: 600; }
+.btn.primary { background: var(--c-main); border-color: var(--c-main); color: #fff; font-weight: 600; }
+.btn.danger { color: var(--c-danger); }
+.btn.small { min-height: 32px; padding: 4px 10px; font-size: 13px; }
+
+.field { display: block; margin-bottom: 16px; font-weight: 600; font-size: 14px; }
+.field input, .field textarea, .field select {
+  display: block; width: 100%; margin-top: 4px; padding: 8px 10px;
+  border: 1px solid var(--c-line); border-radius: 8px; background: #fff; font-weight: 400; font-size: 16px;
+}
+.field textarea { resize: vertical; }
+.field small { font-weight: 400; color: var(--c-sub); }
+.field-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0 16px; }
+.hint { margin: 4px 0 8px; font-size: 13px; font-weight: 400; color: var(--c-sub); }
+.chk { font-size: 14px; display: inline-flex; align-items: center; gap: 4px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0 4px; font-weight: 400; }
+.chip {
+  padding: 5px 11px; border: 1px solid var(--c-line); border-radius: 999px; background: #fff;
+  font-size: 13px; cursor: pointer;
+}
+.chip:hover { border-color: var(--c-main); }
+.chips[data-target] .chip::before { content: "＋"; color: var(--c-main); margin-right: 2px; }
+.chip.on { background: var(--c-main); border-color: var(--c-main); color: #fff; }
+
+.banner { padding: 10px 14px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+.banner.warn { background: var(--c-warn); border: 1px solid #f0d27a; }
+.banner .btn { margin: 4px 4px 0 0; }
+
+.edit-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-bottom: 12px; }
+.edit-actions.left { justify-content: flex-start; }
+.save-state { margin-right: auto; font-size: 13px; color: var(--c-sub); }
+
+#form, #view-settings { background: #fff; border: 1px solid var(--c-line); border-radius: 12px; padding: 16px; }
+
+/* ---------- 一覧 ---------- */
+.list-tools { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.list-tools input[type=search] { flex: 1 1 240px; padding: 9px 12px; border: 1px solid var(--c-line); border-radius: 8px; font-size: 16px; }
+.list-body { display: grid; gap: 8px; }
+.card {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  padding: 12px 14px; background: #fff; border: 1px solid var(--c-line); border-radius: 10px;
+}
+.card-main { flex: 1 1 260px; cursor: pointer; }
+.card-date { font-size: 13px; color: var(--c-sub); }
+.card-name { font-size: 17px; font-weight: 700; }
+.card-meta { font-size: 13px; color: var(--c-sub); }
+.card-acts { display: flex; flex-wrap: wrap; gap: 6px; }
+.empty { padding: 32px 0; text-align: center; color: var(--c-sub); }
+
+/* ---------- 人体図（入力） ---------- */
+.body-wrap { display: grid; grid-template-columns: minmax(280px, 1.1fr) 1fr; gap: 16px; align-items: start; font-weight: 400; }
+@media (max-width: 760px) { .body-wrap { grid-template-columns: 1fr; } }
+.body-figs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #fafcfe; border: 1px solid var(--c-line); border-radius: 10px; padding: 8px; }
+.body-svg { width: 100%; height: auto; display: block; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.body-svg .sil > * { fill: #fff; stroke: #4a5560; stroke-width: 2.4; }
+.body-svg .rg { fill: #fff; stroke: #c5ced6; stroke-width: 0.7; cursor: pointer; transition: fill .12s; }
+.body-svg .rg:hover { fill: var(--c-main-weak); }
+.body-svg .rg.on { fill: var(--c-sel); stroke: var(--c-main); stroke-width: 1; }
+.body-svg .badge circle { fill: #123f66; }
+.body-svg .badge text { fill: #fff; font-size: 7.5px; font-weight: 700; text-anchor: middle; font-family: Arial, sans-serif; }
+.body-svg .pin { cursor: pointer; }
+.body-svg .pin circle { fill: #d62828; stroke: #fff; stroke-width: 0.8; }
+.body-svg .pin text { fill: #d62828; font-size: 8px; font-weight: 700; font-family: Arial, sans-serif; paint-order: stroke; stroke: #fff; stroke-width: 2px; }
+.body-svg .cap { font-size: 10px; text-anchor: middle; fill: #4a5560; font-weight: 700; }
+.body-svg .side { font-size: 9px; text-anchor: middle; fill: #8a96a2; }
+.pin-mode .body-svg .rg { cursor: crosshair; }
+.pin-mode .body-svg .rg:hover { fill: #fff; }
+.pin-mode .body-svg .rg.on:hover { fill: var(--c-sel); }
+
+.region-checks { display: grid; gap: 10px; max-height: 560px; overflow: auto; padding-right: 4px; }
+.rc-title { font-size: 13px; font-weight: 700; color: var(--c-sub); margin-bottom: 4px; }
+.rc-items { display: flex; flex-wrap: wrap; gap: 5px; }
+.rc {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 5px 9px; border: 1px solid var(--c-line); border-radius: 6px; background: #fff;
+  font-size: 13px; cursor: pointer;
+}
+.rc i { width: 13px; height: 13px; border: 1.5px solid #9aa6b2; border-radius: 3px; display: inline-block; }
+.rc b { min-width: 17px; height: 17px; border-radius: 50%; background: #123f66; color: #fff; font-size: 11px; display: inline-grid; place-items: center; }
+.rc.on { background: var(--c-main-weak); border-color: var(--c-main); }
+
+.selected-summary { margin-top: 10px; font-weight: 400; }
+.selected-summary ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.selected-summary li {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 6px 10px; border: 1px solid var(--c-line); border-radius: 8px; cursor: pointer; font-size: 14px;
+}
+.selected-summary li span { color: var(--c-sub); }
+.num, .pinl {
+  min-width: 20px; height: 20px; border-radius: 50%; display: inline-grid; place-items: center;
+  font-size: 11px; color: #fff; background: #123f66; font-family: Arial, sans-serif;
+}
+.pinl { background: #d62828; }
+
+/* ---------- ダイアログ ---------- */
+.dialog { width: min(480px, calc(100vw - 24px)); border: none; border-radius: 14px; padding: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.25); }
+.dialog::backdrop { background: rgba(20, 30, 40, .45); }
+.dialog h2 { margin: 0 0 12px; font-size: 18px; }
+.dialog-actions { display: flex; gap: 8px; align-items: center; }
+.spacer { flex: 1; }
+
+.preview-dialog { width: min(860px, calc(100vw - 24px)); }
+.preview-scroll { max-height: 75vh; overflow: auto; background: #888; padding: 12px; border-radius: 8px; margin-bottom: 12px; }
+.preview-scroll .sheet { margin: 0 auto; box-shadow: 0 2px 10px rgba(0,0,0,.3); zoom: .8; }
+@media (max-width: 700px) { .preview-scroll .sheet { zoom: .45; } }
+
+.phrase-edit { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0 16px; font-weight: 400; margin-top: 6px; }
+hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
+
+/* ---------- A4 シート ---------- */
+/* 画面上では見えない位置に置き、文字サイズの自動調整に使う */
+.print-area { position: absolute; left: -10000px; top: 0; }
+
+.sheet {
+  --s: 1;
+  width: 210mm; height: 297mm; overflow: hidden;
+  padding: 11mm 13mm 9mm;
+  background: #fff; color: #000;
+  font-size: calc(10.5pt * var(--s)); line-height: 1.45;
+  display: flex; flex-direction: column; gap: calc(2.2mm * var(--s));
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic", Meiryo, sans-serif;
+}
+.sheet .lbl { font-weight: 700; white-space: nowrap; }
+.sheet .ul { border-bottom: 0.3mm solid #000; padding: 0 2mm; min-height: 1.5em; display: inline-block; }
+.sh-title { text-align: center; font-size: 20pt; font-weight: 700; letter-spacing: .15em; line-height: 1.2; }
+.sh-to { font-size: 12pt; font-weight: 700; display: flex; align-items: flex-end; gap: 1mm; }
+.sh-to .w-clinic { min-width: 40mm; text-align: center; }
+.sh-row { display: flex; gap: 8mm; align-items: flex-end; }
+.sh-patient { flex: 1.2; display: flex; align-items: flex-end; gap: 2mm; font-size: 11.5pt; }
+.sh-patient .grow { flex: 1; font-size: 13pt; font-weight: 700; }
+.sh-visit { flex: 1; display: flex; align-items: flex-end; gap: 2mm; }
+.sh-visit .ul { flex: 1; }
+
+.sh-box { border: 0.3mm solid #000; border-radius: 1.5mm; padding: 1.2mm 2.5mm 1.6mm; flex: 1 0 auto; min-height: calc(17mm * var(--s)); }
+.sh-box .lbl { font-size: .92em; margin-bottom: .6mm; }
+.sh-box .txt { white-space: normal; word-break: break-all; }
+.sh-box .txt.big { font-size: 1.25em; font-weight: 700; }
+.sh-complaint { min-height: calc(14mm * var(--s)); }
+
+.sh-mid { display: flex; gap: 3mm; flex: 0 0 auto; }
+.sh-figs { flex: 0 0 auto; border: 0.3mm solid #000; border-radius: 1.5mm; padding: 1.2mm 2mm; }
+.sh-figs .figs { display: flex; gap: 1mm; }
+.sh-figs .body-svg { height: calc(96mm * var(--s)); width: auto; }
+.sh-side { flex: 1; display: flex; flex-direction: column; gap: calc(2.2mm * var(--s)); min-width: 0; }
+.sh-regions { flex: 1 0 auto; }
+.sh-reaction, .sh-next { flex: 0 0 auto; min-height: calc(14mm * var(--s)); }
+
+.body-svg.print .sil > * { fill: #fff; stroke: #000; stroke-width: 1.8; }
+.body-svg.print .rg { fill: #fff; stroke: #c8c8c8; stroke-width: 0.5; }
+.body-svg.print .rg.on { fill: #b9d4ee; stroke: #2b5f8f; stroke-width: 0.8; }
+.body-svg.print .badge circle { fill: #000; }
+.body-svg.print .pin circle { fill: #d00; }
+.body-svg.print .pin text { fill: #d00; }
+.body-svg.print .cap, .body-svg.print .side { fill: #000; }
+
+.rlist { list-style: none; margin: 0; padding: 0; display: grid; gap: .5mm; font-size: .95em; }
+.rlist li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1.5mm; line-height: 1.35; }
+.rlist .num, .rlist .pinl { min-width: 1.45em; height: 1.45em; font-size: .78em; transform: translateY(-.1em); }
+.rlist .num { background: #000; }
+.rlist .pinl { background: #d00; }
+.rlist .nm { font-weight: 700; }
+.rlist .dt { color: #222; }
+
+.sh-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 6mm; flex: 0 0 auto; margin-top: 1mm; }
+.sh-staff { display: flex; align-items: flex-end; gap: 2mm; font-size: 11.5pt; }
+.sh-staff .ul { min-width: 45mm; font-weight: 700; }
+.sh-org { text-align: left; font-size: 9pt; font-weight: 700; line-height: 1.35; }
+.sh-org .org-name { font-size: 12pt; color: #1f6fb2; }
+
+/* 印刷時はシートだけを出す */
+@page { size: A4 portrait; margin: 0; }
+@media print {
+  html, body { background: #fff; margin: 0; }
+  #app, dialog { display: none !important; }
+  .print-area { position: static; }
+  .sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

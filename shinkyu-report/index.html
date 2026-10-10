@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#1f6fb2" />
+  <link rel="stylesheet" href="style.css" />
+  <title>鍼施術内容書</title>
+</head>
+<body>
+  <!-- ===== 画面（入力） ===== -->
+  <div id="app" class="screen">
+    <header class="topbar">
+      <h1>鍼施術内容書</h1>
+      <div class="topbar-staff">
+        <label>担当者
+          <select id="staffSelect"></select>
+        </label>
+      </div>
+      <nav class="topbar-nav">
+        <button type="button" class="btn" data-view="list">一覧</button>
+        <button type="button" class="btn primary" id="btnNew">＋ 新規作成</button>
+        <button type="button" class="btn" data-view="settings">設定</button>
+      </nav>
+    </header>
+
+    <!-- 一覧 -->
+    <section id="view-list" class="view">
+      <div class="list-tools">
+        <input type="search" id="listSearch" placeholder="患者様氏名・接骨院名で検索" />
+        <label class="chk"><input type="checkbox" id="listMine" checked /> 自分の担当分のみ</label>
+      </div>
+      <p class="hint">内容書はそれぞれ別々に保存されます。4人が同時に入力しても、他の人の内容書が上書きされることはありません。</p>
+      <div id="listBody" class="list-body"></div>
+    </section>
+
+    <!-- 編集 -->
+    <section id="view-edit" class="view" hidden>
+      <div id="conflictBanner" class="banner warn" hidden>
+        別の画面でこの内容書が更新されたため、上書きしないよう自動保存を止めました。
+        <button type="button" class="btn small" id="btnReload">最新を読み込む</button>
+        <button type="button" class="btn small" id="btnSaveAsNew">自分の入力を別の内容書として保存</button>
+      </div>
+      <div class="edit-actions">
+        <span id="saveState" class="save-state"></span>
+        <button type="button" class="btn" id="btnPreview">プレビュー</button>
+        <button type="button" class="btn primary" id="btnPrint">PDF保存・印刷</button>
+      </div>
+
+      <form id="form" autocomplete="off" onsubmit="return false">
+        <div class="grid2">
+          <label class="field">宛先の接骨院
+            <input type="text" id="f-clinic" list="clinicList" placeholder="例：〇〇" />
+            <datalist id="clinicList"></datalist>
+            <small>「接骨院御中」は自動で付きます</small>
+          </label>
+          <label class="field">患者様氏名
+            <input type="text" id="f-patient" placeholder="例：山田 花子" />
+          </label>
+          <label class="field">来院日
+            <input type="date" id="f-date" />
+          </label>
+          <label class="field">来院時刻
+            <input type="time" id="f-time" step="300" />
+          </label>
+        </div>
+
+        <div class="field">主訴
+          <div class="chips" data-target="f-complaint" data-phrases="complaint"></div>
+          <textarea id="f-complaint" rows="2"></textarea>
+        </div>
+
+        <!-- 施術部位 -->
+        <div class="field">
+          <div class="field-head">
+            <span>施術部位（どこに刺したか）</span>
+            <div class="mode-toggle" role="group" aria-label="入力方法">
+              <button type="button" class="btn small active" data-mode="region">部位をタップ</button>
+              <button type="button" class="btn small" data-mode="pin">点（ツボ）を打つ</button>
+            </div>
+          </div>
+          <p class="hint" id="modeHint">人体図の部位をタップすると選択され、詳細を入力できます。</p>
+          <div class="body-wrap">
+            <div class="body-figs" id="bodyFigs"></div>
+            <div class="region-panel">
+              <div id="regionChecks" class="region-checks"></div>
+            </div>
+          </div>
+          <div id="selectedSummary" class="selected-summary"></div>
+        </div>
+
+        <div class="field">好転反応
+          <div class="chips multi" id="reactionChips"></div>
+          <textarea id="f-reaction" rows="2" placeholder="補足（任意）"></textarea>
+        </div>
+
+        <div class="grid2">
+          <label class="field">次回予約日
+            <input type="date" id="f-next" />
+          </label>
+          <label class="field">次回予約時刻（任意）
+            <input type="time" id="f-nextTime" step="300" />
+          </label>
+        </div>
+
+        <div class="field">術後の変化
+          <div class="chips" data-target="f-change" data-phrases="change"></div>
+          <textarea id="f-change" rows="2"></textarea>
+        </div>
+
+        <div class="field">通院指導
+          <div class="chips" data-target="f-guidance" data-phrases="guidance"></div>
+          <textarea id="f-guidance" rows="2"></textarea>
+        </div>
+
+        <div class="field">貴院へのお願い・申し送り
+          <div class="chips" data-target="f-request" data-phrases="request"></div>
+          <textarea id="f-request" rows="2"></textarea>
+        </div>
+
+        <label class="field">担当者名
+          <input type="text" id="f-staff" />
+        </label>
+      </form>
+    </section>
+
+    <!-- 設定 -->
+    <section id="view-settings" class="view" hidden>
+      <div class="field">施術スタッフ（1行に1人）
+        <textarea id="s-staff" rows="4"></textarea>
+      </div>
+      <div class="field">送り元の接骨院（1行に1院・入力候補に出ます）
+        <textarea id="s-clinics" rows="4"></textarea>
+      </div>
+      <div class="grid2">
+        <label class="field">院名（PDFの下に表示）
+          <input type="text" id="s-name" />
+        </label>
+        <label class="field">TEL
+          <input type="text" id="s-tel" />
+        </label>
+        <label class="field">FAX
+          <input type="text" id="s-fax" />
+        </label>
+      </div>
+      <div class="field">定型文（ボタンで挿入する文章。1行に1つ）
+        <div class="phrase-edit" id="phraseEdit"></div>
+      </div>
+      <div class="edit-actions">
+        <button type="button" class="btn primary" id="btnSaveSettings">設定を保存</button>
+      </div>
+      <hr />
+      <div class="field">バックアップ
+        <p class="hint">内容書はこの端末（ブラウザ）の中に保存されています。機種変更・ブラウザのデータ削除に備えて、定期的に書き出してください。</p>
+        <div class="edit-actions left">
+          <button type="button" class="btn" id="btnExport">書き出し（JSON）</button>
+          <label class="btn">読み込み<input type="file" id="importFile" accept="application/json" hidden /></label>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 部位詳細ポップアップ -->
+  <dialog id="regionDialog" class="dialog">
+    <form method="dialog" id="regionForm">
+      <h2 id="rd-title">部位</h2>
+      <div class="field">施術内容
+        <div class="chips multi" id="rd-methods"></div>
+      </div>
+      <div class="grid2">
+        <label class="field">本数
+          <input type="number" id="rd-count" min="0" max="99" inputmode="numeric" />
+        </label>
+        <label class="field">置鍼時間（分）
+          <input type="number" id="rd-minutes" min="0" max="99" inputmode="numeric" />
+        </label>
+      </div>
+      <label class="field">ツボ・詳細
+        <input type="text" id="rd-note" placeholder="例：肩井・肩外兪、硬結部" />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn danger" id="rd-remove">選択を外す</button>
+        <span class="spacer"></span>
+        <button type="submit" class="btn primary" value="ok">決定</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- 点（ツボ）ポップアップ -->
+  <dialog id="pinDialog" class="dialog">
+    <form method="dialog">
+      <h2 id="pd-title">点</h2>
+      <label class="field">ツボ名・メモ
+        <input type="text" id="pd-note" placeholder="例：合谷" />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" class="btn danger" id="pd-remove">この点を削除</button>
+        <span class="spacer"></span>
+        <button type="submit" class="btn primary" value="ok">決定</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ===== 印刷（A4 1枚） ===== -->
+  <div id="printArea" class="print-area" aria-hidden="true">
+    <div class="sheet" id="sheet"></div>
+  </div>
+
+  <!-- プレビュー -->
+  <dialog id="previewDialog" class="dialog preview-dialog">
+    <div class="preview-scroll"><div id="previewHost"></div></div>
+    <div class="dialog-actions">
+      <button type="button" class="btn" id="pv-close">閉じる</button>
+      <span class="spacer"></span>
+      <button type="button" class="btn primary" id="pv-print">PDF保存・印刷</button>
+    </div>
+  </dialog>
+
+  <script src="body.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
