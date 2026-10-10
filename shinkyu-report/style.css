@@ -235,10 +235,12 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
 .sh-mid { display: flex; gap: 3mm; flex: 0 0 auto; }
 .sh-figs { flex: 0 0 auto; border: 0.3mm solid #000; border-radius: 1.5mm; padding: 1.2mm 2mm; }
 .sh-figs .figs { display: flex; gap: 1mm; }
-.sh-figs .body-svg { height: calc(96mm * var(--s)); width: auto; }
+.sh-figs .body-svg { height: calc(90mm * var(--s)); width: auto; }
 .sh-side { flex: 1; display: flex; flex-direction: column; gap: calc(2.2mm * var(--s)); min-width: 0; }
-.sh-regions { flex: 1 0 auto; }
-.sh-reaction, .sh-next { flex: 0 0 auto; min-height: calc(14mm * var(--s)); }
+.sh-side .sh-complaint { flex: 1 0 auto; }
+.sh-reaction { flex: 1 0 auto; min-height: calc(14mm * var(--s)); }
+.sh-next { flex: 0 0 auto; min-height: calc(14mm * var(--s)); }
+.sh-regions { flex: 0 0 auto; min-height: 0; padding-bottom: 2mm; }
 
 .body-svg.print .sil > * { fill: #fff; stroke: #000; stroke-width: 1.8; }
 .body-svg.print .rg { fill: #fff; stroke: #c8c8c8; stroke-width: 0.5; }
@@ -248,13 +250,24 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
 .body-svg.print .pin text { fill: #d00; }
 .body-svg.print .cap, .body-svg.print .side { fill: #000; }
 
-.rlist { list-style: none; margin: 0; padding: 0; display: grid; gap: .5mm; font-size: .95em; }
-.rlist li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 1.5mm; line-height: 1.35; }
-.rlist .num, .rlist .pinl { min-width: 1.45em; height: 1.45em; font-size: .78em; transform: translateY(-.1em); }
-.rlist .num { background: #000; }
-.rlist .pinl { background: #d00; }
-.rlist .nm { font-weight: 700; }
-.rlist .dt { color: #222; }
+/* 施術内容の表 */
+.rtable { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: .95em; line-height: 1.35; }
+.rtable th {
+  font-size: .82em; font-weight: 700; text-align: left; color: #333;
+  background: #eef2f6; border-bottom: 0.3mm solid #555; padding: .8mm 1.6mm;
+}
+.rtable td { border-bottom: 0.15mm solid #bbb; padding: 1.1mm 1.6mm; vertical-align: top; word-break: break-all; }
+.rtable tbody tr:last-child td { border-bottom: none; }
+.rtable tbody tr:nth-child(even) td { background: #f7f9fb; }
+.rtable .c-no { width: 9mm; text-align: center; }
+.rtable .c-part { width: 33mm; font-weight: 700; }
+.rtable th.c-m { width: 34mm; }
+.rtable .c-n { width: 11mm; text-align: right; white-space: nowrap; }
+.rtable th.c-n { text-align: right; }
+.rtable .c-pin { color: #555; }
+.rtable .num, .rtable .pinl { min-width: 1.5em; height: 1.5em; font-size: .78em; }
+.rtable .num { background: #000; }
+.rtable .pinl { background: #d00; }
 
 .sh-foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 6mm; flex: 0 0 auto; margin-top: 1mm; }
 .sh-staff { display: flex; align-items: flex-end; gap: 2mm; font-size: 11.5pt; }

@@ -622,10 +622,18 @@
   function sheetHtml(r) {
     const nums = Object.fromEntries(r.regionOrder.map((id, i) => [id, i + 1]));
     const st = { selected: nums, pins: r.pins };
-    const regionItems = r.regionOrder.map((id, i) =>
-      `<li><b class="num">${i + 1}</b><span class="nm">${esc(label(BY_ID[id]))}</span>${detailText(r.regions[id]) ? `<span class="dt">${esc(detailText(r.regions[id]))}</span>` : ''}</li>`);
-    const pinItems = r.pins.map((p, i) =>
-      `<li><b class="pinl">${pinLabel(i)}</b><span class="nm">${esc(p.region ? label(BY_ID[p.region]) : '')}</span>${p.note ? `<span class="dt">${esc(p.note)}</span>` : ''}</li>`);
+    // 施術内容は表にする（番号・部位・施術方法・本数・時間・ツボを列で揃えて読みやすく）
+    const shortMethod = (m) => m.replace('（低周波）', '');
+    const regionRows = r.regionOrder.map((id, i) => {
+      const d = r.regions[id] || {};
+      return `<tr><td class="c-no"><b class="num">${i + 1}</b></td><td class="c-part">${esc(label(BY_ID[id]))}</td>` +
+        `<td>${esc((d.methods || []).map(shortMethod).join('・'))}</td><td class="c-n">${d.count ? esc(d.count) + '本' : ''}</td>` +
+        `<td class="c-n">${d.minutes ? esc(d.minutes) + '分' : ''}</td><td>${esc(d.note || '')}</td></tr>`;
+    });
+    const pinRows = r.pins.map((p, i) =>
+      `<tr class="pin-row"><td class="c-no"><b class="pinl">${pinLabel(i)}</b></td><td class="c-part">${esc(p.region ? label(BY_ID[p.region]) : '')}</td>` +
+      `<td colspan="3" class="c-pin">点（ツボ）</td><td>${esc(p.note || '')}</td></tr>`);
+    const rows = regionRows.concat(pinRows);
     const reaction = [r.reactions.join('、'), r.reaction].filter(Boolean).join('\n');
     const next = r.next ? `${fmtDate(r.next)}${r.nextTime ? ' ' + r.nextTime : ''}` : '';
     return `
@@ -635,19 +643,22 @@
         <div class="sh-patient"><span class="lbl">患者様氏名</span><span class="ul grow">${esc(r.patient)}</span><span>様</span></div>
         <div class="sh-visit"><span class="lbl">来院日時</span><span class="ul">${esc(fmtDate(r.date))}　${esc(r.time || '')}</span></div>
       </div>
-      <div class="sh-box sh-complaint"><div class="lbl">主訴</div><div class="txt">${nl2br(r.complaint)}</div></div>
       <div class="sh-mid">
         <div class="sh-figs">
           <div class="lbl">施術部位</div>
           <div class="figs">${figure('f', st, { cls: 'print' })}${figure('b', st, { cls: 'print' })}</div>
         </div>
         <div class="sh-side">
-          <div class="sh-box sh-regions"><div class="lbl">施術内容</div>
-            ${regionItems.length || pinItems.length ? `<ul class="rlist">${regionItems.join('')}${pinItems.join('')}</ul>` : ''}
-          </div>
+          <div class="sh-box sh-complaint"><div class="lbl">主訴</div><div class="txt">${nl2br(r.complaint)}</div></div>
           <div class="sh-box sh-reaction"><div class="lbl">好転反応</div><div class="txt">${nl2br(reaction)}</div></div>
           <div class="sh-box sh-next"><div class="lbl">次回予約日</div><div class="txt big">${esc(next)}</div></div>
         </div>
+      </div>
+      <div class="sh-box sh-regions"><div class="lbl">施術内容</div>
+        <table class="rtable">
+          <thead><tr><th class="c-no">No</th><th class="c-part">部位</th><th class="c-m">施術方法</th><th class="c-n">本数</th><th class="c-n">時間</th><th>ツボ・メモ</th></tr></thead>
+          <tbody>${rows.length ? rows.join('') : '<tr><td class="c-no"></td><td class="c-part"></td><td></td><td></td><td></td><td></td></tr>'}</tbody>
+        </table>
       </div>
       <div class="sh-box"><div class="lbl">術後の変化</div><div class="txt">${nl2br(r.change)}</div></div>
       <div class="sh-box"><div class="lbl">通院指導</div><div class="txt">${nl2br(r.guidance)}</div></div>
