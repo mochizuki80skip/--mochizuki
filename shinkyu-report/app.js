@@ -905,6 +905,8 @@
   });
   $('#sh-cancel').addEventListener('click', () => $('#shareDialog').close());
   $('#btnShare').addEventListener('click', () => { flushSave(); collect(); upsertPatient(rec); openShare(rec); });
+  // 画面下のボタンは上の同じボタンを押したことにする
+  $$('[data-proxy]').forEach((b) => b.addEventListener('click', () => $('#' + b.dataset.proxy).click()));
 
   $('#pv-close').addEventListener('click', () => $('#previewDialog').close());
   $('#pv-print').addEventListener('click', () => {

@@ -329,3 +329,13 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
   .sheet { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
+
+/* スマホ：上部を固定せず、メニューは1行で横にスクロール。下のボタンは大きめに */
+.edit-actions.bottom { margin-top: 16px; }
+@media (max-width: 640px) {
+  .topbar { position: static; padding: 8px 12px; gap: 6px 10px; }
+  .topbar-nav { flex-wrap: nowrap; overflow-x: auto; width: 100%; margin-left: 0; padding-bottom: 2px; -webkit-overflow-scrolling: touch; }
+  .topbar-nav .btn { flex: 0 0 auto; }
+  .edit-actions.bottom { display: grid; grid-template-columns: 1fr 1fr; }
+  .edit-actions.bottom .btn.line { grid-column: 1 / -1; grid-row: 1; min-height: 48px; font-size: 16px; }
+}
