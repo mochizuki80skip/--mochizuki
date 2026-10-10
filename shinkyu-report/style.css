@@ -111,10 +111,10 @@ body.loading #app { visibility: hidden; }
 .sync-state.ok { background: #e6f5ea; color: #217a3c; }
 .sync-state.wait { background: var(--c-main-weak); color: var(--c-main); }
 .sync-state.off { background: var(--c-warn); color: #7a5b00; }
-.login { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--c-bg); padding: 16px; }
-.login-box { width: min(360px, 100%); background: #fff; border: 1px solid var(--c-line); border-radius: 14px; padding: 24px; display: grid; gap: 10px; }
+.login { position: fixed; inset: 0; z-index: 100; display: grid; grid-template-columns: minmax(0, 1fr); align-content: center; justify-items: center; background: var(--c-bg); padding: 16px; overflow-y: auto; }
+.login-box { width: 100%; max-width: 360px; min-width: 0; background: #fff; border: 1px solid var(--c-line); border-radius: 14px; padding: 24px 20px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .login-box h1 { margin: 0; font-size: 20px; color: var(--c-main); }
-.login-box input { padding: 10px 12px; border: 1px solid var(--c-line); border-radius: 8px; font-size: 16px; }
+.login-box input { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--c-line); border-radius: 8px; font-size: 16px; }
 .login-error { margin: 0; min-height: 1.2em; color: var(--c-danger); font-size: 13px; }
 
 /* ---------- 患者様・ログ ---------- */
@@ -188,7 +188,8 @@ a.card.link:hover { border-color: var(--c-main); }
 .body-svg .side { font-size: 9px; text-anchor: middle; fill: #8a96a2; }
 .body-svg .deco path { fill: none; stroke: #4a5560; stroke-width: 1.2; stroke-linecap: round; }
 .toggles { display: flex; flex-wrap: wrap; gap: 8px; }
-.diagram-toggle, .mode-toggle { display: inline-flex; gap: 4px; }
+.diagram-toggle, .mode-toggle { display: inline-flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+.field-head > span { min-width: 0; }
 .diagram-toggle .cnt { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #123f66; color: #fff; font-size: 11px; }
 
 .region-checks { display: grid; gap: 10px; max-height: 560px; overflow: auto; padding-right: 4px; }
