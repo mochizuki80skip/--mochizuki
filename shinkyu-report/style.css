@@ -146,6 +146,13 @@ a.card.link:hover { border-color: var(--c-main); }
 .btn.line { background: #06c755; border-color: #06c755; color: #fff; font-weight: 600; }
 .btn.line:disabled { opacity: .5; }
 .warn-text { color: #7a5b00; }
+/* 送る形式（画像／PDF） */
+.sh-format { display: grid; gap: 8px; margin: 4px 0 10px; }
+.sh-opt { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--c-line); border-radius: 10px; cursor: pointer; }
+.sh-opt:has(input:checked) { border-color: #06c755; background: #effbf3; }
+.sh-opt input { margin-top: 4px; width: auto; flex: none; }
+.sh-opt span { display: grid; min-width: 0; }
+.sh-opt small { color: var(--c-sub); font-size: 12px; }
 .log-act.act-del { background: #fde8e6; color: var(--c-danger); }
 .log-act.act-create, .log-act.act-copy { background: #e6f5ea; color: #217a3c; }
 .log-btns { display: flex; gap: 6px; align-items: center; }

@@ -845,58 +845,95 @@
     document.head.appendChild(s);
   });
 
-  // 内容書（A4 1枚）を PDF にする。見た目は印刷と同じ（画像として PDF に貼る）
+  // 内容書（A4 1枚）を画像にする。見た目は印刷と同じ。PDF はこの画像を A4 に貼って作る
   // 部品（html2canvas 1.4.1 / jsPDF 2.5.1、どちらも MIT ライセンス）は lib/ に同梱
-  async function sheetPdfBlob(r) {
+  async function sheetCanvas(r) {
     await loadScript('lib/html2canvas.min.js');
-    await loadScript('lib/jspdf.umd.min.js');
     await buildSheetReady(r);
-    const canvas = await window.html2canvas($('#sheet'), { scale: 2.5, backgroundColor: '#ffffff', logging: false });
+    return window.html2canvas($('#sheet'), { scale: 2.5, backgroundColor: '#ffffff', logging: false });
+  }
+  const canvasBlob = (canvas) => new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.92));
+  async function canvasPdf(canvas) {
+    await loadScript('lib/jspdf.umd.min.js');
     const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
     pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 210, 297);
     return pdf.output('blob');
   }
 
-  const pdfName = (r) => `鍼施術内容書_${r.patient || '氏名未入力'}_${(r.date || '').replace(/-/g, '')}.pdf`;
-  let shareFile = null;
+  const SHARE_FORMATS = {
+    image: { label: '画像', ext: 'jpg', type: 'image/jpeg' },
+    pdf: { label: 'PDF', ext: 'pdf', type: 'application/pdf' },
+  };
+  const KEY_SHARE_FORMAT = 'shinq-share-format'; // 端末ごとに前回選んだ形式を覚える（同期しない）
+  const shareName = (r, fmt) => `鍼施術内容書_${r.patient || '氏名未入力'}_${(r.date || '').replace(/-/g, '')}.${SHARE_FORMATS[fmt].ext}`;
+  const shareFormat = () => document.querySelector('input[name="sh-format"]:checked')?.value || 'image';
   let shareRec = null;
+  let shareCanvas = null;
+  let shareFiles = {};   // 形式 → File（作ったものを使い回す）
+  let shareCan = false;  // この端末で共有画面が使えるか
 
-  async function openShare(r) {
-    shareRec = r;
-    shareFile = null;
+  // 選んでいる形式のファイルを用意する（共有画面は押した直後にしか開けないので、先に作っておく）
+  async function prepareShareFile() {
+    const fmt = shareFormat();
+    const f = SHARE_FORMATS[fmt];
     $('#sh-go').disabled = true;
     $('#sh-error').textContent = '';
-    $('#sh-status').textContent = '内容書の PDF を作っています…';
-    $('#shareDialog').showModal();
     try {
-      const blob = await sheetPdfBlob(r);
-      shareFile = new File([blob], pdfName(r), { type: 'application/pdf' });
-      const canShare = navigator.canShare && navigator.canShare({ files: [shareFile] });
-      if (canShare) {
-        $('#sh-status').textContent = `準備ができました：${shareFile.name}`;
-        $('#sh-go').disabled = false;
-      } else {
-        // パソコンなど共有画面が使えない端末：PDF を保存して、LINE のアプリで送ってもらう
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = shareFile.name;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-        $('#sh-status').textContent = 'この端末では共有画面が使えないため、PDF を保存しました。スマホで操作するか、保存した PDF を LINE のアプリで送ってください。';
-        addLog('share', r, true, { via: 'download' });
+      if (!shareFiles[fmt]) {
+        $('#sh-status').textContent = `内容書を${f.label}にしています…`;
+        if (!shareCanvas) shareCanvas = await sheetCanvas(shareRec);
+        const blob = fmt === 'pdf' ? await canvasPdf(shareCanvas) : await canvasBlob(shareCanvas);
+        shareFiles[fmt] = new File([blob], shareName(shareRec, fmt), { type: f.type });
       }
+      if (shareFormat() !== fmt) return; // 作っている間に形式が変わった
+      shareCan = !!(navigator.canShare && navigator.canShare({ files: [shareFiles[fmt]] }));
+      $('#sh-go').textContent = shareCan ? '送信先を選ぶ' : `${f.label}を保存する`;
+      $('#sh-status').textContent = shareCan
+        ? `準備ができました：${shareFiles[fmt].name}`
+        : `この端末では共有画面が使えません。「${f.label}を保存する」で保存し、LINE のアプリから送ってください。`;
+      $('#sh-go').disabled = false;
     } catch (e) {
       $('#sh-error').textContent = e.message;
     }
   }
 
+  function openShare(r) {
+    shareRec = r;
+    shareCanvas = null;
+    shareFiles = {};
+    let saved = 'image';
+    try { saved = localStorage.getItem(KEY_SHARE_FORMAT) || 'image'; } catch { /* 既定のまま */ }
+    const radio = document.querySelector(`input[name="sh-format"][value="${SHARE_FORMATS[saved] ? saved : 'image'}"]`);
+    if (radio) radio.checked = true;
+    $('#shareDialog').showModal();
+    prepareShareFile();
+  }
+
+  $$('input[name="sh-format"]').forEach((el) => el.addEventListener('change', () => {
+    try { localStorage.setItem(KEY_SHARE_FORMAT, shareFormat()); } catch { /* 覚えられなくても送れる */ }
+    prepareShareFile();
+  }));
+
   $('#sh-go').addEventListener('click', async () => {
-    if (!shareFile) return;
+    const fmt = shareFormat();
+    const file = shareFiles[fmt];
+    if (!file) return;
+    if (!shareCan) {
+      // パソコンなど：ファイルを保存して、LINE のアプリで送ってもらう
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(file);
+      a.download = file.name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+      addLog('share', shareRec, true, { via: 'download', format: fmt });
+      $('#shareDialog').close();
+      return;
+    }
     try {
-      await navigator.share({ files: [shareFile], title: shareFile.name });
-      addLog('share', shareRec, true);
+      await navigator.share({ files: [file], title: file.name });
+      addLog('share', shareRec, true, { format: fmt });
       $('#shareDialog').close();
     } catch (e) {
       // 共有画面で「キャンセル」した時は何もしない
@@ -1010,7 +1047,7 @@
         <span class="log-at">${esc(fmtAt(l.at))}</span>
         <span class="log-act act-${l.action}">${esc(LOG_ACTIONS[l.action] || l.action)}</span>
         <span class="log-who">${esc(l.staff || '-')}</span>
-        <span class="log-what">${esc(patient)} 様${l.date ? `（${esc(fmtDate(l.date))}来院分）` : ''}</span>
+        <span class="log-what">${esc(patient)} 様${l.date ? `（${esc(fmtDate(l.date))}来院分）` : ''}${l.format ? ` <small>（${l.format === 'pdf' ? 'PDF' : '画像'}）</small>` : ''}</span>
         <span class="log-btns">
           ${l.snapshot ? '<button type="button" class="btn small" data-lact="view">その時の内容</button>' : ''}
           ${r ? '<button type="button" class="btn small" data-lact="open">開く</button>' : '<span class="log-gone">内容書は削除済み</span>'}

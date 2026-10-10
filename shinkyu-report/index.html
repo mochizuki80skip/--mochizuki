@@ -250,7 +250,13 @@
   <!-- LINE などで送る（スマホの共有画面を開く） -->
   <dialog id="shareDialog" class="dialog">
     <h2>LINEで送る</h2>
-    <p id="sh-status" class="hint">内容書の PDF を作っています…</p>
+    <div class="sh-format" role="radiogroup" aria-label="送る形式">
+      <label class="sh-opt"><input type="radio" name="sh-format" value="image" checked />
+        <span><b>画像</b><small>LINE のトーク画面にそのまま表示される。開かずにすぐ読める</small></span></label>
+      <label class="sh-opt"><input type="radio" name="sh-format" value="pdf" />
+        <span><b>PDF</b><small>A4 の書類として保存・印刷しやすい</small></span></label>
+    </div>
+    <p id="sh-status" class="hint">内容書を作っています…</p>
     <p class="hint">「送信先を選ぶ」を押すとスマホの共有画面が開きます。<b>LINE</b> を選び、送る相手（先生・グループ）を選んでください。</p>
     <p class="hint warn-text">送る相手を間違えないよう、LINE の画面で宛先をよく確認してください。</p>
     <p class="login-error" id="sh-error"></p>
