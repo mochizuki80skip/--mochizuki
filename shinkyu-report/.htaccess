@@ -7,13 +7,21 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
 DirectoryIndex index.html
 
+# フォルダの中身の一覧を表示しない
+Options -Indexes
+
 # 設定ファイルの見本・説明書・テスト用ファイルは公開しない
 <FilesMatch "^(config\.sample\.php|README\.md)$">
   Require all denied
 </FilesMatch>
 
-# 画面を更新したらすぐ反映されるように
 <IfModule mod_headers.c>
+  # Google などの検索結果に出さない（ページ・画像・PDF すべて）
+  Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+  # 他のサイトに埋め込ませない・リンク元に URL を渡さない
+  Header set X-Frame-Options "DENY"
+  Header set Referrer-Policy "no-referrer"
+  # 画面を更新したらすぐ反映されるように
   <FilesMatch "\.(html|js|css)$">
     Header set Cache-Control "no-cache"
   </FilesMatch>

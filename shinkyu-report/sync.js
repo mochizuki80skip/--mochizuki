@@ -58,7 +58,11 @@
     });
     let data = null;
     try { data = await res.json(); } catch { /* JSON 以外 */ }
-    if (!res.ok || !data) throw new HttpError(res.status, data?.error || `HTTP ${res.status}`);
+    if (!res.ok || !data) {
+      const err = new HttpError(res.status, data?.error || `HTTP ${res.status}`);
+      err.fromServer = !!data; // api.php は動いている（設定の不備など）
+      throw err;
+    }
     return data;
   }
 
@@ -88,12 +92,21 @@
         loginWaiter = null;
         resolve();
       } catch (ex) {
-        err.textContent = ex.status === 401 ? 'パスワードが違います。' : `ログインできませんでした（${ex.message}）`;
+        err.textContent = ex.status === 401 ? 'パスワードが違います。'
+          : ex.status === 429 ? ex.message : `ログインできませんでした（${ex.message}）`;
       } finally {
         btn.disabled = false;
       }
     };
     return promise;
+  }
+
+  // 設定の不備などで使えない時：ログイン画面の場所に理由を出して止める
+  function fatal(msg) {
+    const box = document.getElementById('login');
+    box.hidden = false;
+    document.getElementById('loginForm').innerHTML =
+      `<h1>鍼施術内容書</h1><p class="login-error">使える状態になっていません：${String(msg).replace(/[&<>"]/g, '')}</p>`;
   }
 
   // 401 ならログインしてからやり直す
@@ -198,7 +211,11 @@
       me = await api('me');
     } catch (e) {
       if (e.status === 401) me = { loggedIn: false };
-      else if (ls.get(K_SERVER)) {
+      else if (e.fromServer) {
+        // api.php はあるが使えない（config.php のパスワード未設定など）→ 先へ進ませない
+        fatal(e.message);
+        return new Promise(() => {});
+      } else if (ls.get(K_SERVER)) {
         // サーバー運用中の端末が一時的につながらない：端末内のデータで動かし、つながったら送る
         mode = 'server';
         online = false;
@@ -226,7 +243,11 @@
     status();
   }
 
-  const ready = start();
+  // ログイン画面に ?next=karte.html で来た時は、ログイン後にそのページへ戻す
+  const ready = start().then(() => {
+    const next = new URLSearchParams(location.search).get('next');
+    if (mode === 'server' && next && /^[\w-]+\.html$/.test(next)) location.replace(next);
+  });
 
   ready.then(() => {
     setInterval(() => { if (!document.hidden) syncNow(); }, POLL_MS);

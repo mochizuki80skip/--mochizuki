@@ -66,10 +66,16 @@ switch ($action) {
         if ($method !== 'POST') fail(405, 'POST only');
         $body = jsonBody();
         $pw = (string)($body['password'] ?? '');
+        $guard = loginGuard($config);
+        if ($guard['locked']) {
+            fail(429, 'パスワードを続けて間違えたため、しばらくログインできません（' . $guard['minutes'] . '分後に再度お試しください）');
+        }
         if (!hash_equals((string)$config['password'], $pw)) {
+            loginGuard($config, false);
             sleep(2); // 総当たり対策
             fail(401, 'パスワードが違います');
         }
+        loginGuard($config, true);
         session_regenerate_id(true);
         $_SESSION['ok'] = true;
         out(['loggedIn' => true]);
@@ -247,6 +253,40 @@ function db(array $config): PDO
         fail(500, 'データベースに接続できません。config.php を確認してください。');
     }
     return $pdo;
+}
+
+/**
+ * ログインの失敗回数を接続元ごとに数え、15分以内に10回間違えたら15分ロックする。
+ * $result: null=確認だけ / false=失敗を記録 / true=成功（記録を消す）
+ */
+function loginGuard(array $config, ?bool $result = null): array
+{
+    $file = dataDir($config) . '/login_attempts.json';
+    $ip = hash('sha256', ($_SERVER['REMOTE_ADDR'] ?? '') . '|shinq');
+    $now = time();
+    $fp = @fopen($file, 'c+');
+    if (!$fp) return ['locked' => false, 'minutes' => 0];
+    flock($fp, LOCK_EX);
+    $all = json_decode((string)stream_get_contents($fp), true) ?: [];
+    foreach ($all as $k => $v) {
+        if (($v['until'] ?? 0) < $now && ($v['first'] ?? 0) < $now - 900) unset($all[$k]); // 古い記録は消す
+    }
+    $me = $all[$ip] ?? ['count' => 0, 'first' => $now, 'until' => 0];
+    if ($result === false) {
+        if ($me['first'] < $now - 900) $me = ['count' => 0, 'first' => $now, 'until' => 0];
+        $me['count']++;
+        if ($me['count'] >= 10) $me['until'] = $now + 900;
+        $all[$ip] = $me;
+    } elseif ($result === true) {
+        unset($all[$ip]);
+    }
+    ftruncate($fp, 0);
+    rewind($fp);
+    fwrite($fp, json_encode($all));
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    $locked = ($me['until'] ?? 0) > $now && $result !== true;
+    return ['locked' => $locked, 'minutes' => $locked ? (int)ceil(($me['until'] - $now) / 60) : 0];
 }
 
 function requireLogin(): void

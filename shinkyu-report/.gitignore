@@ -1,3 +1,4 @@
 config.php
 data/*.sqlite*
 data/sessions/
+data/login_attempts.json
