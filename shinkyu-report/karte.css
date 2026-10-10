@@ -1,0 +1,42 @@
+/* カルテ枚数計算（style.css の上に重ねる） */
+a.btn { text-decoration: none; color: inherit; }
+.view .panel { margin-bottom: 16px; padding: 16px; }
+.panel h2 { margin: 0 0 8px; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+.step {
+  display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--c-main); color: #fff; font-size: 13px;
+}
+.drop {
+  display: grid; place-items: center; min-height: 110px; padding: 16px; text-align: center;
+  border: 2px dashed var(--c-line); border-radius: 12px; background: #fafcfe; cursor: pointer; color: var(--c-sub);
+}
+.drop.over, .drop:hover { border-color: var(--c-main); color: var(--c-main); }
+.drop.done { border-style: solid; border-color: var(--c-main); color: var(--c-text); }
+.kc-opts { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-bottom: 4px; }
+
+.kc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 8px 0; }
+.stat { border: 1px solid var(--c-line); border-radius: 10px; padding: 10px 14px; background: #fff; }
+.stat.main { border-color: var(--c-main); background: var(--c-main-weak); }
+.stat-label { font-size: 13px; color: var(--c-sub); }
+.stat-num { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat.main .stat-num { color: var(--c-main); }
+.kc-stats.small .stat-num { font-size: 24px; }
+
+.kc-compare { display: grid; grid-template-columns: minmax(200px, 280px) 1fr; gap: 12px; align-items: end; margin-top: 8px; }
+@media (max-width: 640px) { .kc-compare { grid-template-columns: 1fr; } }
+.cmp-result { padding: 10px 14px; border-radius: 10px; background: var(--c-bg); font-size: 14px; margin-bottom: 16px; }
+.cmp-result:empty { display: none; }
+.cmp-result b { font-size: 18px; }
+
+.table-wrap { overflow: auto; max-height: 480px; border: 1px solid var(--c-line); border-radius: 10px; }
+.kc-table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; }
+.kc-table th, .kc-table td { padding: 6px 10px; border-bottom: 1px solid var(--c-line); text-align: left; white-space: nowrap; }
+.kc-table th { position: sticky; top: 0; background: #eef2f6; font-size: 13px; z-index: 1; }
+.kc-table td.n, .kc-table th.n { text-align: right; font-variant-numeric: tabular-nums; }
+.kc-table tr.in-period td { background: #f2f8ff; }
+.kc-table .tag { display: inline-block; padding: 0 6px; margin: 1px 2px; border-radius: 4px; background: #eef1f4; font-size: 12px; }
+.kc-table .bar { display: inline-block; height: 8px; background: var(--c-sel); border-radius: 4px; vertical-align: middle; margin-left: 6px; }
+.preview-table { overflow: auto; max-height: 220px; border: 1px solid var(--c-line); border-radius: 10px; }
+.preview-table .kc-table td { color: var(--c-sub); }
+.preview-table .kc-table .sel { background: var(--c-main-weak); color: var(--c-text); font-weight: 600; }
+.tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
