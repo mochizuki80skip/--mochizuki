@@ -153,18 +153,29 @@ a.card.link:hover { border-color: var(--c-main); }
 .body-svg .rg.on { fill: var(--c-sel); stroke: var(--c-main); stroke-width: 1; }
 .body-svg .badge circle { fill: #123f66; }
 .body-svg .badge text { fill: #fff; font-size: 7.5px; font-weight: 700; text-anchor: middle; font-family: Arial, sans-serif; }
-.body-svg .pin { cursor: pointer; }
-.body-svg .pin circle { fill: #d62828; stroke: #fff; stroke-width: 0.8; }
-.body-svg .pin text { fill: #d62828; font-size: 8px; font-weight: 700; font-family: Arial, sans-serif; paint-order: stroke; stroke: #fff; stroke-width: 2px; }
+/* 鍼（赤）と電気（青） */
+:root { --c-needle: #d62828; --c-electric: #1f63d8; }
+.body-svg .pin .dot { fill: var(--c-needle); stroke: #fff; stroke-width: 0.9; }
+.body-svg .pin .hit, .body-svg .link .hit { fill: transparent; stroke: transparent; }
+.body-svg .link .hit { stroke-width: 9; stroke-linecap: round; }
+.body-svg .link .ln { stroke: var(--c-electric); stroke-width: 2; stroke-linecap: round; }
+.body-svg .pin.sel .dot { stroke: var(--c-electric); stroke-width: 2.2; }
+/* 部位を選ぶ時は鍼・電気を素通りさせる */
+.mode-region .body-svg .pin, .mode-region .body-svg .link { pointer-events: none; }
+.mode-needle .body-svg .pin, .mode-electric .body-svg .pin, .mode-electric .body-svg .link { cursor: pointer; }
+.mode-needle .body-svg .rg, .mode-electric .body-svg .rg { cursor: crosshair; }
+.mode-needle .body-svg .rg:hover, .mode-electric .body-svg .rg:hover { fill: #fff; }
+.mode-needle .body-svg .rg.on:hover, .mode-electric .body-svg .rg.on:hover { fill: var(--c-sel); }
+.mk-needle, .mk-electric { display: inline-block; vertical-align: middle; margin-right: 4px; }
+.mk-needle { width: 9px; height: 9px; border-radius: 50%; background: var(--c-needle); }
+.mk-electric { width: 16px; height: 3px; border-radius: 2px; background: var(--c-electric); }
+.selected-summary li.nd { cursor: default; }
 .body-svg .cap { font-size: 10px; text-anchor: middle; fill: #4a5560; font-weight: 700; }
 .body-svg .side { font-size: 9px; text-anchor: middle; fill: #8a96a2; }
 .body-svg .deco path { fill: none; stroke: #4a5560; stroke-width: 1.2; stroke-linecap: round; }
 .toggles { display: flex; flex-wrap: wrap; gap: 8px; }
 .diagram-toggle, .mode-toggle { display: inline-flex; gap: 4px; }
 .diagram-toggle .cnt { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: #123f66; color: #fff; font-size: 11px; }
-.pin-mode .body-svg .rg { cursor: crosshair; }
-.pin-mode .body-svg .rg:hover { fill: #fff; }
-.pin-mode .body-svg .rg.on:hover { fill: var(--c-sel); }
 
 .region-checks { display: grid; gap: 10px; max-height: 560px; overflow: auto; padding-right: 4px; }
 .rc-title { font-size: 13px; font-weight: 700; color: var(--c-sub); margin-bottom: 4px; }
@@ -261,8 +272,12 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
 .body-svg.print .rg { fill: #fff; stroke: #c8c8c8; stroke-width: 0.5; }
 .body-svg.print .rg.on { fill: #b9d4ee; stroke: #2b5f8f; stroke-width: 0.8; }
 .body-svg.print .badge circle { fill: #000; }
-.body-svg.print .pin circle { fill: #d00; }
-.body-svg.print .pin text { fill: #d00; }
+.body-svg.print .pin .dot { fill: #d00; }
+.body-svg.print .link .ln { stroke: #0050d0; stroke-width: 1.8; }
+.sh-figs .legend { margin-left: 3mm; font-weight: 400; font-size: .85em; }
+.sh-figs .legend .mk-needle { width: 2.2mm; height: 2.2mm; margin: 0 .8mm 0 2mm; background: #d00; }
+.sh-figs .legend .mk-electric { width: 4.5mm; height: .7mm; margin: 0 .8mm 0 3mm; background: #0050d0; }
+.rtable .mk-needle { width: 2.4mm; height: 2.4mm; margin: 0; background: #d00; }
 .body-svg.print .cap, .body-svg.print .side { fill: #000; }
 .body-svg.print .deco path { stroke: #000; stroke-width: 1; }
 

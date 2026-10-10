@@ -141,8 +141,10 @@
               </div>
               <div class="mode-toggle" role="group" aria-label="入力方法">
                 <button type="button" class="btn small active" data-mode="region">部位をタップ</button>
-                <button type="button" class="btn small" data-mode="pin">点（ツボ）を打つ</button>
+                <button type="button" class="btn small" data-mode="needle"><i class="mk-needle"></i>鍼を打つ</button>
+                <button type="button" class="btn small" data-mode="electric"><i class="mk-electric"></i>電気でつなぐ</button>
               </div>
+              <button type="button" class="btn small" id="btnUndo" disabled>1つ戻す</button>
             </div>
           </div>
           <p class="hint" id="modeHint">人体図の部位をタップすると選択され、詳細を入力できます。</p>
@@ -247,8 +249,8 @@
           <input type="number" id="rd-minutes" min="0" max="99" inputmode="numeric" />
         </label>
       </div>
-      <label class="field">ツボ・詳細
-        <input type="text" id="rd-note" placeholder="例：肩井・肩外兪、硬結部" />
+      <label class="field">メモ（任意）
+        <input type="text" id="rd-note" placeholder="例：硬結部、響きあり" />
       </label>
       <div class="dialog-actions">
         <button type="button" class="btn danger" id="rd-remove">選択を外す</button>
@@ -258,20 +260,6 @@
     </form>
   </dialog>
 
-  <!-- 点（ツボ）ポップアップ -->
-  <dialog id="pinDialog" class="dialog">
-    <form method="dialog">
-      <h2 id="pd-title">点</h2>
-      <label class="field">ツボ名・メモ
-        <input type="text" id="pd-note" placeholder="例：合谷" />
-      </label>
-      <div class="dialog-actions">
-        <button type="button" class="btn danger" id="pd-remove">この点を削除</button>
-        <span class="spacer"></span>
-        <button type="submit" class="btn primary" value="ok">決定</button>
-      </div>
-    </form>
-  </dialog>
 
   <!-- ===== 印刷（A4 1枚） ===== -->
   <div id="printArea" class="print-area" aria-hidden="true">

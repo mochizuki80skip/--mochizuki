@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const { REGIONS, BY_ID, SETS, VIEWS, figure, label, pinLabel, regionAt, esc } = window.Body;
+  const { REGIONS, BY_ID, SETS, VIEWS, figure, label, regionAt, esc } = window.Body;
 
   const KEY_REC = 'shinq:rec:';
   const KEY_SETTINGS = 'shinq:settings';
@@ -150,7 +150,7 @@
       id: newId(), rev: 0, createdAt: Date.now(), updatedAt: Date.now(),
       staff: me, staffName: me,
       clinic: '', patient: '', date: today(), time: nowTime(),
-      complaint: '', regions: {}, regionOrder: [], pins: [], diagram: 'body',
+      complaint: '', regions: {}, regionOrder: [], pins: [], links: [], diagram: 'body',
       ...init,
       reactions: [], reaction: '', next: '', nextTime: '',
       change: '', guidance: '', request: '',
@@ -265,7 +265,7 @@
         <div class="card-main" data-act="open">
           <div class="card-date">${esc(fmtDate(r.date))} ${esc(r.time || '')}</div>
           ${showPatient ? `<div class="card-name">${esc(r.patient || '（氏名未入力）')} <small>様</small></div>` : ''}
-          <div class="card-meta">${esc(r.clinic ? r.clinic + '接骨院' : '宛先未入力')} ／ 担当：${esc(r.staffName || r.staff || '-')} ／ 施術部位 ${r.regionOrder.length}か所${r.pins.length ? `・点 ${r.pins.length}` : ''}</div>
+          <div class="card-meta">${esc(r.clinic ? r.clinic + '接骨院' : '宛先未入力')} ／ 担当：${esc(r.staffName || r.staff || '-')} ／ 施術部位 ${r.regionOrder.length}か所${r.pins.length ? `・鍼 ${r.pins.length}` : ''}${(r.links || []).length ? `・電気 ${r.links.length}` : ''}</div>
           ${showPatient ? '' : recordDigest(r)}
         </div>
         <div class="card-acts">
@@ -296,8 +296,18 @@
   const FIELDS = ['clinic', 'patient', 'date', 'time', 'complaint', 'reaction', 'next', 'nextTime', 'change', 'guidance', 'request', 'staffName'];
   const fieldEl = (k) => $(`#f-${k === 'staffName' ? 'staff' : k}`);
 
+  // 以前の内容書（鍼に id が無い・電気が無い）を今の形にそろえる
+  function normalizePins(r) {
+    r.pins = (r.pins || []).map((p) => (p.id ? p : { ...p, id: newId() }));
+    r.links = (r.links || []).filter((l) => r.pins.some((p) => p.id === l.a) && r.pins.some((p) => p.id === l.b));
+    return r;
+  }
+
   function openRecord(r) {
-    rec = r;
+    rec = normalizePins(r);
+    undoStack = [];
+    linkSel = null;
+    updateUndo();
     loadedRev = r.rev || 0;
     setConflict(false);
     FIELDS.forEach((k) => { fieldEl(k).value = r[k] || ''; });
@@ -470,10 +480,10 @@
   const diagramOf = (r) => r.diagram || (usedSets(r).length === 1 ? usedSets(r)[0] : 'body');
 
   function renderBody() {
-    const st = { selected: numbers(), pins: rec.pins };
+    const st = { selected: numbers(), pins: rec.pins, links: rec.links, linkSel };
     const d = diagramOf(rec);
     $('#bodyFigs').innerHTML = SETS[d].views.map((v) => figure(v, st)).join('');
-    $('#bodyFigs').className = `body-figs figs-${d}${mode === 'pin' ? ' pin-mode' : ''}`;
+    $('#bodyFigs').className = `body-figs figs-${d} mode-${mode}`;
     // 切り替えボタン：選択中の種類と、それぞれの印の数
     $$('.diagram-toggle [data-diagram]').forEach((b) => {
       const k = b.dataset.diagram;
@@ -523,42 +533,120 @@
     return parts.join('／');
   };
 
+  // 部位ごとの鍼の本数と電気の組数（電気はどちらかの端がその部位にあれば数える）
+  function needleStats(r) {
+    const map = new Map();
+    const get = (region) => {
+      if (!map.has(region)) map.set(region, { region, needles: 0, links: 0 });
+      return map.get(region);
+    };
+    r.pins.forEach((p) => { if (p.region) get(p.region).needles++; });
+    const pinById = Object.fromEntries(r.pins.map((p) => [p.id, p]));
+    (r.links || []).forEach((l) => {
+      const regs = new Set([pinById[l.a]?.region, pinById[l.b]?.region].filter(Boolean));
+      regs.forEach((reg) => get(reg).links++);
+    });
+    // 人体図の部位の順に並べる
+    return [...map.values()].sort((a, b) => REGIONS.indexOf(BY_ID[a.region]) - REGIONS.indexOf(BY_ID[b.region]));
+  }
+  const needleText = (n) => `鍼 ${n.needles}本${n.links ? `・電気 ${n.links}組` : ''}`;
+
   function renderSummary() {
     const regs = rec.regionOrder.map((id, i) =>
       `<li data-id="${id}"><b class="num">${i + 1}</b>${esc(label(BY_ID[id]))}<span>${esc(detailText(rec.regions[id]))}</span></li>`);
-    const pins = rec.pins.map((p, i) =>
-      `<li data-pin="${i}"><b class="pinl">${pinLabel(i)}</b>${esc(p.region ? label(BY_ID[p.region]) : (p.view === 'f' ? '前面' : '背面'))}<span>${esc(p.note || '')}</span></li>`);
+    // 鍼・電気は部位ごとにまとめて表示
+    const pins = needleStats(rec).filter((n) => !rec.regions[n.region]).map((n) =>
+      `<li class="nd"><i class="mk-needle"></i>${esc(label(BY_ID[n.region]))}<span>${esc(needleText(n))}</span></li>`);
+    const total = rec.pins.length ? `<p class="hint">鍼 ${rec.pins.length}本${rec.links.length ? `・電気 ${rec.links.length}組` : ''}</p>` : '';
     $('#selectedSummary').innerHTML = regs.length || pins.length
-      ? `<ul>${regs.join('')}${pins.join('')}</ul>`
+      ? `<ul>${regs.join('')}${pins.join('')}</ul>${total}`
       : '<p class="hint">まだ施術部位が選ばれていません。</p>';
   }
+
+  const MODE_HINT = {
+    region: '人体図の部位をタップすると選択され、詳細を入力できます。',
+    needle: '刺した位置をタップすると鍼（赤）が付きます。付いた鍼をもう一度タップすると消えます。',
+    electric: '鍼を2つ順にタップすると電気（青い線）でつながります。線をタップすると消えます。',
+  };
+
+  // 鍼・電気の「1つ戻す」
+  let undoStack = [];
+  let linkSel = null; // 電気でつなぐ途中の鍼
+  const updateUndo = () => { $('#btnUndo').disabled = !undoStack.length; };
+  function pushUndo() {
+    undoStack.push(JSON.stringify({ pins: rec.pins, links: rec.links }));
+    if (undoStack.length > 50) undoStack.shift();
+    updateUndo();
+  }
+  $('#btnUndo').addEventListener('click', () => {
+    if (!rec || !undoStack.length) return;
+    const prev = JSON.parse(undoStack.pop());
+    rec.pins = prev.pins;
+    rec.links = prev.links;
+    linkSel = null;
+    updateUndo();
+    renderBody();
+    scheduleSave();
+  });
 
   $$('.mode-toggle [data-mode]').forEach((b) => b.addEventListener('click', () => {
     mode = b.dataset.mode;
     $$('.mode-toggle [data-mode]').forEach((x) => x.classList.toggle('active', x === b));
-    $('#modeHint').textContent = mode === 'pin'
-      ? '刺した位置をタップすると点（A, B, C…）が打てます。点をタップすると名前の入力・削除ができます。'
-      : '人体図の部位をタップすると選択され、詳細を入力できます。';
-    $('#bodyFigs').classList.toggle('pin-mode', mode === 'pin');
+    linkSel = null;
+    $('#modeHint').textContent = MODE_HINT[mode];
+    if (rec) renderBody();
   }));
 
   $('#bodyFigs').addEventListener('click', (e) => {
     if (!rec) return;
     const pinEl = e.target.closest('.pin');
-    if (pinEl) { openPinDialog(Number(pinEl.dataset.pin)); return; }
+    const linkEl = e.target.closest('.link');
     const svg = e.target.closest('svg');
     if (!svg) return;
-    if (mode === 'pin') {
-      const pt = svg.createSVGPoint();
-      pt.x = e.clientX; pt.y = e.clientY;
-      const p = pt.matrixTransform(svg.getScreenCTM().inverse());
-      const view = svg.dataset.view;
-      const r = regionAt(view, p.x, p.y);
-      if (!r) return; // 体の外は無視
-      rec.pins.push({ view, x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10, region: r.id, note: '' });
+    if (mode === 'needle') {
+      if (pinEl) {
+        // 付いている鍼をタップ → 消す（つながっていた電気も消す）
+        pushUndo();
+        const id = pinEl.dataset.pin;
+        rec.pins = rec.pins.filter((p) => p.id !== id);
+        rec.links = rec.links.filter((l) => l.a !== id && l.b !== id);
+      } else {
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX; pt.y = e.clientY;
+        const p = pt.matrixTransform(svg.getScreenCTM().inverse());
+        const view = svg.dataset.view;
+        const r = regionAt(view, p.x, p.y);
+        if (!r) return; // 体の外は無視
+        pushUndo();
+        rec.pins.push({ id: newId(), view, x: Math.round(p.x * 10) / 10, y: Math.round(p.y * 10) / 10, region: r.id });
+      }
       renderBody();
       scheduleSave();
-      openPinDialog(rec.pins.length - 1);
+      return;
+    }
+    if (mode === 'electric') {
+      if (linkEl) {
+        pushUndo();
+        rec.links.splice(Number(linkEl.dataset.link), 1);
+        linkSel = null;
+      } else if (pinEl) {
+        const id = pinEl.dataset.pin;
+        const a = rec.pins.find((p) => p.id === linkSel);
+        const b = rec.pins.find((p) => p.id === id);
+        if (!a || id === linkSel || a.view !== b.view) {
+          linkSel = id === linkSel ? null : id; // 1本目を選ぶ（もう一度押すと取り消し）
+        } else {
+          if (!rec.links.some((l) => (l.a === a.id && l.b === id) || (l.b === a.id && l.a === id))) {
+            pushUndo();
+            rec.links.push({ a: a.id, b: id });
+            scheduleSave();
+          }
+          linkSel = null;
+        }
+      } else {
+        linkSel = null;
+      }
+      renderBody();
       return;
     }
     const rg = e.target.closest('.rg');
@@ -572,7 +660,6 @@
     const li = e.target.closest('li');
     if (!li) return;
     if (li.dataset.id) openRegion(li.dataset.id);
-    else openPinDialog(Number(li.dataset.pin));
   });
 
   // 部位ダイアログ
@@ -622,50 +709,36 @@
     scheduleSave();
   });
 
-  // 点ダイアログ
-  let dlgPin = null;
-  function openPinDialog(i) {
-    const p = rec.pins[i];
-    if (!p) return;
-    dlgPin = i;
-    $('#pd-title').textContent = `点 ${pinLabel(i)}（${p.region ? label(BY_ID[p.region]) : ''}）`;
-    $('#pd-note').value = p.note || '';
-    $('#pinDialog').showModal();
-  }
-  $('#pinDialog').addEventListener('close', () => {
-    if (dlgPin == null || !rec.pins[dlgPin]) return;
-    rec.pins[dlgPin].note = $('#pd-note').value.trim();
-    dlgPin = null;
-    renderBody();
-    scheduleSave();
-  });
-  $('#pd-remove').addEventListener('click', () => {
-    const i = dlgPin;
-    dlgPin = null;
-    rec.pins.splice(i, 1);
-    $('#pinDialog').close();
-    renderBody();
-    scheduleSave();
-  });
 
   // ---------- A4 シート ----------
   function sheetHtml(r) {
     const nums = Object.fromEntries(r.regionOrder.map((id, i) => [id, i + 1]));
-    const st = { selected: nums, pins: r.pins };
+    normalizePins(r);
+    const st = { selected: nums, pins: r.pins, links: r.links };
     // 印のある人体図（身体・頭部）を載せる。両方に印があれば両方
     const sets = usedSets(r).length ? usedSets(r) : [diagramOf(r)];
     // 施術内容は表にする（番号・部位・施術方法・本数・時間・ツボを列で揃えて読みやすく）
     const shortMethod = (m) => m.replace('（低周波）', '');
+    // 鍼（赤）・電気（青）は部位ごとに本数・組数を表に入れる。部位を選んでいる行にはまとめて書く
+    const stats = Object.fromEntries(needleStats(r).map((n) => [n.region, n]));
+    const methodsWith = (methods, n) => {
+      const m = (methods || []).map(shortMethod);
+      if (n && n.needles && !m.some((x) => /鍼/.test(x))) m.unshift('鍼');
+      if (n && n.links && !m.includes('パルス')) m.push('電気');
+      return m.join('・');
+    };
     const regionRows = r.regionOrder.map((id, i) => {
       const d = r.regions[id] || {};
+      const n = stats[id];
+      const count = d.count || (n && n.needles) || '';
       return `<tr><td class="c-no"><b class="num">${i + 1}</b></td><td class="c-part">${esc(label(BY_ID[id]))}</td>` +
-        `<td>${esc((d.methods || []).map(shortMethod).join('・'))}</td><td class="c-n">${d.count ? esc(d.count) + '本' : ''}</td>` +
+        `<td>${esc(methodsWith(d.methods, n))}</td><td class="c-n">${count ? esc(count) + '本' : ''}</td>` +
         `<td class="c-n">${d.minutes ? esc(d.minutes) + '分' : ''}</td><td>${esc(d.note || '')}</td></tr>`;
     });
-    const pinRows = r.pins.map((p, i) =>
-      `<tr class="pin-row"><td class="c-no"><b class="pinl">${pinLabel(i)}</b></td><td class="c-part">${esc(p.region ? label(BY_ID[p.region]) : '')}</td>` +
-      `<td colspan="3" class="c-pin">点（ツボ）</td><td>${esc(p.note || '')}</td></tr>`);
-    const rows = regionRows.concat(pinRows);
+    const needleRows = needleStats(r).filter((n) => !r.regions[n.region]).map((n) =>
+      `<tr class="pin-row"><td class="c-no"><i class="mk-needle"></i></td><td class="c-part">${esc(label(BY_ID[n.region]))}</td>` +
+      `<td>${esc(methodsWith([], n))}</td><td class="c-n">${n.needles}本</td><td class="c-n"></td><td>${n.links ? `電気 ${n.links}組` : ''}</td></tr>`);
+    const rows = regionRows.concat(needleRows);
     const reaction = [r.reactions.join('、'), r.reaction].filter(Boolean).join('\n');
     const next = r.next ? `${fmtDate(r.next)}${r.nextTime ? ' ' + r.nextTime : ''}` : '';
     return `
@@ -677,7 +750,7 @@
       </div>
       <div class="sh-mid${sets.length > 1 ? ' both' : ''}">
         <div class="sh-figs">
-          <div class="lbl">施術部位</div>
+          <div class="lbl">施術部位${r.pins.length ? `<span class="legend"><i class="mk-needle"></i>鍼${r.links.length ? '<i class="mk-electric"></i>電気' : ''}</span>` : ''}</div>
           <div class="figs">${sets.map((k) => `<div class="figset figset-${k}">${SETS[k].views.map((v) => figure(v, st, { cls: 'print' })).join('')}</div>`).join('')}</div>
         </div>
         <div class="sh-side">
@@ -688,7 +761,7 @@
       </div>
       <div class="sh-box sh-regions"><div class="lbl">施術内容</div>
         <table class="rtable">
-          <thead><tr><th class="c-no">No</th><th class="c-part">部位</th><th class="c-m">施術方法</th><th class="c-n">本数</th><th class="c-n">時間</th><th>ツボ・メモ</th></tr></thead>
+          <thead><tr><th class="c-no">No</th><th class="c-part">部位</th><th class="c-m">施術方法</th><th class="c-n">本数</th><th class="c-n">時間</th><th>メモ</th></tr></thead>
           <tbody>${rows.length ? rows.join('') : '<tr><td class="c-no"></td><td class="c-part"></td><td></td><td></td><td></td><td></td></tr>'}</tbody>
         </table>
       </div>

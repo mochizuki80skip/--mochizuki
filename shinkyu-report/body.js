@@ -227,7 +227,8 @@
   /**
    * 1体ぶんの SVG
    * @param {'f'|'b'} view
-   * @param {{selected: Object<string, number>, pins: Array}} st selected: 部位id → 表示番号
+   * @param {{selected: Object<string, number>, pins: Array, links: Array, linkSel: string}} st
+   *   selected: 部位id → 表示番号 / pins: 鍼（赤）/ links: 電気（青）＝鍼と鍼を結ぶ線 / linkSel: 電気でつなぐ途中の鍼
    */
   function figure(view, st, opts = {}) {
     const v = VIEWS[view];
@@ -237,24 +238,34 @@
       const on = st.selected[r.id] != null;
       return shapeSvg(r.shape, `class="rg${on ? ' on' : ''}" data-id="${r.id}"`);
     }).join('');
+    const hasPin = new Set((st.pins || []).map((p) => p.region));
     const badges = regs.filter((r) => st.selected[r.id] != null).map((r) => {
-      const [x, y] = center(r.shape);
+      let [x, y] = center(r.shape);
+      // 鍼が付いている部位は番号を左上にずらして、鍼の印に重ねない
+      if (hasPin.has(r.id)) { x -= 9; y -= 9; }
       return `<g class="badge" pointer-events="none"><circle cx="${x}" cy="${y}" r="6.2"/><text x="${x}" y="${y + 2.6}">${st.selected[r.id]}</text></g>`;
     }).join('');
-    const pins = (st.pins || []).map((p, i) => ({ p, i })).filter(({ p }) => p.view === view).map(({ p, i }) =>
-      `<g class="pin" data-pin="${i}"><circle cx="${p.x}" cy="${p.y}" r="2.6"/><text x="${p.x + 4}" y="${p.y - 3}">${pinLabel(i)}</text></g>`
+    // 鍼（赤い点）と電気（鍼と鍼を結ぶ青い線）。押しやすいように透明の大きめの当たり判定を重ねる
+    const pinsHere = (st.pins || []).filter((p) => p.view === view);
+    const byId = Object.fromEntries(pinsHere.map((p) => [p.id, p]));
+    const links = (st.links || []).map((l, i) => ({ l, i })).filter(({ l }) => byId[l.a] && byId[l.b]).map(({ l, i }) => {
+      const a = byId[l.a];
+      const b = byId[l.b];
+      const xy = `x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"`;
+      return `<g class="link" data-link="${i}"><line class="hit" ${xy}/><line class="ln" ${xy}/></g>`;
+    }).join('');
+    const pins = pinsHere.map((p) =>
+      `<g class="pin${st.linkSel === p.id ? ' sel' : ''}" data-pin="${p.id}"><circle class="hit" cx="${p.x}" cy="${p.y}" r="7"/><circle class="dot" cx="${p.x}" cy="${p.y}" r="3"/></g>`
     ).join('');
     const sides = v.sides ? `<text class="side" x="40" y="-3">${v.sides[0]}</text><text class="side" x="${W - 40}" y="-3">${v.sides[1]}</text>` : '';
     const deco = (DECO[view] || []).map((d) => `<path d="${d}"/>`).join('') +
       (DASH[view] || []).map((d) => `<path d="${d}" stroke-dasharray="3 3"/>`).join('');
     return `<svg class="body-svg${opts.cls ? ' ' + opts.cls : ''}" viewBox="0 -14 ${W} ${v.h + 14}" data-view="${view}" xmlns="http://www.w3.org/2000/svg">
       <text class="cap" x="${W / 2}" y="-3">${v.cap}</text>${sides}
-      <g class="sil">${sil}</g><g class="parts">${parts}</g><g class="deco" pointer-events="none">${deco}</g>${badges}${pins}
+      <g class="sil">${sil}</g><g class="parts">${parts}</g><g class="deco" pointer-events="none">${deco}</g>${badges}${links}${pins}
     </svg>`;
   }
 
-  const PIN_LABELS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const pinLabel = (i) => (i < 26 ? PIN_LABELS[i] : `Z${i - 25}`);
 
   // 点の座標がどの部位に入るか（上に描かれたものを優先）
   function regionAt(view, x, y) {
@@ -278,5 +289,5 @@
     return null;
   }
 
-  window.Body = { REGIONS, BY_ID, GROUPS, SETS, VIEWS, figure, label, pinLabel, regionAt, esc };
+  window.Body = { REGIONS, BY_ID, GROUPS, SETS, VIEWS, figure, label, regionAt, esc };
 })();
