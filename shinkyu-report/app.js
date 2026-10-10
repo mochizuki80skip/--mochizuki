@@ -22,7 +22,7 @@
   const KEY_PAT = 'shinq:pat:';
   const KEY_LOG = 'shinq:log:';
 
-  const LOG_ACTIONS = { create: '新規作成', copy: 'コピーして作成', pdf: 'PDF出力', del: '削除' };
+  const LOG_ACTIONS = { create: '新規作成', copy: 'コピーして作成', pdf: 'PDF出力', mail: 'メール送信', del: '削除' };
 
   const METHODS = ['置鍼', '単刺', 'パルス（低周波）', '灸', '円皮鍼'];
   const PHRASE_CATS = [
@@ -36,6 +36,7 @@
   const DEFAULT_SETTINGS = {
     staff: ['スタッフA', 'スタッフB', 'スタッフC', 'スタッフD'],
     clinics: [],
+    clinicMail: {}, // 院名 → メールアドレス（内容書のメール送信先）
     name: 'ミツカル接骨院',
     tel: '054-262-6040',
     fax: '054-262-6090',
@@ -103,13 +104,14 @@
   }
 
   // ログは1件ずつ別キーに追記する（既存のログを書き換えない）
-  function addLog(action, r, withSnapshot) {
+  function addLog(action, r, withSnapshot, extra = {}) {
     const at = Date.now();
     const id = at.toString(36) + Math.random().toString(36).slice(2, 8);
     const entry = {
       id, at, action, staff: getMe(),
       recId: r.id, patient: r.patient || '', clinic: r.clinic || '', date: r.date || '',
     };
+    Object.assign(entry, extra);
     if (withSnapshot) entry.snapshot = JSON.parse(JSON.stringify(r));
     try { store.set(KEY_LOG + id, entry); } catch { /* 容量不足でも本来の操作は止めない */ }
   }
@@ -832,6 +834,94 @@
     upsertPatient(rec);
     showPreview(rec);
   });
+  // ---------- メールで送る ----------
+  // サーバーに置いている時だけ使える（送信は api.php、送信先は設定に登録したアドレスだけ）
+  window.Sync.on('status', ({ mode: m }) => { $('#btnMail').hidden = m !== 'server'; });
+
+  const loadScript = (src) => new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('PDF を作る部品（lib フォルダ）を読み込めませんでした'));
+    document.head.appendChild(s);
+  });
+
+  // 内容書（A4 1枚）を PDF にする。見た目は印刷と同じ（画像として PDF に貼る）
+  // 部品（html2canvas 1.4.1 / jsPDF 2.5.1、どちらも MIT ライセンス）は lib/ に同梱
+  async function sheetPdf(r) {
+    await loadScript('lib/html2canvas.min.js');
+    await loadScript('lib/jspdf.umd.min.js');
+    await buildSheetReady(r);
+    const sheet = $('#sheet');
+    const canvas = await window.html2canvas(sheet, { scale: 2.5, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    const pdf = new window.jspdf.jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait', compress: true });
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.9), 'JPEG', 0, 0, 210, 297);
+    return pdf.output('datauristring').split(',')[1];
+  }
+
+  const pdfName = (r) => `鍼施術内容書_${r.patient || '氏名未入力'}_${(r.date || '').replace(/-/g, '')}.pdf`;
+  let mailRec = null;
+
+  function openMail(r) {
+    mailRec = r;
+    const entries = Object.entries(settings.clinicMail || {});
+    if (!entries.length) {
+      alert('送信先のメールアドレスが登録されていません。\n「設定 → 送り元の接骨院」に「院名, メールアドレス」の形で登録してください。');
+      return;
+    }
+    $('#ml-to').innerHTML = entries.map(([name, addr]) =>
+      `<option value="${esc(addr)}"${name === r.clinic ? ' selected' : ''}>${esc(name)}接骨院（${esc(addr)}）</option>`).join('');
+    const d = r.date ? fmtDate(r.date) : '';
+    $('#ml-subject').value = `【${settings.name}】鍼施術内容書のご送付${d ? `（${d}来院分）` : ''}`;
+    $('#ml-body').value = [
+      `${r.clinic ? r.clinic + '接骨院' : ''} 御中`.trim(), '',
+      `いつもお世話になっております。${settings.name}です。`,
+      `ご紹介いただいた患者様の鍼施術内容書${d ? `（${d}来院分）` : ''}をお送りします。`,
+      '添付の PDF をご確認ください。', '',
+      `${settings.name}${r.staffName ? `　担当：${r.staffName}` : ''}`,
+      `TEL：${settings.tel}　FAX：${settings.fax}`,
+    ].join('\n');
+    $('#ml-file').textContent = pdfName(r);
+    $('#ml-confirm').checked = false;
+    $('#ml-send').disabled = true;
+    $('#ml-error').textContent = '';
+    $('#mailDialog').showModal();
+  }
+
+  $('#ml-confirm').addEventListener('change', (e) => { $('#ml-send').disabled = !e.target.checked; });
+  $('#ml-cancel').addEventListener('click', () => $('#mailDialog').close());
+  $('#ml-send').addEventListener('click', async () => {
+    const r = mailRec;
+    const btn = $('#ml-send');
+    btn.disabled = true;
+    btn.textContent = '送信中…';
+    $('#ml-error').textContent = '';
+    try {
+      const pdf = await sheetPdf(r);
+      const res = await fetch('api.php?a=mail', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-Shinq': '1' },
+        body: JSON.stringify({
+          to: $('#ml-to').value, subject: $('#ml-subject').value, body: $('#ml-body').value,
+          filename: pdfName(r), pdf,
+        }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.ok) throw new Error(data?.error || `送信できませんでした（${res.status}）`);
+      addLog('mail', r, true, { to: $('#ml-to').value });
+      $('#mailDialog').close();
+      alert(`送信しました：${$('#ml-to').value}`);
+    } catch (e) {
+      $('#ml-error').textContent = e.message;
+      btn.disabled = false;
+    } finally {
+      btn.textContent = '送信する';
+    }
+  });
+  $('#btnMail').addEventListener('click', () => { flushSave(); collect(); upsertPatient(rec); openMail(rec); });
+
   $('#pv-close').addEventListener('click', () => $('#previewDialog').close());
   $('#pv-print').addEventListener('click', () => {
     $('#previewDialog').close();
@@ -934,7 +1024,7 @@
         <span class="log-at">${esc(fmtAt(l.at))}</span>
         <span class="log-act act-${l.action}">${esc(LOG_ACTIONS[l.action] || l.action)}</span>
         <span class="log-who">${esc(l.staff || '-')}</span>
-        <span class="log-what">${esc(patient)} 様${l.date ? `（${esc(fmtDate(l.date))}来院分）` : ''}</span>
+        <span class="log-what">${esc(patient)} 様${l.date ? `（${esc(fmtDate(l.date))}来院分）` : ''}${l.to ? `<br><small>送信先：${esc(l.to)}</small>` : ''}</span>
         <span class="log-btns">
           ${l.snapshot ? '<button type="button" class="btn small" data-lact="view">その時の内容</button>' : ''}
           ${r ? '<button type="button" class="btn small" data-lact="open">開く</button>' : '<span class="log-gone">内容書は削除済み</span>'}
@@ -973,7 +1063,7 @@
   // ---------- 設定 ----------
   function renderSettings() {
     $('#s-staff').value = settings.staff.join('\n');
-    $('#s-clinics').value = settings.clinics.join('\n');
+    $('#s-clinics').value = settings.clinics.map((c) => (settings.clinicMail?.[c] ? `${c}, ${settings.clinicMail[c]}` : c)).join('\n');
     $('#s-name').value = settings.name;
     $('#s-tel').value = settings.tel;
     $('#s-fax').value = settings.fax;
@@ -985,7 +1075,7 @@
     $$('#phraseEdit textarea').forEach((t) => { phrases[t.dataset.cat] = lines(t.value); });
     settings = {
       staff: lines($('#s-staff').value),
-      clinics: lines($('#s-clinics').value).map((c) => c.replace(/接骨院(御中)?$/, '')),
+      ...parseClinics($('#s-clinics').value),
       name: $('#s-name').value.trim(),
       tel: $('#s-tel').value.trim(),
       fax: $('#s-fax').value.trim(),
@@ -995,6 +1085,20 @@
     applySettings();
     alert('設定を保存しました。');
   });
+
+  // 「院名, メールアドレス」の行を院名とアドレスに分ける
+  function parseClinics(text) {
+    const clinics = [];
+    const clinicMail = {};
+    lines(text).forEach((line) => {
+      const m = line.match(/^(.*?)[\s,，、]+([^\s,，、@]+@[^\s,，、@]+\.[^\s,，、@]+)$/);
+      const name = (m ? m[1] : line).trim().replace(/接骨院(御中)?$/, '');
+      if (!name) return;
+      clinics.push(name);
+      if (m) clinicMail[name] = m[2].trim();
+    });
+    return { clinics, clinicMail };
+  }
 
   function applySettings() {
     renderStaffSelect();

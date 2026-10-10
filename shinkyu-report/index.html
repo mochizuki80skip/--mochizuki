@@ -89,6 +89,7 @@
           <option value="create">新規作成</option>
           <option value="copy">コピーして作成</option>
           <option value="pdf">PDF出力</option>
+          <option value="mail">メール送信</option>
           <option value="del">削除</option>
         </select>
         <select id="logStaff"></select>
@@ -107,6 +108,7 @@
       <div class="edit-actions">
         <span id="saveState" class="save-state"></span>
         <button type="button" class="btn" id="btnPreview">プレビュー</button>
+        <button type="button" class="btn" id="btnMail" hidden>メールで送る</button>
         <button type="button" class="btn primary" id="btnPrint">PDF保存・印刷</button>
       </div>
 
@@ -203,7 +205,8 @@
         <textarea id="s-staff" rows="4"></textarea>
       </div>
       <div class="field">送り元の接骨院（1行に1院・入力候補に出ます）
-        <textarea id="s-clinics" rows="4"></textarea>
+        <textarea id="s-clinics" rows="4" placeholder="例：&#10;駿河, suruga@example.com&#10;〇〇, info@example.jp"></textarea>
+        <small>内容書をメールで送る場合は「院名, メールアドレス」のように、院名のあとにカンマとメールアドレスを書きます。メールは<b>ここに登録したアドレスにだけ</b>送れます。</small>
       </div>
       <div class="grid2">
         <label class="field">院名（PDFの下に表示）
@@ -238,6 +241,32 @@
       </div>
     </section>
   </div>
+
+  <!-- メール送信 -->
+  <dialog id="mailDialog" class="dialog">
+    <form method="dialog" id="mailForm">
+      <h2>内容書をメールで送る</h2>
+      <label class="field">送信先
+        <select id="ml-to"></select>
+        <small>「設定 → 送り元の接骨院」に登録したアドレスだけ選べます</small>
+      </label>
+      <label class="field">件名
+        <input type="text" id="ml-subject" />
+        <small>患者様のお名前は件名に入れず、添付の内容書にだけ記載しています</small>
+      </label>
+      <label class="field">本文
+        <textarea id="ml-body" rows="7"></textarea>
+      </label>
+      <p class="hint">添付：<span id="ml-file"></span></p>
+      <label class="chk"><input type="checkbox" id="ml-confirm" /> 送信先と内容を確認しました</label>
+      <p class="login-error" id="ml-error"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn" id="ml-cancel">やめる</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn primary" id="ml-send" disabled>送信する</button>
+      </div>
+    </form>
+  </dialog>
 
   <!-- 部位詳細ポップアップ -->
   <dialog id="regionDialog" class="dialog">

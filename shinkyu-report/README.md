@@ -55,6 +55,17 @@
 PDF にはフォントが埋め込まれるので、受け取った側の端末に関係なく同じ見た目になる。
 インターネットにつながっていない時は端末のフォントで表示される。
 
+## 内容書をメールで送る
+
+編集画面の「メールで送る」から、内容書（A4 1枚の PDF）を添付して接骨院へメールできる（サーバーに置いた時だけ）。
+
+- 送信先は「設定 → 送り元の接骨院」に `院名, メールアドレス` の形で登録したアドレスだけ（手入力不可。サーバー側でも確認）
+- 送信前に宛先・件名・本文を確認し、「送信先と内容を確認しました」にチェックしないと送れない
+- 件名には患者様の名前を入れない（名前は添付の内容書にだけ記載）
+- 送るたびにログに「メール送信」と送信先・その時の内容が残る
+- 送り主は `config.php` の `mail_from`（Xサーバーで作成した、このドメインのメールアドレス）。`mail_bcc` を入れると控えが届く
+- PDF は画面の内容書をそのまま画像にして作る（部品 html2canvas・jsPDF は `lib/` に同梱。どちらも MIT ライセンス）
+
 ## 外部からの閲覧を防ぐ仕組み
 
 - **検索に出さない**：全ファイルに `X-Robots-Tag: noindex, nofollow`（`.htaccess`）、各ページに `<meta name="robots" content="noindex">`。
@@ -88,7 +99,7 @@ PDF にはフォントが埋め込まれるので、受け取った側の端末�
 2. **ファイルをアップロード**：このフォルダの中身を、ファイルマネージャーか FTP で
    `ドメイン名/public_html/shinkyu/` などに置く（`.htaccess` と `data/.htaccess` も忘れずに。
    FTP ソフトで「隠しファイルを表示」にすると見える）
-   - 置くもの：`index.html` `style.css` `body.js` `fonts.js` `app.js` `sync.js` `api.php` `config.sample.php` `karte.html` `karte.js` `karte.css` `gate.js` `img/`（フォルダごと） `.htaccess` `data/.htaccess`
+   - 置くもの：`index.html` `style.css` `body.js` `fonts.js` `app.js` `sync.js` `api.php` `config.sample.php` `karte.html` `karte.js` `karte.css` `gate.js` `img/`・`lib/`（フォルダごと） `.htaccess` `data/.htaccess`
 3. **パスワードを決める**：`config.sample.php` をコピーして `config.php` という名前にし、
    `'password' => 'change-me'` を院内スタッフ共通のパスワードに書き換える（長く推測されにくいもの）
 4. ブラウザで `https://ドメイン名/shinkyu/` を開き、パスワードでログインできれば完了
@@ -143,6 +154,7 @@ php -S localhost:8080             # http://localhost:8080 （サーバー同期�
 | `body.js` | 人体図の部位定義と SVG 描画 |
 | `fonts.js` | フォント（Noto Sans JP）の読み込み |
 | `gate.js` | ログインしていない人に見せない（カルテ枚数計算用） |
+| `lib/` | メール添付用の PDF を作る部品（html2canvas 1.4.1・jsPDF 2.5.1） |
 | `img/` | ロゴ（画面上部・ログイン画面）とブラウザのタブ・ホーム画面のアイコン |
 | `karte.html` / `karte.js` / `karte.css` | カルテ枚数計算 |
 | `app.js` | 入力・保存・一覧・患者様・ログ・設定・A4 シート生成 |
