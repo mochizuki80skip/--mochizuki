@@ -5,6 +5,8 @@
  *     書き換える方式ではないので、別の人が別の内容書を同時に保存しても互いに消えない。
  *   - 各内容書は rev（版番号）を持つ。開いた後に別の画面で同じ内容書が保存されていたら、
  *     自動保存を止めて知らせる（相手の内容を上書きしない）。
+ *   - Xサーバー等に api.php を置いた場合は sync.js がこれらのキーをサーバーと同期し、
+ *     4人の端末で同じデータを共有する（サーバー側でも内容書は rev が進んだ時だけ受け付ける）。
  *   - 担当者の選択はタブごと（sessionStorage）なので、1台を交代で使っても混ざらない。
  *   - 患者様（shinq:pat:<氏名>）とログ（shinq:log:<時刻+乱数>）も1件ずつ別キー。
  *     ログは追記のみで、作成・PDF出力・削除のたびに残る（PDF出力・削除はその時点の内容も保存）。
@@ -53,8 +55,12 @@
     },
     set(key, val) {
       localStorage.setItem(key, JSON.stringify(val));
+      window.Sync.changed(key);
     },
-    del(key) { localStorage.removeItem(key); },
+    del(key) {
+      localStorage.removeItem(key);
+      window.Sync.changed(key);
+    },
     all(prefix) {
       const out = [];
       for (let i = 0; i < localStorage.length; i++) {
@@ -382,25 +388,37 @@
   $('#form').addEventListener('change', scheduleSave);
 
   // 別のタブ・画面での変更を検知
-  window.addEventListener('storage', (e) => {
-    if (e.key === KEY_SETTINGS) { settings = loadSettings(); renderStaffSelect(); return; }
-    if (e.key && (e.key.startsWith(KEY_PAT) || e.key.startsWith(KEY_LOG))) {
+  // 別のタブ（storage イベント）や別の端末（サーバー同期）での変更を画面に反映
+  let refreshTimer = null;
+  function refreshLater() {
+    // 同期で一度に何件も届いても、描き直しは1回にまとめる
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
       renderPatientList();
-      if (!$('#view-patients').hidden) renderPatients();
-      if (!$('#view-log').hidden) renderLog();
-      return;
-    }
-    if (!e.key || !e.key.startsWith(KEY_REC)) return;
-    if (rec && e.key === KEY_REC + rec.id) {
-      const r = store.get(e.key);
+      if (!$('#view-list').hidden) renderList();
+      else if (!$('#view-patients').hidden) renderPatients();
+      else if (!$('#view-log').hidden) renderLog();
+      else if (!$('#view-patient').hidden && curPatKey) renderPatient(curPatKey);
+    }, 80);
+  }
+  function onExternalChange(key) {
+    if (!key) { refreshLater(); return; }
+    if (key === KEY_SETTINGS) { settings = loadSettings(); applySettings(); return; }
+    if (rec && key === KEY_REC + rec.id) {
+      const r = store.get(key);
       if (!r) { alert('この内容書は別の画面で削除されました。'); go('#/list'); return; }
       if ((r.rev || 0) > loadedRev) setConflict(true);
-    } else if (!$('#view-list').hidden) {
-      renderList();
-    } else if (!$('#view-patient').hidden) {
-      route();
+      return;
     }
+    if (key.startsWith(KEY_REC) || key.startsWith(KEY_PAT) || key.startsWith(KEY_LOG)) refreshLater();
+  }
+  window.addEventListener('storage', (e) => {
+    if (e.key && e.key.startsWith('shinq-sync:')) return;
+    onExternalChange(e.key);
   });
+  window.Sync.on('change', onExternalChange);
+  // サーバーが受け付けなかった（別の端末が先に同じ内容書を保存していた）
+  window.Sync.on('conflict', (key) => { if (rec && key === KEY_REC + rec.id) setConflict(true); });
 
   // ---------- 定型文ボタン ----------
   function renderPhraseChips() {
@@ -927,10 +945,27 @@
   window.addEventListener('pagehide', flushSave);
   document.addEventListener('visibilitychange', () => { if (document.hidden) flushSave(); });
 
-  // 患者様一覧ができる前に作った内容書の氏名も登録しておく
-  store.records().forEach((r) => { if (r.patient && !store.get(KEY_PAT + patKey(r.patient))) upsertPatient(r); });
+  // ---------- 同期の状態表示 ----------
+  window.Sync.on('status', ({ mode: m, online, pending }) => {
+    const el = $('#syncState');
+    el.hidden = m !== 'server';
+    el.className = `sync-state ${!online ? 'off' : pending ? 'wait' : 'ok'}`;
+    el.textContent = !online ? `オフライン${pending ? `（未送信 ${pending}件）` : ''}` : pending ? `送信中 ${pending}件` : '同期済み';
+    el.title = !online ? 'サーバーにつながっていません。入力は端末に保存され、つながると自動で送信されます。' : '';
+    $('#serverBox').hidden = m !== 'server';
+    $('#localBox').hidden = m === 'server';
+  });
+  $('#syncState').addEventListener('click', () => window.Sync.syncNow());
+  $('#btnLogout').addEventListener('click', () => { flushSave(); window.Sync.logout(); });
 
-  applySettings();
-  renderPatientList();
-  route();
+  // サーバーからの取り込みが済んでから画面を出す
+  window.Sync.ready.then(() => {
+    settings = loadSettings();
+    // 患者様一覧ができる前に作った内容書の氏名も登録しておく
+    store.records().forEach((r) => { if (r.patient && !store.get(KEY_PAT + patKey(r.patient))) upsertPatient(r); });
+    applySettings();
+    renderPatientList();
+    route();
+    document.body.classList.remove('loading');
+  });
 })();

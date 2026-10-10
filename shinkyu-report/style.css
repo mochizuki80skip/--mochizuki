@@ -96,6 +96,18 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .card-acts { display: flex; flex-wrap: wrap; gap: 6px; }
 .empty { padding: 32px 0; text-align: center; color: var(--c-sub); }
 
+/* ---------- 同期・ログイン ---------- */
+body.loading #app { visibility: hidden; }
+.sync-state { border: none; border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.sync-state.ok { background: #e6f5ea; color: #217a3c; }
+.sync-state.wait { background: var(--c-main-weak); color: var(--c-main); }
+.sync-state.off { background: var(--c-warn); color: #7a5b00; }
+.login { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--c-bg); padding: 16px; }
+.login-box { width: min(360px, 100%); background: #fff; border: 1px solid var(--c-line); border-radius: 14px; padding: 24px; display: grid; gap: 10px; }
+.login-box h1 { margin: 0; font-size: 20px; color: var(--c-main); }
+.login-box input { padding: 10px 12px; border: 1px solid var(--c-line); border-radius: 8px; font-size: 16px; }
+.login-error { margin: 0; min-height: 1.2em; color: var(--c-danger); font-size: 13px; }
+
 /* ---------- 患者様・ログ ---------- */
 .list-tools select { padding: 9px 10px; border: 1px solid var(--c-line); border-radius: 8px; background: #fff; }
 a.card.link { color: inherit; text-decoration: none; }

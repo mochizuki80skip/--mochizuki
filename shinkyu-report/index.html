@@ -7,11 +7,12 @@
   <link rel="stylesheet" href="style.css" />
   <title>鍼施術内容書</title>
 </head>
-<body>
+<body class="loading">
   <!-- ===== 画面（入力） ===== -->
   <div id="app" class="screen">
     <header class="topbar">
       <h1>鍼施術内容書</h1>
+      <button type="button" id="syncState" class="sync-state" hidden title=""></button>
       <div class="topbar-staff">
         <label>担当者
           <select id="staffSelect"></select>
@@ -208,8 +209,14 @@
         <button type="button" class="btn primary" id="btnSaveSettings">設定を保存</button>
       </div>
       <hr />
+      <div class="field" id="serverBox" hidden>サーバー
+        <p class="hint">内容書・患者様・ログ・設定はサーバーに保存され、ログインした全員の端末で共有されます。通信できない間の入力は端末に保存され、つながると自動で送信されます。</p>
+        <div class="edit-actions left">
+          <button type="button" class="btn" id="btnLogout">ログアウト</button>
+        </div>
+      </div>
       <div class="field">バックアップ
-        <p class="hint">内容書はこの端末（ブラウザ）の中に保存されています。機種変更・ブラウザのデータ削除に備えて、定期的に書き出してください。</p>
+        <p class="hint" id="localBox">内容書はこの端末（ブラウザ）の中に保存されています。機種変更・ブラウザのデータ削除に備えて、定期的に書き出してください。</p>
         <div class="edit-actions left">
           <button type="button" class="btn" id="btnExport">書き出し（JSON）</button>
           <label class="btn">読み込み<input type="file" id="importFile" accept="application/json" hidden /></label>
@@ -274,6 +281,18 @@
     </div>
   </dialog>
 
+  <!-- ログイン（サーバーに置いた時だけ表示） -->
+  <div id="login" class="login" hidden>
+    <form id="loginForm" class="login-box">
+      <h1>鍼施術内容書</h1>
+      <p class="hint">院内スタッフ用のパスワードを入力してください。</p>
+      <input type="password" id="loginPassword" autocomplete="current-password" placeholder="パスワード" required />
+      <p id="loginError" class="login-error"></p>
+      <button type="submit" class="btn primary">ログイン</button>
+    </form>
+  </div>
+
+  <script src="sync.js"></script>
   <script src="body.js"></script>
   <script src="app.js"></script>
 </body>
