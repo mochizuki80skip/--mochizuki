@@ -14,8 +14,6 @@
  * a=logout
  * a=pull  変更の取得（GET since=<seq>）
  * a=push  変更の送信（POST {items:[{key, value(文字列 or null)}]}）
- * a=mail  内容書の PDF をメールで送る（POST {to, subject, body, filename, pdf(base64)}）
- *         送信先は「設定」に登録された接骨院のアドレスだけ。送り主は config.php の mail_from
  */
 
 declare(strict_types=1);
@@ -113,12 +111,6 @@ switch ($action) {
             $results[] = pushOne($pdo, $it);
         }
         out(['results' => $results]);
-
-    case 'mail':
-        requireLogin();
-        if ($method !== 'POST') fail(405, 'POST only');
-        $body = jsonBody();
-        out(sendSheetMail($config, $body));
 
     default:
         fail(404, 'unknown action');
@@ -295,55 +287,6 @@ function loginGuard(array $config, ?bool $result = null): array
     fclose($fp);
     $locked = ($me['until'] ?? 0) > $now && $result !== true;
     return ['locked' => $locked, 'minutes' => $locked ? (int)ceil(($me['until'] - $now) / 60) : 0];
-}
-
-/**
- * 内容書のメール送信。送信先は設定（shinq:settings の clinicMail）に登録されたアドレスに限る。
- */
-function sendSheetMail(array $config, array $b): array
-{
-    $from = trim((string)($config['mail_from'] ?? ''));
-    if (!filter_var($from, FILTER_VALIDATE_EMAIL)) {
-        fail(500, 'メールの送り主が設定されていません（config.php の mail_from）');
-    }
-    $to = trim((string)($b['to'] ?? ''));
-    $st = db($config)->prepare('SELECT v FROM kv WHERE k = ?');
-    $st->execute(['shinq:settings']);
-    $settings = json_decode((string)$st->fetchColumn(), true) ?: [];
-    $allowed = array_map('strtolower', array_values(array_filter((array)($settings['clinicMail'] ?? []), 'is_string')));
-    if (!filter_var($to, FILTER_VALIDATE_EMAIL) || !in_array(strtolower($to), $allowed, true)) {
-        fail(400, '送信先が「設定」に登録されたアドレスではありません');
-    }
-    $pdf = base64_decode((string)($b['pdf'] ?? ''), true);
-    if ($pdf === false || substr($pdf, 0, 5) !== '%PDF-' || strlen($pdf) > 8 * 1024 * 1024) {
-        fail(400, '添付の PDF が正しくありません');
-    }
-    $clean = fn($v, $n) => mb_substr(str_replace(["\r", "\0"], '', (string)$v), 0, $n);
-    $subject = trim(str_replace("\n", ' ', $clean($b['subject'] ?? '', 200))) ?: '鍼施術内容書';
-    $text = $clean($b['body'] ?? '', 5000);
-    $filename = preg_replace('#[\\\\/:*?"<>|\r\n]#u', '_', $clean($b['filename'] ?? 'naiyousho.pdf', 120));
-    $fromName = trim($clean($config['mail_from_name'] ?? '', 60));
-
-    $enc = fn($s) => '=?UTF-8?B?' . base64_encode($s) . '?=';
-    $boundary = 'shinq_' . bin2hex(random_bytes(12));
-    $headers = [
-        'From: ' . ($fromName !== '' ? $enc($fromName) . ' ' : '') . '<' . $from . '>',
-        'MIME-Version: 1.0',
-        'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
-    ];
-    if (filter_var($config['mail_bcc'] ?? '', FILTER_VALIDATE_EMAIL)) $headers[] = 'Bcc: ' . $config['mail_bcc'];
-    $msg = "--$boundary\r\n"
-        . "Content-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: base64\r\n\r\n"
-        . chunk_split(base64_encode(str_replace("\n", "\r\n", $text)))
-        . "--$boundary\r\n"
-        . "Content-Type: application/pdf; name=\"" . $enc($filename) . "\"\r\n"
-        . "Content-Transfer-Encoding: base64\r\n"
-        . "Content-Disposition: attachment; filename=\"" . $enc($filename) . "\"; filename*=UTF-8''" . rawurlencode($filename) . "\r\n\r\n"
-        . chunk_split(base64_encode($pdf))
-        . "--$boundary--\r\n";
-    $ok = mail($to, $enc($subject), $msg, implode("\r\n", $headers), '-f' . $from);
-    if (!$ok) fail(500, 'メールを送信できませんでした（サーバーのメール設定を確認してください）');
-    return ['ok' => true];
 }
 
 function requireLogin(): void

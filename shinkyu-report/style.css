@@ -141,7 +141,11 @@ a.card.link:hover { border-color: var(--c-main); }
 .log-at { color: var(--c-sub); font-size: 13px; }
 .log-act { justify-self: start; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: #eef1f4; }
 .log-act.act-pdf { background: var(--c-main-weak); color: var(--c-main); }
-.log-act.act-mail { background: #efe7fb; color: #6b3fb5; }
+.log-act.act-share { background: #e3f6e8; color: #06873a; }
+/* LINE で送るボタン */
+.btn.line { background: #06c755; border-color: #06c755; color: #fff; font-weight: 600; }
+.btn.line:disabled { opacity: .5; }
+.warn-text { color: #7a5b00; }
 .log-act.act-del { background: #fde8e6; color: var(--c-danger); }
 .log-act.act-create, .log-act.act-copy { background: #e6f5ea; color: #217a3c; }
 .log-btns { display: flex; gap: 6px; align-items: center; }
