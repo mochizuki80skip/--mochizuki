@@ -265,7 +265,7 @@
         <div class="card-main" data-act="open">
           <div class="card-date">${esc(fmtDate(r.date))} ${esc(r.time || '')}</div>
           ${showPatient ? `<div class="card-name">${esc(r.patient || '（氏名未入力）')} <small>様</small></div>` : ''}
-          <div class="card-meta">${esc(r.clinic ? r.clinic + '接骨院' : '宛先未入力')} ／ 担当：${esc(r.staffName || r.staff || '-')} ／ 施術部位 ${partRows(r).length}か所${r.pins.length ? `・鍼 ${r.pins.length}本` : ''}${(r.links || []).length ? `・電気 ${r.links.length}` : ''}</div>
+          <div class="card-meta">${esc(r.clinic ? r.clinic + '接骨院' : '宛先未入力')} ／ 担当：${esc(r.staffName || r.staff || '-')} ／ 施術部位 ${partRows(r).length}か所${r.pins.length ? `・鍼 ${r.pins.length}本` : ''}${(r.links || []).length ? '・電気あり' : ''}</div>
           ${showPatient ? '' : recordDigest(r)}
         </div>
         <div class="card-acts">
@@ -518,9 +518,9 @@
     // 人体図の部位の順に並べる
     return [...map.values()].sort((a, b) => REGIONS.indexOf(BY_ID[a.region]) - REGIONS.indexOf(BY_ID[b.region]));
   }
-  const needleText = (n) => `鍼 ${n.needles}本${n.links ? `・電気 ${n.links}組` : ''}`;
+  const needleText = (n) => `鍼 ${n.needles}本${n.links ? '・電気あり' : ''}`;
 
-  // 内容書の表の行：鍼を打った部位ごとに 本数・電気の組数・メモ
+  // 内容書の表の行：鍼を打った部位ごとに 本数・電気をしたか・メモ
   // （以前の「部位をタップ」で選んだ部位があれば、その本数・メモも引き継いで並べる）
   function partRows(r) {
     const stats = Object.fromEntries(needleStats(r).map((n) => [n.region, n]));
@@ -544,11 +544,11 @@
   // 人体図の横：鍼を打った部位ごとの本数と、どこに打ったかのメモ欄
   function renderNeedleNotes() {
     const rows = partRows(rec);
-    const total = rec.pins.length ? `<p class="hint nn-total">合計：鍼 ${rec.pins.length}本${rec.links.length ? `・電気 ${rec.links.length}組` : ''}</p>` : '';
+    const total = rec.pins.length ? `<p class="hint nn-total">合計：鍼 ${rec.pins.length}本${rec.links.length ? '・電気あり' : ''}</p>` : '';
     $('#needleNotes').innerHTML = rows.length
       ? rows.map((p) => `
         <div class="nn-row">
-          <div class="nn-head"><b>${esc(p.label)}</b><span class="nn-count">${p.count ? `${p.count}本` : ''}${p.links ? `・電気${p.links}組` : ''}</span></div>
+          <div class="nn-head"><b>${esc(p.label)}</b><span class="nn-count">${p.count ? `${p.count}本` : ''}${p.links ? '・電気○' : ''}</span></div>
           <input type="text" class="nn-note" data-note="${p.id}" value="${esc(p.note)}" placeholder="どこに打ったか（例：肩甲挙筋、僧帽筋）" />
         </div>`).join('') + total
       : '<p class="hint">人体図の刺した位置をタップすると、ここに部位ごとの本数とメモ欄が出ます。</p>';
@@ -653,11 +653,10 @@
     const st = { selected: {}, pins: r.pins, links: r.links };
     // 印のある人体図（身体・頭部）を載せる。両方に印があれば両方
     const sets = usedSets(r).length ? usedSets(r) : [diagramOf(r)];
-    // 施術内容の表：部位｜本数｜（電気）｜メモ。電気の列は電気を使った時だけ出す
+    // 施術内容の表：部位｜本数｜電気（していれば ○、していなければ空白）｜メモ
     const parts = partRows(r);
-    const useLinks = parts.some((p) => p.links);
     const rows = parts.map((p) => `<tr><td class="c-part">${esc(p.label)}</td><td class="c-n">${p.count ? `${p.count}本` : ''}</td>` +
-      `${useLinks ? `<td class="c-n">${p.links ? `${p.links}組` : ''}</td>` : ''}<td>${esc(p.note)}</td></tr>`);
+      `<td class="c-mark">${p.links ? '○' : ''}</td><td>${esc(p.note)}</td></tr>`);
     const reaction = [r.reactions.join('、'), r.reaction].filter(Boolean).join('\n');
     const next = r.next ? `${fmtDate(r.next)}${r.nextTime ? ' ' + r.nextTime : ''}` : '';
     return `
@@ -680,8 +679,8 @@
       </div>
       <div class="sh-box sh-regions"><div class="lbl">施術内容</div>
         <table class="rtable">
-          <thead><tr><th class="c-part">部位</th><th class="c-n">本数</th>${useLinks ? '<th class="c-n">電気</th>' : ''}<th>メモ（打った場所）</th></tr></thead>
-          <tbody>${rows.length ? rows.join('') : `<tr><td class="c-part"></td><td></td>${useLinks ? '<td></td>' : ''}<td></td></tr>`}</tbody>
+          <thead><tr><th class="c-part">部位</th><th class="c-n">本数</th><th class="c-mark">電気</th><th>メモ（打った場所）</th></tr></thead>
+          <tbody>${rows.length ? rows.join('') : '<tr><td class="c-part"></td><td></td><td></td><td></td></tr>'}</tbody>
         </table>
       </div>
       <div class="sh-box"><div class="lbl">術後の変化</div><div class="txt">${nl2br(r.change)}</div></div>
