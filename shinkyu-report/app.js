@@ -14,7 +14,7 @@
 (function () {
   'use strict';
 
-  const { REGIONS, BY_ID, SETS, VIEWS, figure, label, regionAt, esc } = window.Body;
+  const { REGIONS, BY_ID, SETS, VIEWS, figure, label, regionAt, centerY, esc } = window.Body;
 
   const KEY_REC = 'shinq:rec:';
   const KEY_SETTINGS = 'shinq:settings';
@@ -527,7 +527,8 @@
     const ids = new Set([...Object.keys(stats), ...(r.regionOrder || [])].filter((id) => BY_ID[id]));
     const viewOrder = [...SETS.body.views, ...SETS.head.views];
     return [...ids].map((id) => BY_ID[id])
-      .sort((a, b) => viewOrder.indexOf(a.view) - viewOrder.indexOf(b.view) || a.base - b.base || (a.side === '右' ? -1 : 1))
+      // 図の順（前面→背面…）、図の中で上から下、右→左
+      .sort((a, b) => viewOrder.indexOf(a.view) - viewOrder.indexOf(b.view) || centerY(a) - centerY(b) || (a.side === '右' ? -1 : 1))
       .map((reg) => {
         const n = stats[reg.id];
         const old = (r.regions || {})[reg.id] || {};

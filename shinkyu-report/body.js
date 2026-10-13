@@ -289,5 +289,8 @@
     return null;
   }
 
-  window.Body = { REGIONS, BY_ID, GROUPS, SETS, VIEWS, figure, label, regionAt, esc };
+  // 部位の図の中での高さ（一覧を上から順に並べる時に使う）
+  const centerY = (r) => center(r.shape)[1];
+
+  window.Body = { REGIONS, BY_ID, GROUPS, SETS, VIEWS, figure, label, regionAt, centerY, esc };
 })();
