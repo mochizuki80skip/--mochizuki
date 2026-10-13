@@ -255,7 +255,7 @@
       return `<g class="link" data-link="${i}"><line class="hit" ${xy}/><line class="ln" ${xy}/></g>`;
     }).join('');
     const pins = pinsHere.map((p) =>
-      `<g class="pin${st.linkSel === p.id ? ' sel' : ''}" data-pin="${p.id}"><circle class="hit" cx="${p.x}" cy="${p.y}" r="7"/><circle class="dot" cx="${p.x}" cy="${p.y}" r="3"/></g>`
+      `<g class="pin${st.linkSel === p.id ? ' sel' : ''}" data-pin="${p.id}"><circle class="hit" cx="${p.x}" cy="${p.y}" r="4"/><circle class="dot" cx="${p.x}" cy="${p.y}" r="3"/></g>`
     ).join('');
     const sides = v.sides ? `<text class="side" x="40" y="-3">${v.sides[0]}</text><text class="side" x="${W - 40}" y="-3">${v.sides[1]}</text>` : '';
     const deco = (DECO[view] || []).map((d) => `<path d="${d}"/>`).join('') +

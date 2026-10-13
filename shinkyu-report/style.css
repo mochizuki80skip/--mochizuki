@@ -347,3 +347,15 @@ hr { border: none; border-top: 1px solid var(--c-line); margin: 20px 0; }
   .edit-actions.bottom { display: grid; grid-template-columns: 1fr 1fr; }
   .edit-actions.bottom .btn.line { grid-column: 1 / -1; grid-row: 1; min-height: 48px; font-size: 16px; }
 }
+
+/* 部位ごとの本数とメモ（人体図の横） */
+.np-title { font-size: 13px; font-weight: 700; color: var(--c-sub); margin-bottom: 6px; }
+.needle-notes { display: grid; gap: 8px; }
+.nn-row { border: 1px solid var(--c-line); border-radius: 10px; padding: 8px 10px; background: #fff; display: grid; gap: 6px; }
+.nn-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
+.nn-head b { font-size: 15px; }
+.nn-count { color: var(--c-needle); font-weight: 700; font-size: 14px; }
+.nn-note { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--c-line); border-radius: 8px; font-size: 16px; }
+.nn-total { margin: 2px 0 0; }
+/* 内容書の表（番号の列なし） */
+.rtable .c-part { width: 46mm; }
