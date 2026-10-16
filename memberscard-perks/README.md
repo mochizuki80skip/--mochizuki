@@ -1,7 +1,14 @@
 # MEMBER'S CARD 提携店舗優待LP
 
 80SKIP公式LINEのMEMBER'S CARDで受けられる、提携店舗の優待を案内する静的LP。
-ビルドなし・単一の `index.html`。ハッシュで画面を切り替える（`#top` = 一覧、`#sporpia` = 詳細）。
+ビルドなし・単一の `index.html`。ハッシュで画面を切り替える。
+
+| ハッシュ | 画面 |
+|---|---|
+| `#top`（または無し） | 提携店舗タブ（使い方・提携先一覧） |
+| `#sporpia` など | 提携先の詳細 |
+| `#group` | 80SKIPグループタブ（キャンペーン一覧） |
+| `#c-…` | キャンペーンの詳細（期間外は一覧へ） |
 
 - リポジトリ: GitHub（このフォルダ `memberscard-perks/`）
 - 公開URL: https://partnership.hachimaru-80skip.com/
@@ -66,13 +73,16 @@ LINEの会員向けLPのため、検索に出ないようにしている。
 | `partner_site_click` | 公式サイト | `partner` |
 | `store_filter` | 都道府県チップ | `partner`, `pref` |
 | `scroll_depth` | 25/50/75/100%（ページごとに1回） | `percent`, `page_path` |
+| `campaign_click` | キャンペーン一覧のカード | `campaign` |
+| `campaign_filter` | キャンペーンの種類チップ | `type` |
+| `campaign_cta` | キャンペーン詳細の予約・電話などのボタン | `campaign`, `cta` |
 | `ui_tap` | **すべてのリンク・ボタンのタップ** | `tap_id`, `tap_text`, `section`, `page_path` |
 
 `ui_tap` は「どこが押されたか」を一覧で見るためのイベント。
 `section` は `how` / `partners` / `banner` / `perks` / `rules` / `team` / `details` / `stores` / `site` / `fixed_bar`。
 
 **GA4側の設定（必須）**: 管理 → カスタム定義 → カスタムディメンション（イベント）に、
-`cta_location`, `store`, `partner`, `pref`, `percent`, `tap_id`, `tap_text`, `section` を登録する。
+`cta_location`, `store`, `partner`, `pref`, `percent`, `tap_id`, `tap_text`, `section`, `campaign`, `cta`, `type` を登録する。
 登録しないと、レポートでパラメータ別に見られない。
 
 動作確認は `…/?debug=1` で開くと、ブラウザのコンソールに送信内容が出て、GA4のDebugViewにも入る。
@@ -82,6 +92,14 @@ LINEの会員向けLPのため、検索に出ないようにしている。
 タップ位置のヒートマップと操作の録画が見られる。https://clarity.microsoft.com でプロジェクトを作り、
 `window.CLARITY_ID` にIDを入れる。空なら読み込まない。
 ※導入する場合は、プライバシーポリシーへの記載を確認すること。
+
+## 80SKIPグループのキャンペーンの追加
+
+`index.html` の `CAMPAIGNS` に1件追加する（書き方はすぐ上のコメントにある見本のとおり）。
+- `start` / `end`（日本時間の日付）の期間外は自動で非表示。終了後に古いURLを開くと「終了しました」と一覧に案内する
+- `id` は `c-` で始める（例 `c-natsume-2611`）。公開後は変えない
+- `type`（接骨院／ジム など）が2種類以上あると、絞り込みチップが出る
+- LINE配信でキャンペーンを直接開くURL: `https://partnership.hachimaru-80skip.com/?utm_source=line&utm_medium=broadcast#c-natsume-2611`
 
 ## 提携先の追加
 

@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>提携店舗の優待｜80SKIP MEMBER'S CARD</title>
-<meta name="description" content="80SKIP公式LINEのMEMBER'S CARDで受けられる、提携店舗の優待内容・使い方・店舗情報のご案内です。">
+<title>MEMBER'S CARDの特典｜80SKIP</title>
+<meta name="description" content="80SKIP公式LINEのMEMBER'S CARDで受けられる、提携店舗の優待と80SKIPグループのキャンペーンのご案内です。">
 <meta name="theme-color" content="#00a9f0">
 <meta name="format-detection" content="telephone=no">
 <!-- 検索エンジンに載せない（LINEの会員向けLPのため） -->
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta property="og:type" content="website">
-<meta property="og:title" content="提携店舗の優待｜80SKIP MEMBER'S CARD">
-<meta property="og:description" content="MEMBER'S CARDを見せるだけ。提携店舗の優待と使い方をご案内します。">
+<meta property="og:title" content="MEMBER'S CARDの特典｜80SKIP">
+<meta property="og:description" content="MEMBER'S CARDを見せるだけ。提携店舗の優待と80SKIPグループのキャンペーンをご案内します。">
 <meta property="og:url" content="https://partnership.hachimaru-80skip.com/">
 <meta property="og:image" content="https://partnership.hachimaru-80skip.com/banner.webp">
 
@@ -281,11 +281,58 @@
   .cta-bar .inner { max-width: 720px; margin: 0 auto; }
   .cta-bar p { margin: 6px 0 0; font-size: 12px; text-align: center; color: var(--muted); line-height: 1.5; }
 
+  /* 提携店舗／80SKIPグループの切り替え */
+  .tabs {
+    position: sticky; top: 0; z-index: 40; background: var(--bg);
+    margin: 0 -16px; padding: 12px 16px 10px;
+  }
+  .tabs-inner {
+    display: grid; grid-template-columns: 1fr 1fr; background: var(--surface);
+    border: 1px solid var(--line); border-radius: 999px; padding: 4px;
+  }
+  .tab {
+    text-align: center; text-decoration: none; color: var(--muted); font-weight: 700;
+    font-size: 14px; padding: 8px 6px; border-radius: 999px; line-height: 1.35;
+  }
+  .tab[aria-current="page"] { background: var(--grad); color: #fff; }
+  .tab small { display: block; font-size: 11px; font-weight: 500; opacity: .9; }
+  .tabs + .section { margin-top: 8px; }
+
+  /* キャンペーン */
+  .camp-card { display: block; text-decoration: none; color: var(--ink); transition: transform .15s ease, border-color .15s ease; }
+  .camp-card:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .camp-top { display: flex; gap: 12px; align-items: center; }
+  .biz-icon {
+    width: 44px; height: 44px; border-radius: 999px; background: var(--grad); color: #fff; flex: none;
+    display: grid; place-items: center; font-family: var(--font-head); font-weight: 900; font-size: 16px; overflow: hidden;
+  }
+  .biz-icon.has-img { background: #fff; border: 1px solid #d2e1f1; }
+  .biz-icon img { width: 100%; height: 100%; object-fit: contain; }
+  .biz-icon .fallback-text { font-size: 10px; }
+  .camp-title { font-size: 18px; font-weight: 900; margin: 10px 0 8px; }
+  .period {
+    display: inline-block; font-size: 12px; font-weight: 700; color: #b4231b;
+    background: #ffe9e6; border-radius: 999px; padding: 1px 10px;
+  }
+  .period.always { color: var(--accent); background: var(--accent-soft); }
+  .type-filter { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 12px; }
+  .type-filter button {
+    flex: none; font: inherit; font-size: 13px; font-weight: 700; min-height: 38px; padding: 4px 14px;
+    border-radius: 999px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer;
+  }
+  .type-filter button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+  .camp-head { grid-template-columns: 1fr 56px; }
+  .camp-head .biz-icon { width: 56px; height: 56px; font-size: 20px; }
+  .perk-panel .perk-text { font-family: var(--font-head); font-weight: 900; font-size: 34px; line-height: 1.2; margin: 0; }
+  .cta-row { display: grid; gap: 10px; }
+  .info-box { margin-bottom: 14px; }
+
+  #app:focus { outline: none; }
   [hidden] { display: none !important; }
 
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }
-    .btn:hover, .partner-card:hover { transform: none; }
+    .btn:hover, .partner-card:hover, .camp-card:hover { transform: none; }
   }
 </style>
 </head>
@@ -293,7 +340,7 @@
 
 <header class="brandbar">
   <div class="wrap">
-    <a href="#top" data-tap="brand_logo" aria-label="提携店舗の一覧へ">
+    <a href="#top" data-tap="brand_logo" aria-label="トップへ">
       <img src="logo-80skip.webp" width="640" height="216" alt="HACHIMARU SKIP" data-fallback="HACHIMARU SKIP">
     </a>
   </div>
@@ -302,7 +349,7 @@
 <div class="hero">
   <div class="wrap">
     <p class="eyebrow">80SKIP MEMBER'S CARD</p>
-    <div id="hero-title"><h1 class="title">提携店舗の優待</h1></div>
+    <div id="hero-title"><h1 class="title">MEMBER'S CARDの特典</h1></div>
     <p class="lead" id="hero-lead">公式LINEのMEMBER'S CARDを見せると、提携店舗で優待が受けられます。</p>
   </div>
 </div>
@@ -319,7 +366,7 @@
 <div class="cta-bar" data-section="fixed_bar">
   <div class="inner">
     <a class="btn btn-line btn-block" href="" data-line data-track="line_click" data-loc="fixed_bar" target="_blank" rel="noopener">LINEでMEMBER'S CARDを表示する</a>
-    <p>会計のとき、MEMBER'S CARDの画面と身分証を見せてください</p>
+    <p>受付・会計のとき、MEMBER'S CARDの画面と身分証を見せてください</p>
   </div>
 </div>
 
@@ -388,6 +435,33 @@ var PARTNERS = [
   }
 ];
 
+/* ===== 80SKIPグループのキャンペーン =====
+   1要素 = 1キャンペーン。「80SKIPグループ」タブ（#group）に一覧、#id で詳細が出る。
+   start / end（YYYY-MM-DD、日本時間）の期間外は自動で非表示。両方空なら常設。
+   id は半角英数とハイフン。提携先の id や "top" "group" と重ならないよう "c-" で始める。
+
+   {
+     id: "c-natsume-2611",               // URL（#c-natsume-2611）。公開後は変えない
+     biz: "なつめ接骨院グループ",          // 事業名
+     type: "接骨院",                      // 絞り込みのチップ（種類が2つ以上あるときだけ出る）
+     logo: "",                            // 事業ロゴの画像（任意）。空なら icon の文字を丸に入れる
+     icon: "な",
+     title: "初回施術 ○○円OFF",           // キャンペーン名
+     perk: "初回 ○○円OFF",               // 黄色のチップと、詳細の大きな表示
+     sub: "MEMBER'S CARDの提示で",         // 大きな表示の下の補足（任意）
+     start: "2026-11-01", end: "2026-11-30",
+     items: [ ["対象の方", "初めての方"], ["対象店舗", "全院"], ["利用方法", "受付でMEMBER'S CARDの画面を見せてください"] ],
+     notes: [ "他の割引との併用はできません。" ],   // 注意事項（任意）
+     buttons: [                           // 予約・問い合わせのボタン（任意）。最初の1つが目立つボタンになる
+       { label: "Webで予約する", url: "https://...", cta: "reserve" },
+       { label: "電話で予約する", tel: "054-000-0000", cta: "tel" },
+       { label: "店舗一覧・アクセス", url: "https://...", cta: "site" }
+     ]
+   }
+*/
+var CAMPAIGNS = [
+];
+
 /* ===== ユーティリティ ===== */
 function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -406,9 +480,34 @@ function prefsOf(p) {
   p.stores.forEach(function (s) { if (out.indexOf(s.pref) < 0) out.push(s.pref); });
   return out;
 }
+function todayJST() {
+  return new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+}
+function isActive(c) {
+  var t = todayJST();
+  return (!c.start || t >= c.start) && (!c.end || t <= c.end);
+}
+function activeCampaigns() {
+  return CAMPAIGNS.filter(isActive);
+}
+function findCampaign(id) {
+  for (var i = 0; i < CAMPAIGNS.length; i++) if (CAMPAIGNS[i].id === id) return CAMPAIGNS[i];
+  return null;
+}
+function fmtDate(d, withYear) {
+  var a = d.split("-");
+  return (withYear ? a[0] + "/" : "") + Number(a[1]) + "/" + Number(a[2]);
+}
+function periodText(c) {
+  if (!c.start && !c.end) return "";
+  if (!c.start) return fmtDate(c.end, true) + "まで";
+  if (!c.end) return fmtDate(c.start, true) + "から";
+  return fmtDate(c.start, true) + "〜" + fmtDate(c.end, c.start.slice(0, 4) !== c.end.slice(0, 4));
+}
 function currentPath() {
   var id = location.hash.replace(/^#/, "");
-  return findPartner(id) ? "/" + id : "/top";
+  if (id === "group" || findPartner(id) || findCampaign(id)) return "/" + id;
+  return "/top";
 }
 
 /* ===== 計測 ===== */
@@ -455,12 +554,15 @@ document.addEventListener("click", function (e) {
     if (el.hasAttribute("data-partner")) p.partner = el.getAttribute("data-partner");
     if (el.hasAttribute("data-store")) p.store = el.getAttribute("data-store");
     if (el.hasAttribute("data-pref")) p.pref = el.getAttribute("data-pref");
+    if (el.hasAttribute("data-campaign")) p.campaign = el.getAttribute("data-campaign");
+    if (el.hasAttribute("data-cta")) p.cta = el.getAttribute("data-cta");
+    if (el.hasAttribute("data-type")) p.type = el.getAttribute("data-type");
     track(name, p);
   }
 
   var sec = el.closest("[data-section]");
   var tapId = el.getAttribute("data-tap") ||
-    [name, el.getAttribute("data-loc") || el.getAttribute("data-pref") || el.getAttribute("data-store") || el.getAttribute("data-partner")].filter(Boolean).join(":") ||
+    [name, el.getAttribute("data-loc") || el.getAttribute("data-pref") || el.getAttribute("data-type") || el.getAttribute("data-store") || el.getAttribute("data-campaign") || el.getAttribute("data-partner"), el.getAttribute("data-cta")].filter(Boolean).join(":") ||
     (el.getAttribute("href") || el.tagName.toLowerCase());
   track("ui_tap", {
     tap_id: tapId.slice(0, 100),
@@ -480,8 +582,15 @@ function lineLink(loc, cls, text) {
   return '<a class="btn ' + cls + '" href="' + esc(LINE_URL) + '" data-track="line_click" data-loc="' + loc + '" target="_blank" rel="noopener">' + text + '</a>';
 }
 
+function tabsHtml(active) {
+  return '<nav class="tabs" aria-label="表示の切り替え" data-section="tabs"><div class="tabs-inner">' +
+    '<a class="tab" href="#top"' + (active === "partner" ? ' aria-current="page"' : '') + ' data-tap="tab:partner">提携店舗の優待<small>スポーツ用品など</small></a>' +
+    '<a class="tab" href="#group"' + (active === "group" ? ' aria-current="page"' : '') + ' data-tap="tab:group">80SKIPグループ<small>キャンペーン</small></a>' +
+  '</div></nav>';
+}
+
 function renderTop() {
-  heroTitle.innerHTML = '<h1 class="title">提携店舗の優待</h1>';
+  heroTitle.innerHTML = '<h1 class="title">MEMBER\'S CARDの特典</h1>';
   var partnersHtml = PARTNERS.map(function (p) {
     var chips = p.perks.map(function (k) {
       return '<li class="perk-chip">' + esc(k.tag) + ' ' + esc(k.value + k.unit) + '</li>';
@@ -498,7 +607,7 @@ function renderTop() {
       '</a>';
   }).join("");
 
-  app.innerHTML = '' +
+  app.innerHTML = tabsHtml("partner") +
     '<section class="section" data-section="how" aria-labelledby="how-title">' +
       '<h2 class="section-title" id="how-title">使い方</h2>' +
       '<ol class="steps card">' +
@@ -525,6 +634,11 @@ function renderTop() {
       '<p class="notice-dashed" style="margin-top:14px">提携先は今後も追加していきます。</p>' +
     '</section>' +
 
+    bannerHtml();
+}
+
+function bannerHtml() {
+  return '' +
     '<section class="section" data-section="banner" aria-labelledby="banner-title">' +
       '<h2 class="section-title" id="banner-title">MEMBER\'S CARDをまだ持っていない方へ</h2>' +
       '<a class="banner-link" href="' + esc(LINE_URL) + '" data-track="line_click" data-loc="banner" target="_blank" rel="noopener">' +
@@ -532,6 +646,120 @@ function renderTop() {
       '</a>' +
       '<p class="small muted" style="margin-top:10px">80SKIP公式LINEを友だち追加すると、MEMBER\'S CARDを受け取れます。バナーをタップするとLINEが開きます。</p>' +
     '</section>';
+}
+
+function bizIconHtml(c) {
+  if (c.logo) {
+    return '<span class="biz-icon has-img"><img src="' + esc(c.logo) + '" alt="" data-fallback="' + esc(c.icon || c.biz.charAt(0)) + '"></span>';
+  }
+  return '<span class="biz-icon" aria-hidden="true">' + esc(c.icon || c.biz.charAt(0)) + '</span>';
+}
+
+function periodHtml(c) {
+  var t = periodText(c);
+  return t
+    ? '<span class="period">期間 ' + esc(t) + '</span>'
+    : '<span class="period always">常設</span>';
+}
+
+function renderGroup(endedNotice) {
+  heroTitle.innerHTML = '<h1 class="title">MEMBER\'S CARDの特典</h1>';
+  var list = activeCampaigns();
+  var types = [];
+  list.forEach(function (c) { if (c.type && types.indexOf(c.type) < 0) types.push(c.type); });
+
+  var cards = list.map(function (c) {
+    return '' +
+      '<a class="card camp-card" href="#' + esc(c.id) + '" data-ctype="' + esc(c.type || "") + '" data-track="campaign_click" data-campaign="' + esc(c.id) + '">' +
+        '<span class="camp-top">' + bizIconHtml(c) + '<span class="partner-meta">' + esc(c.biz) + '</span></span>' +
+        '<h3 class="camp-title">' + esc(c.title) + '</h3>' +
+        (c.perk ? '<ul class="chips"><li class="perk-chip">' + esc(c.perk) + '</li></ul>' : '') +
+        '<span class="partner-foot">' + periodHtml(c) + '<span class="more">詳しく見る →</span></span>' +
+      '</a>';
+  }).join("");
+
+  var filter = types.length >= 2
+    ? '<div class="type-filter" role="group" aria-label="種類で絞り込む">' +
+        ['すべて'].concat(types).map(function (t, i) {
+          var val = i === 0 ? "all" : t;
+          return '<button type="button" aria-pressed="' + (i === 0) + '" data-type-filter="' + esc(val) + '" data-track="campaign_filter" data-type="' + esc(val) + '">' + esc(t) + '</button>';
+        }).join("") +
+      '</div>'
+    : "";
+
+  app.innerHTML = tabsHtml("group") +
+    (endedNotice ? '<p class="card info-box small">お探しのキャンペーンは終了しました。開催中のキャンペーンをご覧ください。</p>' : '') +
+    '<section class="section" data-section="group_how" aria-labelledby="ghow-title">' +
+      '<h2 class="section-title" id="ghow-title">使い方</h2>' +
+      '<ol class="steps card">' +
+        '<li class="step"><span class="step-num" aria-hidden="true">1</span><div>' +
+          '<h3>受付でMEMBER\'S CARDを見せる</h3>' +
+          '<p>LINEでMEMBER\'S CARDの画面を表示して、受付・会計のときに見せてください。</p>' +
+          lineLink("group_how", "btn-line", "LINEでカードを表示") +
+        '</div></li>' +
+        '<li class="step"><span class="step-num" aria-hidden="true">2</span><div>' +
+          '<h3>特典を受ける</h3>' +
+          '<p>対象の方や期間などの条件は、キャンペーンごとの詳細をご確認ください。</p>' +
+        '</div></li>' +
+      '</ol>' +
+    '</section>' +
+    '<section class="section" data-section="campaigns" aria-labelledby="camp-title">' +
+      '<h2 class="section-title" id="camp-title">開催中のキャンペーン</h2>' +
+      (list.length
+        ? filter + '<div class="partners" id="camp-list">' + cards + '</div>'
+        : '<p class="notice-dashed">現在開催中のキャンペーンはありません。<br>新しいキャンペーンは公式LINEでお知らせします。</p>') +
+    '</section>' +
+    bannerHtml();
+
+  app.querySelectorAll("[data-type-filter]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var val = b.getAttribute("data-type-filter");
+      app.querySelectorAll("#camp-list .camp-card").forEach(function (el) {
+        el.hidden = !(val === "all" || el.getAttribute("data-ctype") === val);
+      });
+      app.querySelectorAll("[data-type-filter]").forEach(function (x) {
+        x.setAttribute("aria-pressed", String(x === b));
+      });
+    });
+  });
+}
+
+function renderCampaign(c) {
+  heroTitle.innerHTML = '<p class="title">80SKIPグループのキャンペーン</p>';
+  var items = (c.items || []).map(function (it) {
+    return '<div><dt>' + esc(it[0]) + '</dt><dd>' + esc(it[1]) + '</dd></div>';
+  }).join("");
+  var pt = periodText(c);
+  var buttons = (c.buttons || []).map(function (b, i) {
+    var href = b.tel ? "tel:" + b.tel.replace(/[^0-9+]/g, "") : b.url;
+    var ext = b.tel ? "" : ' target="_blank" rel="noopener"';
+    return '<a class="btn btn-block ' + (i === 0 ? "btn-grad" : "btn-outline") + '" href="' + esc(href) + '"' + ext +
+      ' data-track="campaign_cta" data-campaign="' + esc(c.id) + '" data-cta="' + esc(b.cta || (b.tel ? "tel" : "link")) + '">' +
+      esc(b.label) + (b.tel ? '（' + esc(b.tel) + '）' : '') + '</a>';
+  }).join("");
+
+  app.innerHTML = '' +
+    '<a class="back" href="#group" data-tap="back_to_group">← キャンペーンの一覧へ</a>' +
+    '<div class="detail-head camp-head">' +
+      '<div><p class="partner-meta">' + esc(c.biz) + '</p><h1>' + esc(c.title) + '</h1></div>' +
+      bizIconHtml(c) +
+    '</div>' +
+    '<section class="section" data-section="camp_perk" aria-label="特典の内容">' +
+      '<div class="perk-panel">' +
+        (c.perk ? '<p class="perk-text">' + esc(c.perk) + '</p>' : '') +
+        (c.sub ? '<p class="perk-label">' + esc(c.sub) + '</p>' : '') +
+        '<p class="perk-sub">' + (pt ? '期間：' + esc(pt) : '常設のキャンペーンです') + '</p>' +
+      '</div>' +
+    '</section>' +
+    (items
+      ? '<section class="section" data-section="camp_detail" aria-labelledby="cd-title"><h2 class="section-title" id="cd-title">内容</h2><div class="card"><dl class="deflist">' + items + '</dl></div></section>'
+      : '') +
+    ((c.notes && c.notes.length)
+      ? '<section class="section" data-section="camp_notes" aria-labelledby="cn-title"><h2 class="section-title" id="cn-title">注意事項</h2><div class="card"><ul class="bullets">' + c.notes.map(function (n) { return '<li>' + esc(n) + '</li>'; }).join("") + '</ul></div></section>'
+      : '') +
+    (buttons
+      ? '<section class="section" data-section="camp_cta" aria-labelledby="cc-title"><h2 class="section-title" id="cc-title">予約・お問い合わせ</h2><div class="cta-row">' + buttons + '</div></section>'
+      : '');
 }
 
 function storeHtml(p, s) {
@@ -660,12 +888,22 @@ function applyFilter(val) {
 function route(isInitial) {
   var id = location.hash.replace(/^#/, "");
   var p = findPartner(id);
+  var c = findCampaign(id);
   if (p) {
     heroLead.textContent = p.name + "で、MEMBER'S CARDの優待が受けられます。";
     renderDetail(p);
     document.title = p.name + "の優待｜80SKIP MEMBER'S CARD";
+  } else if (c && isActive(c)) {
+    heroLead.textContent = c.biz + "のキャンペーンです。MEMBER'S CARDの提示で特典が受けられます。";
+    renderCampaign(c);
+    document.title = c.title + "｜" + c.biz + "｜80SKIP MEMBER'S CARD";
+  } else if (id === "group" || c) {
+    // 終了したキャンペーンのURL（古い配信など）は、一覧に案内する
+    heroLead.textContent = "MEMBER'S CARDを見せると、80SKIPグループの各店舗でキャンペーン特典が受けられます。";
+    renderGroup(!!(c && c.end && todayJST() > c.end));
+    document.title = "80SKIPグループのキャンペーン｜80SKIP MEMBER'S CARD";
   } else {
-    heroLead.textContent = "公式LINEのMEMBER'S CARDを見せると、提携店舗で優待が受けられます。";
+    heroLead.textContent = "MEMBER'S CARDを見せると、提携店舗の優待と80SKIPグループのキャンペーン特典が受けられます。";
     renderTop();
     document.title = "提携店舗の優待｜80SKIP MEMBER'S CARD";
   }
