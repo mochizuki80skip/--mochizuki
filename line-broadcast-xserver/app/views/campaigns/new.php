@@ -44,12 +44,13 @@
           <button type="button" class="px-3 py-1 rounded border text-sm" :class="tagNames.includes(t.name) ? 'bg-line text-white border-line' : 'bg-white'" @click="toggleTag(t.name)"
                   :title="channelIds.length - tagHave(t) > 0 ? ('選択中の ' + (channelIds.length - tagHave(t)) + ' アカウントにはこのタグがありません') : ''">
             <span x-text="t.name"></span>
-            <span class="ml-1 text-xs" :class="tagNames.includes(t.name) ? 'text-white/80' : 'text-gray-400'" x-text="tagHave(t) + '/' + channelIds.length"></span>
+            <span class="ml-1 text-xs" :class="tagNames.includes(t.name) ? 'text-white/80' : 'text-gray-400'" x-text="tagPeople(t).toLocaleString() + '人'"></span>
+            <span class="ml-1 text-xs text-amber-600" x-show="channelIds.length - tagHave(t) > 0" x-text="'（' + (channelIds.length - tagHave(t)) + 'アカウントにタグなし）'"></span>
           </button>
         </template>
         <span x-show="tags.length === 0" class="text-sm text-gray-500">タグがまだありません</span>
       </div>
-      <p x-show="tagNames.length > 0" class="text-xs text-gray-500 mt-2">タグは各アカウントのタグを「名前」で突き合わせます。選んだタグが 1 つも無いアカウントには配信されません（全員に送られることはありません）。</p>
+      <p x-show="tagNames.length > 0" class="text-xs text-gray-500 mt-2">タグの横の人数は、選択中のアカウントで、そのタグが付いている友だちの人数です。複数のタグを選んだときは、重複する人には1通だけ届きます。タグは各アカウントのタグを「名前」で突き合わせます。選んだタグが 1 つも無いアカウントには配信されません（全員に送られることはありません）。</p>
     </section>
 
     <section class="bg-white border rounded p-4">

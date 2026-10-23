@@ -44,7 +44,8 @@ const ok = (c, n, d = '') => { if (c) { pass++; console.log('  ✔ ' + n); } els
 
   // タグ（2アカウントとも「イベント案内」あり）
   const tagBtn = page.locator('button:has-text("イベント案内")');
-  ok((await tagBtn.innerText()).includes('2/2'), 'タグの保有アカウント数が 2/2 と出る');
+  const tagText = await tagBtn.innerText();
+  ok(/\d+人/.test(tagText) && !tagText.includes('/') && !tagText.includes('タグなし'), 'タグの横に、付いている人数（例: 3人）が出る', tagText);
   await tagBtn.click();
   ok((await page.locator('text=全員に送られることはありません').count()) > 0, 'タグ選択時の注意書きが出る');
   await tagBtn.click();

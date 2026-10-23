@@ -149,6 +149,8 @@
         selectAll: function () { this.channelIds = this.channels.map(function (c) { return c.id; }); },
         clearAll: function () { this.channelIds = []; },
         toggleTag: function (n) { this.tagNames = this.tagNames.indexOf(n) >= 0 ? this.tagNames.filter(function (x) { return x !== n; }) : this.tagNames.concat([n]); },
+        // 選択中のアカウントで、そのタグが付いている友だちの人数
+        tagPeople: function (t) { var ids = this.channelIds; return ids.reduce(function (s, id) { return s + ((t.counts && t.counts[id]) || 0); }, 0); },
         tagHave: function (t) { var ids = this.channelIds; return t.channelIds.filter(function (id) { return ids.indexOf(id) >= 0; }).length; },
         async submit(sendMode) {
           this.error = '';

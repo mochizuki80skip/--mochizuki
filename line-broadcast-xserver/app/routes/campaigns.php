@@ -25,8 +25,14 @@ Router::get('/campaigns/new', function () {
             $followers[(int)$r['channel_id']] = (int)$r['n'];
         }
         // タグは「名前」単位でまとめ、どのアカウントに存在するかを持たせる
-        foreach (Db::all('SELECT name, channel_id FROM tags WHERE channel_id IN (' . Db::in($ids) . ') ORDER BY name', $ids) as $r) {
-            $tagMap[$r['name']][] = (int)$r['channel_id'];
+        // 各タグを付けている（現在友だちの）人数も出す
+        foreach (Db::all(
+            'SELECT t.name, t.channel_id, COUNT(f.id) AS n FROM tags t
+               LEFT JOIN friend_tags ft ON ft.tag_id = t.id
+               LEFT JOIN friends f ON f.id = ft.friend_id AND f.is_following = 1
+              WHERE t.channel_id IN (' . Db::in($ids) . ') GROUP BY t.id ORDER BY t.name', $ids
+        ) as $r) {
+            $tagMap[$r['name']][(int)$r['channel_id']] = (int)$r['n'];
         }
     }
     $pre = (int)($_GET['channel'] ?? 0);
@@ -34,7 +40,7 @@ Router::get('/campaigns/new', function () {
         'title' => '一括配信を作成',
         'cfg' => [
             'channels' => array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'color' => $c['color'], 'followers' => $followers[(int)$c['id']] ?? 0], $channels),
-            'tags' => array_map(fn($n, $cs) => ['name' => (string)$n, 'channelIds' => $cs], array_keys($tagMap), array_values($tagMap)),
+            'tags' => array_map(fn($n, $cs) => ['name' => (string)$n, 'channelIds' => array_map('intval', array_keys($cs)), 'counts' => $cs], array_keys($tagMap), array_values($tagMap)),
             'selected' => in_array($pre, $ids, true) ? [$pre] : [],
         ],
     ]);
