@@ -134,11 +134,12 @@
     Alpine.data('composer', function (cfg) {
       return {
         channels: cfg.channels, tags: cfg.tags,
-        channelIds: cfg.selected || [],
-        tagNames: [],
-        title: '',
-        blocks: Editor.prep([Editor.newBlock('text')]),
-        mode: 'now', scheduledLocal: '',
+        editId: cfg.edit ? cfg.edit.id : null,
+        channelIds: cfg.edit ? cfg.edit.channelIds.slice() : (cfg.selected || []),
+        tagNames: cfg.edit ? cfg.edit.tagNames.slice() : [],
+        title: cfg.edit ? cfg.edit.title : '',
+        blocks: Editor.prep(cfg.edit ? cfg.edit.blocks : [Editor.newBlock('text')]),
+        mode: cfg.edit ? cfg.edit.mode : 'now', scheduledLocal: cfg.edit ? cfg.edit.scheduledLocal : '',
         busy: false, error: '',
         get totalFollowers() {
           var ids = this.channelIds;
@@ -165,7 +166,7 @@
             scheduledAt = new Date(this.scheduledLocal).toISOString(); // ブラウザ（日本時間）で解釈してから送る
           }
           this.busy = true;
-          var r = await Editor.post('/api/campaigns', {
+          var r = await Editor.post(this.editId ? '/api/campaigns/' + this.editId + '/update' : '/api/campaigns', {
             title: this.title, blocks: Editor.clean(this.blocks), channelIds: this.channelIds,
             tagNames: this.tagNames, mode: sendMode, scheduledAt: scheduledAt
           });

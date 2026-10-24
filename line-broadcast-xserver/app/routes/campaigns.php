@@ -14,8 +14,9 @@ Router::get('/campaigns', function () {
     View::render('campaigns/index', ['title' => '一括配信', 'rows' => $rows]);
 });
 
-Router::get('/campaigns/new', function () {
-    Auth::requireLogin();
+/** 配信作成・編集画面の設定（アカウント・タグ・人数） */
+function composer_config(array $extra = []): array
+{
     $channels = Auth::channels();
     $ids = array_map(fn($c) => (int)$c['id'], $channels);
     $followers = [];
@@ -24,8 +25,7 @@ Router::get('/campaigns/new', function () {
         foreach (Db::all('SELECT channel_id, COUNT(*) n FROM friends WHERE is_following = 1 AND channel_id IN (' . Db::in($ids) . ') GROUP BY channel_id', $ids) as $r) {
             $followers[(int)$r['channel_id']] = (int)$r['n'];
         }
-        // タグは「名前」単位でまとめ、どのアカウントに存在するかを持たせる
-        // 各タグを付けている（現在友だちの）人数も出す
+        // タグは「名前」単位でまとめ、どのアカウントに存在するか・付いている人数を持たせる
         foreach (Db::all(
             'SELECT t.name, t.channel_id, COUNT(f.id) AS n FROM tags t
                LEFT JOIN friend_tags ft ON ft.tag_id = t.id
@@ -36,14 +36,39 @@ Router::get('/campaigns/new', function () {
         }
     }
     $pre = (int)($_GET['channel'] ?? 0);
-    View::render('campaigns/new', [
-        'title' => '一括配信を作成',
-        'cfg' => [
-            'channels' => array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'color' => $c['color'], 'followers' => $followers[(int)$c['id']] ?? 0], $channels),
-            'tags' => array_map(fn($n, $cs) => ['name' => (string)$n, 'channelIds' => array_map('intval', array_keys($cs)), 'counts' => $cs], array_keys($tagMap), array_values($tagMap)),
-            'selected' => in_array($pre, $ids, true) ? [$pre] : [],
-        ],
-    ]);
+    return [
+        'channels' => array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'color' => $c['color'], 'followers' => $followers[(int)$c['id']] ?? 0], $channels),
+        'tags' => array_map(fn($n, $cs) => ['name' => (string)$n, 'channelIds' => array_map('intval', array_keys($cs)), 'counts' => $cs], array_keys($tagMap), array_values($tagMap)),
+        'selected' => in_array($pre, $ids, true) ? [$pre] : [],
+    ] + $extra;
+}
+
+Router::get('/campaigns/new', function () {
+    Auth::requireLogin();
+    View::render('campaigns/new', ['title' => '一括配信を作成', 'cfg' => composer_config()]);
+});
+
+// 下書き・予約済みの配信を編集する
+Router::get('/campaigns/{id}/edit', function (array $p) {
+    Auth::requireLogin();
+    $c = Db::one('SELECT * FROM campaigns WHERE id = ?', [(int)$p['id']]);
+    try {
+        if (!$c) throw new ValidationError('配信が見つかりません', 404);
+        Campaigns::assertEditable((int)$c['id']);
+    } catch (ValidationError $e) {
+        http_response_code($e->status === 404 ? 404 : 403);
+        View::render('error', ['title' => '編集できません', 'message' => $e->getMessage()], 'layout');
+        return;
+    }
+    $chIds = array_map('intval', array_column(Db::all('SELECT channel_id FROM broadcasts WHERE campaign_id = ?', [$c['id']]), 'channel_id'));
+    $hasSchedule = $c['scheduled_at'] && in_array('scheduled', array_column(Db::all('SELECT status FROM broadcasts WHERE campaign_id = ?', [$c['id']]), 'status'), true);
+    $edit = [
+        'id' => (int)$c['id'], 'title' => $c['title'], 'blocks' => json_decode($c['blocks'], true),
+        'channelIds' => $chIds, 'tagNames' => json_decode($c['audience_tag_names'], true) ?: [],
+        'mode' => $hasSchedule ? 'schedule' : 'now',
+        'scheduledLocal' => $hasSchedule ? gmdate('Y-m-d\TH:i', strtotime($c['scheduled_at'] . ' UTC') + 9 * 3600) : '',
+    ];
+    View::render('campaigns/new', ['title' => '配信を編集', 'cfg' => composer_config(['edit' => $edit])]);
 });
 
 Router::get('/campaigns/{id}', function (array $p) {
@@ -71,7 +96,9 @@ Router::get('/campaigns/{id}', function (array $p) {
         $insightRows[(int)$r['broadcast_id']] = Analytics::insightView($r);
     }
     $links = Analytics::linkStats((int)$c['id']);
+    $editable = !array_diff($statuses, Campaigns::EDITABLE_STATUSES) && (Auth::isAdmin() || !array_diff(array_map('intval', array_column($broadcasts, 'channel_id')), $ids));
     View::render('campaigns/show', [
+        'editable' => $editable,
         'links' => $links, 'clicksByDay' => Analytics::clicksByDay((int)$c['id']), 'insights' => $insightRows,
         'sentTotal' => array_sum(array_map(fn($b) => (int)$b['success_count'], $broadcasts)),
         'title' => $c['title'], 'c' => $c, 'broadcasts' => $broadcasts,
@@ -90,6 +117,26 @@ Router::post('/api/campaigns', function () {
         json_error($e->getMessage(), $e->status);
     }
     json_out(['ok' => true, 'campaignId' => $id]);
+});
+
+Router::post('/api/campaigns/{id}/update', function (array $p) {
+    $u = Auth::requireLogin();
+    try {
+        $id = Campaigns::update($u, (int)$p['id'], json_body() ?? []);
+    } catch (ValidationError $e) {
+        json_error($e->getMessage(), $e->status);
+    }
+    json_out(['ok' => true, 'campaignId' => $id]);
+});
+
+Router::post('/api/campaigns/{id}/delete', function (array $p) {
+    Auth::requireLogin();
+    try {
+        Campaigns::delete((int)$p['id']);
+    } catch (ValidationError $e) {
+        json_error($e->getMessage(), $e->status);
+    }
+    json_out(['ok' => true]);
 });
 
 Router::post('/api/campaigns/{id}/execute', function (array $p) {

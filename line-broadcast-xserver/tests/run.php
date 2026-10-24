@@ -365,6 +365,56 @@ db()->exec("UPDATE broadcasts SET scheduled_at = UTC_TIMESTAMP() WHERE campaign_
 $before = count(mockLog()); cron();
 ok(count(array_filter(array_slice(mockLog(), $before), fn($e) => str_contains($e['path'], '/message/'))) === 0, '取消した配信は cron でも送られない');
 
+section('下書き・予約の編集と削除');
+$rich = ['type' => 'rich', 'mediaId' => $mid, 'ratio' => 0.5, 'layout' => '1', 'altText' => 'r', 'areas' => [['kind' => 'uri', 'value' => 'https://example.com/edit']]];
+$r = $admin->api('/api/campaigns', ['title' => '編集前', 'blocks' => [['type' => 'text', 'text' => '前の本文'], $rich], 'channelIds' => [$ids['A'], $ids['B']], 'tagNames' => [], 'mode' => 'draft']);
+$ce = (int)$r['json']['campaignId'];
+$oldTok = val('SELECT token FROM tracked_links WHERE campaign_id = ?', [$ce]);
+$r = $admin->page("/campaigns/$ce");
+ok(str_contains($r['body'], '編集する') && str_contains($r['body'], '削除'), '下書きの詳細に「編集する」「削除」が出る');
+$r = $admin->page("/campaigns/$ce/edit");
+ok($r['status'] === 200 && str_contains($r['body'], '配信を編集') && str_contains($r['body'], '編集前') && str_contains($r['body'], '前の本文'), '編集画面に保存済みの内容が入る');
+ok(str_contains($admin->page('/campaigns')['body'], "/campaigns/$ce/edit"), '一覧に「編集」リンク');
+$future = gmdate('c', time() + 7200);
+$r = $admin->api("/api/campaigns/$ce/update", ['title' => '編集後', 'blocks' => [['type' => 'text', 'text' => '新しい本文'], $rich], 'channelIds' => [$ids['A']], 'tagNames' => ['イベント案内'], 'mode' => 'schedule', 'scheduledAt' => $future]);
+ok($r['status'] === 200 && (int)$r['json']['campaignId'] === $ce, '下書きを編集して予約に変更（同じ配信 ID のまま）', json_encode($r['json'], JSON_UNESCAPED_UNICODE));
+$bs = q('SELECT * FROM broadcasts WHERE campaign_id = ?', [$ce]);
+ok(count($bs) === 1 && (int)$bs[0]['channel_id'] === $ids['A'] && $bs[0]['status'] === 'scheduled' && (int)$bs[0]['target_all'] === 0, 'アカウント・状態・オーディエンスが更新される', json_encode($bs, JSON_UNESCAPED_UNICODE));
+ok((int)val('SELECT COUNT(*) FROM broadcast_tags WHERE broadcast_id = ?', [$bs[0]['id']]) === 1, 'タグ絞り込みが保存される');
+ok(val('SELECT title FROM campaigns WHERE id = ?', [$ce]) === '編集後' && str_contains((string)val('SELECT messages FROM campaigns WHERE id = ?', [$ce]), '新しい本文'), 'タイトル・本文が更新される');
+ok(substr((string)val('SELECT scheduled_at FROM broadcasts WHERE campaign_id = ?', [$ce]), 0, 16) === gmdate('Y-m-d H:i', time() + 7200), '配信日時が更新される');
+$newTok = val('SELECT token FROM tracked_links WHERE campaign_id = ?', [$ce]);
+ok($newTok && $newTok !== $oldTok && (int)val('SELECT COUNT(*) FROM tracked_links WHERE campaign_id = ?', [$ce]) === 1, 'クリック計測用リンクは作り直される（古い分は残らない）');
+$r = $admin->page("/campaigns/$ce/edit");
+$expLocal = gmdate('Y-m-d\TH:i', strtotime((string)val('SELECT scheduled_at FROM broadcasts WHERE campaign_id = ?', [$ce]) . ' UTC') + 9 * 3600);
+ok(str_contains($r['body'], 'scheduledLocal&quot;:&quot;' . $expLocal), '予約の編集画面に日時（日本時間）が入る', $expLocal);
+$r = $admin->api("/api/campaigns/$ce/update", ['title' => '', 'blocks' => [['type' => 'text', 'text' => 'x']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'draft']);
+ok($r['status'] === 400 && val('SELECT title FROM campaigns WHERE id = ?', [$ce]) === '編集後', '不正な入力は拒否され、元の内容が残る');
+$r = $admin->api("/api/campaigns/$ce/update", ['title' => '下書きに戻す', 'blocks' => [['type' => 'text', 'text' => '本文']], 'channelIds' => [$ids['A'], $ids['B']], 'tagNames' => [], 'mode' => 'draft']);
+ok($r['status'] === 200 && q('SELECT status FROM broadcasts WHERE campaign_id = ? ORDER BY channel_id', [$ce]) == [['status' => 'draft'], ['status' => 'draft']] && (int)val('SELECT COUNT(*) FROM tracked_links WHERE campaign_id = ?', [$ce]) === 0, '予約を下書きに戻せる（2 アカウントに増やせる）');
+$before = count(mockLog());
+$r = $admin->api("/api/campaigns/$ce/update", ['title' => '編集してすぐ配信', 'blocks' => [['type' => 'text', 'text' => 'すぐ']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'now']);
+ok($r['status'] === 200 && val('SELECT status FROM broadcasts WHERE campaign_id = ?', [$ce]) === 'sent' && count(array_filter(array_slice(mockLog(), $before), fn($e) => $e['path'] === '/v2/bot/message/broadcast')) === 1, '編集してそのまま「いますぐ配信」できる');
+$r = $admin->api("/api/campaigns/$ce/update", ['title' => '送信後の編集', 'blocks' => [['type' => 'text', 'text' => 'x']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'draft']);
+ok($r['status'] === 409 && val('SELECT title FROM campaigns WHERE id = ?', [$ce]) === '編集してすぐ配信', '送信済みの配信は編集できない（409）');
+ok($admin->page("/campaigns/$ce/edit")['status'] === 403 && !str_contains($admin->page("/campaigns/$ce")['body'], '編集する（'), '送信済みは編集画面も開けず、ボタンも出ない');
+ok($admin->api("/api/campaigns/$ce/delete")['status'] === 409, '送信済みの配信は削除できない');
+ok($admin->api('/api/campaigns/999999/update', ['title' => 'x'])['status'] === 404, '存在しない配信の編集は 404');
+$r = $admin->api('/api/campaigns', ['title' => '取消→再編集', 'blocks' => [['type' => 'text', 'text' => 'c']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'schedule', 'scheduledAt' => gmdate('c', time() + 3600)]);
+$cc = (int)$r['json']['campaignId']; $admin->api("/api/campaigns/$cc/cancel");
+$r = $admin->api("/api/campaigns/$cc/update", ['title' => '取消→再編集', 'blocks' => [['type' => 'text', 'text' => 'c2']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'schedule', 'scheduledAt' => gmdate('c', time() + 5400)]);
+ok($r['status'] === 200 && val('SELECT status FROM broadcasts WHERE campaign_id = ?', [$cc]) === 'scheduled', '取り消した配信も編集して予約し直せる');
+$r = $admin->api('/api/campaigns', ['title' => '消す下書き', 'blocks' => [['type' => 'text', 'text' => 'd']], 'channelIds' => [$ids['A'], $ids['B']], 'tagNames' => [], 'mode' => 'draft']);
+$cd = (int)$r['json']['campaignId'];
+ok($admin->api("/api/campaigns/$cd/delete")['status'] === 200 && (int)val('SELECT COUNT(*) FROM campaigns WHERE id = ?', [$cd]) === 0 && (int)val('SELECT COUNT(*) FROM broadcasts WHERE campaign_id = ?', [$cd]) === 0, '下書きを削除できる（配信も連動して消える）');
+// cron が先に拾った（送信中）配信は、編集で上書きされない
+$r = $admin->api('/api/campaigns', ['title' => '競合', 'blocks' => [['type' => 'text', 'text' => 'k']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'schedule', 'scheduledAt' => gmdate('c', time() + 3600)]);
+$ck = (int)$r['json']['campaignId'];
+db()->exec("UPDATE broadcasts SET status = 'sending', started_at = UTC_TIMESTAMP() WHERE campaign_id = $ck");
+$r = $admin->api("/api/campaigns/$ck/update", ['title' => '競合後', 'blocks' => [['type' => 'text', 'text' => 'k2']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'draft']);
+ok($r['status'] === 409 && val('SELECT status FROM broadcasts WHERE campaign_id = ?', [$ck]) === 'sending', '送信が始まった配信は、編集で上書きされない');
+db()->exec("UPDATE broadcasts SET status = 'failed' WHERE campaign_id = $ck");
+
 section('送信中断の検知');
 $cid7 = (int)$admin->api('/api/campaigns', ['title' => '中断', 'blocks' => [['type' => 'text', 'text' => 's']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'draft'])['json']['campaignId'];
 db()->exec("UPDATE broadcasts SET status = 'sending', started_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 MINUTE) WHERE campaign_id = $cid7");
@@ -405,6 +455,19 @@ $r = $op->req('GET', '/campaigns/new');
 ok(!str_contains($r['body'], '渋谷店'), '作成画面に担当外アカウントは出ない');
 
 // ============================================================
+// 担当アカウント外を含む配信は、オペレーターは編集・削除できない
+$r = $admin->api('/api/campaigns', ['title' => '権限テスト', 'blocks' => [['type' => 'text', 'text' => 'p']], 'channelIds' => [$ids['A'], $ids['B']], 'tagNames' => [], 'mode' => 'draft']);
+$cp = (int)$r['json']['campaignId'];
+$op->page('/dashboard');
+ok($op->page("/campaigns/$cp/edit")['status'] === 403, 'オペレーター: 担当外のアカウントを含む配信は編集画面を開けない');
+ok($op->api("/api/campaigns/$cp/update", ['title' => 'x', 'blocks' => [['type' => 'text', 'text' => 'x']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'draft'])['status'] === 403, 'オペレーター: 担当外を含む配信の更新は 403');
+ok($op->api("/api/campaigns/$cp/delete")['status'] === 403 && (int)val('SELECT COUNT(*) FROM campaigns WHERE id = ?', [$cp]) === 1, 'オペレーター: 担当外を含む配信は削除できない');
+$r = $op->api('/api/campaigns', ['title' => '本店だけ', 'blocks' => [['type' => 'text', 'text' => 'h']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'draft']);
+$cq = (int)$r['json']['campaignId'];
+ok($op->api("/api/campaigns/$cq/update", ['title' => '本店だけ・修正', 'blocks' => [['type' => 'text', 'text' => 'h2']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'draft'])['status'] === 200, 'オペレーター: 担当アカウントだけの配信は編集できる');
+$r = $op->api("/api/campaigns/$cq/update", ['title' => 'x', 'blocks' => [['type' => 'text', 'text' => 'x']], 'channelIds' => [$ids['A'], $ids['B']], 'tagNames' => [], 'mode' => 'draft']);
+ok($r['status'] === 403, 'オペレーター: 編集で担当外のアカウントを足すことはできない');
+
 section('ステップ配信');
 $stepBlocks = fn($t) => [['type' => 'text', 'text' => $t]];
 $sc = $admin->api("/api/c/{$ids['A']}/scenarios", ['name' => '初回フォロー', 'triggerType' => 'follow', 'isActive' => true, 'steps' => [

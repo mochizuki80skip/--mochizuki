@@ -1,4 +1,7 @@
-<h1 class="text-xl font-semibold mb-4">一括配信を作成</h1>
+<h1 class="text-xl font-semibold mb-1"><?= !empty($cfg['edit']) ? '配信を編集' : '一括配信を作成' ?></h1>
+<?php if (!empty($cfg['edit'])): ?>
+  <p class="text-sm text-gray-500 mb-4">まだ送信していない配信です。文章・アカウント・タグ・日時を変えて、「下書き保存」「予約配信する」「いますぐ配信」のいずれかで保存し直せます。</p>
+<?php else: ?><div class="mb-4"></div><?php endif; ?>
 <div x-data="composer(<?= h(json_encode($cfg, JSON_UNESCAPED_UNICODE)) ?>)" class="grid lg:grid-cols-[minmax(0,1fr)_380px] gap-6 items-start">
   <div class="space-y-5">
     <div x-show="error" x-cloak class="bg-red-50 border border-red-200 text-red-700 text-sm rounded p-3" x-text="error"></div>

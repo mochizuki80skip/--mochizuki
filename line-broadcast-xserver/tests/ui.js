@@ -136,6 +136,36 @@ const ok = (c, n, d = '') => { if (c) { pass++; console.log('  ✔ ' + n); } els
   await page.waitForSelector('text=配信するアカウントを選択してください', { timeout: 5000 }).catch(() => {});
   ok(await page.locator('text=配信するアカウントを選択してください').count() > 0 || await page.locator('text=タイトルを入力してください').count() > 0, '未入力の保存はエラーを画面に表示');
 
+  console.log('\n== 下書きの編集 ==');
+  await page.goto(BASE + '/campaigns/new');
+  await page.waitForSelector('text=1. 配信するアカウント');
+  await page.click('text=全選択');
+  await page.fill('input[placeholder="例：10月イベントのお知らせ"]', '編集テスト下書き');
+  await page.fill('textarea[placeholder="本文を入力"]', '編集前の本文');
+  await page.click('button:has-text("下書き保存")');
+  await page.waitForURL(/\/campaigns\/\d+$/);
+  const draftUrl = page.url();
+  ok(await page.locator('a:has-text("編集する")').count() > 0, '下書きの詳細に「編集する」が出る');
+  await page.click('a:has-text("編集する")');
+  await page.waitForSelector('h1:has-text("配信を編集")');
+  ok((await page.inputValue('input[placeholder="例：10月イベントのお知らせ"]')) === '編集テスト下書き', '編集画面にタイトルが入っている');
+  ok((await page.inputValue('textarea[placeholder="本文を入力"]')) === '編集前の本文', '編集画面に本文が入っている');
+  ok(await page.locator('text=2 / 2 選択中').count() > 0, '編集画面で配信アカウントが選択済み');
+  await page.fill('textarea[placeholder="本文を入力"]', '編集後の本文');
+  await page.click('text=日時を指定');
+  await page.fill('input[type=datetime-local]', '2031-01-02T09:30');
+  await page.click('button:has-text("予約配信する")');
+  await page.waitForURL(draftUrl);
+  ok(await page.locator('text=予約済').count() > 0 && await page.locator('text=2031/01/02 09:30').count() > 0, '編集して予約に変更でき、日時が反映される');
+  await page.click('a:has-text("編集する")');
+  await page.waitForSelector('h1:has-text("配信を編集")');
+  ok((await page.inputValue('input[type=datetime-local]')) === '2031-01-02T09:30', '予約の編集画面に、保存した日時が入っている');
+  ok((await page.inputValue('textarea[placeholder="本文を入力"]')) === '編集後の本文', '本文の変更が保存されている');
+  await page.goto(draftUrl);
+  await page.click('button:has-text("削除")');
+  await page.waitForURL(/\/campaigns$/);
+  ok(await page.locator('text=編集テスト下書き').count() === 0, '削除すると一覧から消える');
+
   console.log('\n== ステップ配信の作成画面 ==');
   await page.goto(BASE + '/c/1/scenarios/new');
   await page.click('text=サンプル（初回来院フォロー）を入れてみる');

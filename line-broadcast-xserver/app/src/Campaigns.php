@@ -16,6 +16,49 @@ final class Campaigns
      */
     public static function create(array $user, array $in): int
     {
+        return self::persist($user, $in, null);
+    }
+
+    /** 編集して保存し直せる状態（まだ送信が始まっていない）の配信かどうか */
+    public const EDITABLE_STATUSES = ['draft', 'scheduled', 'skipped', 'cancelled'];
+
+    /**
+     * 下書き・予約済みの配信を編集する（文章・アカウント・タグ・日時を作り直して保存）。
+     * mode=now なら保存してすぐ配信する。
+     * @throws ValidationError 送信が始まっている配信は編集できない
+     */
+    public static function update(array $user, int $campaignId, array $in): int
+    {
+        if (!Db::val('SELECT 1 FROM campaigns WHERE id = ?', [$campaignId])) throw new ValidationError('配信が見つかりません', 404);
+        return self::persist($user, $in, $campaignId);
+    }
+
+    /** 配信が編集できる状態か、この人が触れる配信か。@throws ValidationError */
+    public static function assertEditable(int $campaignId, bool $lock = false): void
+    {
+        $rows = Db::all('SELECT channel_id, status FROM broadcasts WHERE campaign_id = ?' . ($lock ? ' FOR UPDATE' : ''), [$campaignId]);
+        if (!$rows) throw new ValidationError('配信が見つかりません', 404);
+        if (!Auth::isAdmin() && array_diff(array_map(fn($r) => (int)$r['channel_id'], $rows), Auth::channelIds())) {
+            throw new ValidationError('この配信を編集する権限がありません', 403);
+        }
+        foreach ($rows as $r) {
+            if (!in_array($r['status'], self::EDITABLE_STATUSES, true)) {
+                throw new ValidationError('すでに送信が始まっている（または送信済みの）配信は、編集できません。新しい配信を作成してください', 409);
+            }
+        }
+    }
+
+    public static function delete(int $campaignId): void
+    {
+        Db::tx(function () use ($campaignId) {
+            self::assertEditable($campaignId, true);
+            Db::exec('DELETE FROM campaigns WHERE id = ?', [$campaignId]); // broadcasts・計測リンクなどは連動して消える
+        });
+    }
+
+    private static function persist(array $user, array $in, ?int $editId): int
+    {
+        if ($editId !== null) self::assertEditable($editId);
         $title = trim((string)($in['title'] ?? ''));
         if ($title === '') throw new ValidationError('タイトルを入力してください');
         if (mb_strlen($title) > 120) throw new ValidationError('タイトルは 120 文字以内にしてください');
@@ -56,12 +99,25 @@ final class Campaigns
             foreach ($rows as $r) $tagsByChannel[(int)$r['channel_id']][] = (int)$r['id'];
         }
 
-        $campaignId = Db::tx(function () use ($user, $title, $blocks, $messages, $tagNames, $scheduledAt, $channelIds, $mode, $tagsByChannel, $trackedLinks) {
-            $cid = Db::insert(
-                'INSERT INTO campaigns (title, blocks, messages, audience_tag_names, scheduled_at, created_by, created_at) VALUES (?,?,?,?,?,?,?)',
-                [$title, json_encode($blocks, JSON_UNESCAPED_UNICODE), json_encode($messages, JSON_UNESCAPED_UNICODE),
-                    json_encode($tagNames, JSON_UNESCAPED_UNICODE), $scheduledAt, $user['id'], now_utc()]
-            );
+        $campaignId = Db::tx(function () use ($user, $title, $blocks, $messages, $tagNames, $scheduledAt, $channelIds, $mode, $tagsByChannel, $trackedLinks, $editId) {
+            if ($editId !== null) {
+                // 編集: 送信が始まっていないことをロックして再確認し、中身を作り直す（予約を cron が拾っていたら、ここで止まる）
+                self::assertEditable($editId, true);
+                Db::exec(
+                    'UPDATE campaigns SET title = ?, blocks = ?, messages = ?, audience_tag_names = ?, scheduled_at = ? WHERE id = ?',
+                    [$title, json_encode($blocks, JSON_UNESCAPED_UNICODE), json_encode($messages, JSON_UNESCAPED_UNICODE),
+                        json_encode($tagNames, JSON_UNESCAPED_UNICODE), $scheduledAt, $editId]
+                );
+                Db::exec('DELETE FROM tracked_links WHERE campaign_id = ?', [$editId]);
+                Db::exec('DELETE FROM broadcasts WHERE campaign_id = ?', [$editId]);
+                $cid = $editId;
+            } else {
+                $cid = Db::insert(
+                    'INSERT INTO campaigns (title, blocks, messages, audience_tag_names, scheduled_at, created_by, created_at) VALUES (?,?,?,?,?,?,?)',
+                    [$title, json_encode($blocks, JSON_UNESCAPED_UNICODE), json_encode($messages, JSON_UNESCAPED_UNICODE),
+                        json_encode($tagNames, JSON_UNESCAPED_UNICODE), $scheduledAt, $user['id'], now_utc()]
+                );
+            }
             Analytics::save((int)$cid, $trackedLinks);
             foreach ($channelIds as $ch) {
                 $tagIds = $tagsByChannel[$ch] ?? [];

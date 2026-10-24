@@ -18,7 +18,9 @@
           <td class="px-4 py-2"><?= (int)$r['n'] ?></td>
           <td class="px-4 py-2 text-gray-600"><?= $tags ? h(implode('、', $tags)) : '全員' ?></td>
           <td class="px-4 py-2 text-gray-500"><?= h(fmt_jst($r['scheduled_at'] ?: $r['created_at'])) ?></td>
-          <td class="px-4 py-2 text-right"><a class="text-line-dark hover:underline" href="<?= url('/campaigns/' . $r['id']) ?>">詳細</a></td>
+          <td class="px-4 py-2 text-right whitespace-nowrap">
+            <?php if (!array_diff(explode(',', (string)$r['statuses']), Campaigns::EDITABLE_STATUSES)): ?><a class="text-line-dark hover:underline mr-3" href="<?= url('/campaigns/' . $r['id'] . '/edit') ?>">編集</a><?php endif; ?>
+            <a class="text-line-dark hover:underline" href="<?= url('/campaigns/' . $r['id']) ?>">詳細</a></td>
         </tr>
       <?php endforeach; ?>
       <?php if (!$rows): ?><tr><td colspan="6" class="px-4 py-6 text-gray-500">一括配信はまだありません。</td></tr><?php endif; ?>

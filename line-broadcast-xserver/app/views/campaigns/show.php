@@ -8,6 +8,17 @@
   </div>
 </div>
 
+<?php if (!empty($editable)): ?>
+<div class="mb-4 flex flex-wrap gap-2 items-center" x-data="{ busy: false, err: '',
+  async del() { if (!confirm('この配信を削除します。元に戻せません。よろしいですか？')) return; this.busy = true; this.err = '';
+    const r = await Editor.post('/api/campaigns/<?= (int)$c['id'] ?>/delete');
+    if (r.ok) { location.href = '<?= url('/campaigns') ?>'; return; } this.err = r.data.error || '失敗しました'; this.busy = false; } }">
+  <a href="<?= url('/campaigns/' . (int)$c['id'] . '/edit') ?>" class="border border-line text-line-dark rounded px-4 py-2 text-sm bg-white">編集する（文章・日時・タグ・アカウント）</a>
+  <button type="button" :disabled="busy" @click="del()" class="border rounded px-4 py-2 text-sm bg-white text-red-600 disabled:opacity-50">削除</button>
+  <span x-show="err" x-cloak class="text-sm text-red-600" x-text="err"></span>
+</div>
+<?php endif; ?>
+
 <?php if ($pending > 0): ?>
 <div class="mb-4 flex gap-2" x-data="{ busy: false, err: '',
   async run(action, msg) { if (!confirm(msg)) return; this.busy = true; this.err = '';
