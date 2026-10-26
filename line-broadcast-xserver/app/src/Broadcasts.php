@@ -58,16 +58,27 @@ final class Broadcasts
                     $ok += count($chunk);
                 } catch (LineException $e) {
                     $ng += count($chunk);
-                    $errors[] = $e->getMessage();
+                    $errors[] = self::friendlyError($e->getMessage());
                 }
             }
             $note = $errors ? implode("\n", array_unique($errors)) : (count($userIds) === 0 ? '対象の友だちがいなかったため送信していません' : null);
             self::finish($id, $ng > 0 ? 'failed' : 'sent', count($userIds), $ok, $ng, $note);
             return $ng > 0 ? ['ok' => false, 'error' => $note] : ['ok' => true];
         } catch (Throwable $e) {
-            self::finish($id, 'failed', 0, 0, 0, $e->getMessage());
-            return ['ok' => false, 'error' => $e->getMessage()];
+            $m = self::friendlyError($e->getMessage());
+            self::finish($id, 'failed', 0, 0, 0, $m);
+            return ['ok' => false, 'error' => $m];
         }
+    }
+
+    /** LINE のエラーを、画面に出しても分かる文にする */
+    public static function friendlyError(string $msg): string
+    {
+        if (stripos($msg, 'monthly limit') !== false) {
+            return '今月のメッセージ数の上限に達しているため、LINE が配信を止めました（LINE 公式アカウントのプランの上限です）。'
+                . "プランの変更、または翌月以降の配信をご検討ください。\n（LINE の応答: " . $msg . '）';
+        }
+        return $msg;
     }
 
     private static function finish(int $id, string $status, int $total, int $ok, int $ng, ?string $error): void

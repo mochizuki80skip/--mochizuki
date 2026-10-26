@@ -36,8 +36,9 @@ function composer_config(array $extra = []): array
         }
     }
     $pre = (int)($_GET['channel'] ?? 0);
+    $quotas = Quota::forChannels($ids);
     return [
-        'channels' => array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'color' => $c['color'], 'followers' => $followers[(int)$c['id']] ?? 0], $channels),
+        'channels' => array_map(fn($c) => ['id' => (int)$c['id'], 'name' => $c['name'], 'color' => $c['color'], 'followers' => $followers[(int)$c['id']] ?? 0, 'quota' => $quotas[(int)$c['id']] ?? null], $channels),
         'tags' => array_map(fn($n, $cs) => ['name' => (string)$n, 'channelIds' => array_map('intval', array_keys($cs)), 'counts' => $cs], array_keys($tagMap), array_values($tagMap)),
         'selected' => in_array($pre, $ids, true) ? [$pre] : [],
     ] + $extra;

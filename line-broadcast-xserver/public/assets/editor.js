@@ -145,6 +145,30 @@
           var ids = this.channelIds;
           return this.channels.filter(function (c) { return ids.indexOf(c.id) >= 0; }).reduce(function (s, c) { return s + c.followers; }, 0);
         },
+        quotaBusy: false,
+        // 配信数（LINE が数える通数）の見込み: 届く人数 × メッセージ数
+        recipients: function (c) {
+          if (!this.tagNames.length) return c.followers;
+          var self = this, n = 0;
+          this.tags.forEach(function (t) { if (self.tagNames.indexOf(t.name) >= 0) n += (t.counts && t.counts[c.id]) || 0; });
+          return Math.min(n, c.followers);
+        },
+        need: function (c) { return this.recipients(c) * this.blocks.length; },
+        over: function (c) { var q = c.quota; return !!(q && q.remaining !== null && q.remaining !== undefined && this.need(c) > q.remaining); },
+        quotaText: function (c) {
+          var q = c.quota;
+          if (!q) return '残り通数：取得中';
+          if (q.used === null || q.used === undefined) return '残り通数を取得できません';
+          if (q.unlimited) return '今月 ' + q.used.toLocaleString() + ' 通・上限なし';
+          return '今月の残り ' + q.remaining.toLocaleString() + ' 通 / 上限 ' + q.limit.toLocaleString() + ' 通';
+        },
+        refreshQuota: async function () {
+          this.quotaBusy = true;
+          var r = await Editor.post('/api/quota/refresh', { channelIds: this.channelIds });
+          if (r.ok) { var self = this; this.channels.forEach(function (c) { if (r.data.quotas[c.id]) c.quota = r.data.quotas[c.id]; }); }
+          else this.error = r.data.error || '取得できませんでした';
+          this.quotaBusy = false;
+        },
         has: function (id) { return this.channelIds.indexOf(id) >= 0; },
         toggleChannel: function (id) { this.channelIds = this.has(id) ? this.channelIds.filter(function (x) { return x !== id; }) : this.channelIds.concat([id]); },
         selectAll: function () { this.channelIds = this.channels.map(function (c) { return c.id; }); },
@@ -155,6 +179,8 @@
         tagHave: function (t) { var ids = this.channelIds; return t.channelIds.filter(function (id) { return ids.indexOf(id) >= 0; }).length; },
         async submit(sendMode) {
           this.error = '';
+          var overs = this.channels.filter(function (c) { return this.has(c.id) && this.over(c); }, this);
+          if (overs.length && sendMode !== 'draft' && !confirm(overs.map(function (c) { return c.name; }).join('、') + ' は、今月の配信数の上限を超える見込みです。このまま続けると、LINE に止められて失敗します。それでも続けますか？')) return;
           if (sendMode === 'now') {
             var names = this.channels.filter(function (c) { return this.has(c.id); }, this).map(function (c) { return c.name; }).join('、');
             var aud = this.tagNames.length ? 'タグ「' + this.tagNames.join('、') + '」の人' : '友だち全員';

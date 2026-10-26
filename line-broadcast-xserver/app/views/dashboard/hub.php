@@ -24,6 +24,8 @@
       <div class="font-medium text-lg"><?= h($c['name']) ?></div>
       <?php if ($c['description']): ?><div class="text-sm text-gray-500 mt-1"><?= h($c['description']) ?></div><?php endif; ?>
       <div class="mt-4 text-sm text-gray-700">友だち：<span class="font-bold text-line-dark"><?= number_format($counts[(int)$c['id']] ?? 0) ?></span> 人</div>
+      <?php [$qt, $ql] = quota_summary($quotas[(int)$c['id']] ?? null); ?>
+      <div class="mt-1 text-xs <?= ['red' => 'text-red-600 font-medium', 'amber' => 'text-amber-600 font-medium', 'green' => 'text-gray-600', 'gray' => 'text-gray-500'][$ql] ?>"><?= h($qt) ?></div>
     </a>
   <?php endforeach; ?>
 </div>

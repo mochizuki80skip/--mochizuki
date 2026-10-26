@@ -38,8 +38,16 @@ const ok = (c, n, d = '') => { if (c) { pass++; console.log('  ✔ ' + n); } els
   ok(labels.length === 2, 'アカウントが選択肢に出る', JSON.stringify(labels));
   await page.click('text=全選択');
   ok((await page.locator('text=2 / 2 選択中').count()) > 0, '全選択で 2/2 になる');
+  await page.locator('text=この配信で使う通数（見込み）').waitFor({ state: 'visible', timeout: 3000 }).catch(() => {});
+  ok(await page.locator('text=この配信で使う通数（見込み）').isVisible(), '選択すると「この配信で使う通数（見込み）」が出る');
+  ok((await page.locator('text=今月の残り 750 通 / 上限 1,000 通').count()) > 0, '残り通数と上限が出る');
+  await page.click('text=残り通数を最新にする');
+  await page.waitForFunction(() => !document.body.innerText.includes('取得中…'));
+  ok((await page.locator('text=今月の残り 750 通').count()) > 0, '「残り通数を最新にする」で再取得できる');
   await page.click('text=全解除');
   ok((await page.locator('text=0 / 2 選択中').count()) > 0, '全解除');
+  await page.locator('text=この配信で使う通数（見込み）').waitFor({ state: 'hidden', timeout: 3000 }).catch(() => {});
+  ok(!(await page.locator('text=この配信で使う通数（見込み）').isVisible()), '未選択なら見込み欄は隠れる');
   await page.click('text=全選択');
 
   // タグ（2アカウントとも「イベント案内」あり）

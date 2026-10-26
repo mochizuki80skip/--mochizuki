@@ -23,6 +23,11 @@ final class Cron
                 'broadcasts' => Broadcasts::dispatchScheduled(),
                 'steps' => Scenarios::dispatchDue(),
             ];
+            try {
+                Quota::refreshStale(); // 配信数の控えを更新（失敗しても配信は止めない）
+            } catch (Throwable $e) {
+                error_log('[linehub] quota: ' . $e->getMessage());
+            }
             @file_put_contents(self::stateFile(), (string)time());
             return $result;
         } finally {

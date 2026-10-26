@@ -16,6 +16,17 @@ if ($path === '/v2/bot/insight/message/event') {
     echo json_encode(['overview' => ['requestId' => $qs['requestId'] ?? '', 'timestamp' => 1, 'delivered' => 100, 'uniqueImpression' => 40, 'uniqueClick' => 10], 'clicks' => [['seq' => 1, 'url' => 'https://example.com/a', 'click' => 12, 'uniqueClick' => 10, 'uniqueClickRate' => 10]]]);
     exit;
 }
+if ($path === '/v2/bot/message/quota') {
+    if (str_contains($auth, 'TOKEN_A')) echo json_encode(['type' => 'limited', 'value' => 1000]);
+    elseif (str_contains($auth, 'TOKEN_B')) echo json_encode(['type' => 'none']);
+    else { http_response_code(403); echo json_encode(['message' => 'forbidden quota']); }
+    exit;
+}
+if ($path === '/v2/bot/message/quota/consumption') {
+    if (str_contains($auth, 'TOKEN_C')) { http_response_code(403); echo json_encode(['message' => 'forbidden quota']); exit; }
+    echo json_encode(['totalUsage' => str_contains($auth, 'TOKEN_A') ? 250 : 42]); exit;
+}
+if (str_contains($path, '/message/broadcast') && str_contains($auth, 'TOKEN_LIMIT')) { http_response_code(429); echo json_encode(['message' => 'You have reached your monthly limit.']); exit; }
 if ($path === '/v2/bot/info') { echo json_encode(['userId' => 'Ubot', 'basicId' => '@mock123', 'displayName' => 'Mock']); exit; }
 if (str_starts_with($path, '/v2/bot/profile/')) { echo json_encode(['displayName' => 'テスト太郎 ' . substr($path, -4), 'userId' => basename($path), 'language' => 'ja']); exit; }
 if ($path === '/v2/bot/message/multicast') {

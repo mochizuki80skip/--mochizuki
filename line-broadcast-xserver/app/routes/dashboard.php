@@ -13,9 +13,10 @@ Router::get('/dashboard', function () {
             $counts[(int)$r['channel_id']] = (int)$r['n'];
         }
     }
+    $quotas = Quota::forChannels($channels ? array_map(fn($c) => (int)$c['id'], $channels) : []);
     $last = Cron::lastRun();
     $cronStale = $u['role'] === 'super_admin' && ($last === null || time() - $last > 600);
-    View::render('dashboard/hub', ['title' => 'アカウント一覧', 'channels' => $channels, 'counts' => $counts, 'cronStale' => $cronStale, 'cronLast' => $last]);
+    View::render('dashboard/hub', ['title' => 'アカウント一覧', 'channels' => $channels, 'counts' => $counts, 'cronStale' => $cronStale, 'cronLast' => $last, 'quotas' => $quotas]);
 });
 
 Router::get('/c/{id}', function (array $p) {
@@ -33,5 +34,20 @@ Router::get('/c/{id}', function (array $p) {
           WHERE f.channel_id = ? ORDER BY m.received_at DESC LIMIT 10',
         [$id]
     );
-    View::render('dashboard/channel', ['title' => 'ダッシュボード', 'channel' => $ch, 'active' => 'dash', 'stats' => $stats, 'inbound' => $inbound], 'channel_layout');
+    $quota = Quota::forChannels([$id])[$id] ?? null;
+    View::render('dashboard/channel', ['title' => 'ダッシュボード', 'channel' => $ch, 'active' => 'dash', 'stats' => $stats, 'inbound' => $inbound, 'quota' => $quota], 'channel_layout');
+});
+
+// 配信数（月の上限と今月の消費）を LINE から取り直す。body: {channelIds:[...]}
+Router::post('/api/quota/refresh', function () {
+    Auth::requireLogin();
+    $in = json_body() ?? [];
+    $want = array_values(array_unique(array_map('intval', is_array($in['channelIds'] ?? null) ? $in['channelIds'] : [])));
+    $allowed = array_values(array_intersect($want, Auth::channelIds()));
+    if (!$allowed) json_error('対象のアカウントがありません', 400);
+    foreach (array_slice($allowed, 0, 20) as $id) {
+        $ch = Db::one('SELECT * FROM line_channels WHERE id = ? AND is_active = 1', [$id]);
+        if ($ch) Quota::refresh($ch);
+    }
+    json_out(['ok' => true, 'quotas' => (object)Quota::forChannels($allowed)]);
 });

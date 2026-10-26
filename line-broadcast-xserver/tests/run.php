@@ -341,14 +341,14 @@ $cid4 = (int)$r['json']['campaignId'];
 ok(q('SELECT status FROM broadcasts WHERE campaign_id = ?', [$cid4]) == [['status' => 'scheduled'], ['status' => 'scheduled']], '予約状態で作成');
 $before = count(mockLog());
 $out = cron();
-ok(count(array_filter(array_slice(mockLog(), $before), fn($e) => str_contains($e['path'], '/message/'))) === 0, '時刻前の cron では送信されない', $out);
+ok(count(array_filter(array_slice(mockLog(), $before), fn($e) => (str_contains($e['path'], '/message/') && !str_contains($e['path'], '/quota')))) === 0, '時刻前の cron では送信されない', $out);
 db()->exec("UPDATE broadcasts SET scheduled_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 1 MINUTE) WHERE campaign_id = $cid4");
 $out = cron();
 ok(str_contains($out, 'broadcasts=2'), '時刻を過ぎた cron で 2 件送信', $out);
 ok(q('SELECT status FROM broadcasts WHERE campaign_id = ?', [$cid4]) == [['status' => 'sent'], ['status' => 'sent']], '送信済みに更新');
 $before = count(mockLog());
 cron();
-ok(count(array_filter(array_slice(mockLog(), $before), fn($e) => str_contains($e['path'], '/message/'))) === 0, 'cron を再実行しても二重送信しない');
+ok(count(array_filter(array_slice(mockLog(), $before), fn($e) => (str_contains($e['path'], '/message/') && !str_contains($e['path'], '/quota')))) === 0, 'cron を再実行しても二重送信しない');
 
 $r = $admin->api('/api/campaigns', ['title' => '下書き', 'blocks' => [['type' => 'text', 'text' => 'd']], 'channelIds' => [$ids['A'], $ids['B']], 'tagNames' => [], 'mode' => 'draft']);
 $cid5 = (int)$r['json']['campaignId'];
@@ -363,7 +363,7 @@ $r = $admin->api("/api/campaigns/$cid6/cancel");
 ok($r['json']['cancelled'] === 1 && val('SELECT status FROM broadcasts WHERE campaign_id = ?', [$cid6]) === 'cancelled', '予約を取り消し');
 db()->exec("UPDATE broadcasts SET scheduled_at = UTC_TIMESTAMP() WHERE campaign_id = $cid6");
 $before = count(mockLog()); cron();
-ok(count(array_filter(array_slice(mockLog(), $before), fn($e) => str_contains($e['path'], '/message/'))) === 0, '取消した配信は cron でも送られない');
+ok(count(array_filter(array_slice(mockLog(), $before), fn($e) => (str_contains($e['path'], '/message/') && !str_contains($e['path'], '/quota')))) === 0, '取消した配信は cron でも送られない');
 
 section('下書き・予約の編集と削除');
 $rich = ['type' => 'rich', 'mediaId' => $mid, 'ratio' => 0.5, 'layout' => '1', 'altText' => 'r', 'areas' => [['kind' => 'uri', 'value' => 'https://example.com/edit']]];
@@ -415,6 +415,33 @@ $r = $admin->api("/api/campaigns/$ck/update", ['title' => '競合後', 'blocks' 
 ok($r['status'] === 409 && val('SELECT status FROM broadcasts WHERE campaign_id = ?', [$ck]) === 'sending', '送信が始まった配信は、編集で上書きされない');
 db()->exec("UPDATE broadcasts SET status = 'failed' WHERE campaign_id = $ck");
 
+section('配信数（月の上限・今月の消費）');
+$cron = cron();
+$qa = q('SELECT * FROM channel_quota ORDER BY channel_id');
+ok(count($qa) === 3, 'cron が全アカウントの配信数を取得して保存', json_encode($qa, JSON_UNESCAPED_UNICODE));
+$byCh = array_column($qa, null, 'channel_id');
+ok($byCh[$ids['A']]['limit_type'] === 'limited' && (int)$byCh[$ids['A']]['limit_value'] === 1000 && (int)$byCh[$ids['A']]['used'] === 250, '上限 1000・消費 250 を保存');
+ok($byCh[$ids['B']]['limit_type'] === 'none' && (int)$byCh[$ids['B']]['used'] === 42, '上限なし（従量課金など）も扱える');
+ok($byCh[$ids['C']]['error'] !== null && str_contains($byCh[$ids['C']]['error'], 'forbidden') && $byCh[$ids['C']]['used'] === null, '取得に失敗したアカウントはエラー内容を控える（他は影響を受けない）');
+$before = count(mockLog()); cron();
+ok(count(array_filter(array_slice(mockLog(), $before), fn($e) => str_contains($e['path'], '/quota'))) === 0, '10 分以内は取り直さない（API を呼ばない）');
+$r = $admin->page('/dashboard');
+ok(str_contains($r['body'], '今月の配信：250 / 1,000 通（残り 750 通）') && str_contains($r['body'], '上限なし') && str_contains($r['body'], '配信数を取得できません'), 'アカウント一覧に配信数（残り・上限なし・取得エラー）を表示');
+$r = $admin->page("/c/{$ids['A']}");
+ok(str_contains($r['body'], '残り 750 通') && str_contains($r['body'], '最新にする'), 'アカウントの画面にも配信数と更新ボタン');
+$r = $admin->page('/campaigns/new');
+ok(str_contains($r['body'], '&quot;remaining&quot;:750') && str_contains($r['body'], 'この配信で使う通数'), '配信作成の画面に、残り通数と見込みの欄');
+db()->exec("UPDATE line_channels SET color = color"); // 触るだけ
+$r = $admin->api('/api/quota/refresh', ['channelIds' => [$ids['A']]]);
+ok($r['status'] === 200 && ((array)$r['json']['quotas'])[$ids['A']]['remaining'] === 750, '「最新にする」で取り直せる');
+ok($admin->api('/api/quota/refresh', ['channelIds' => []])['status'] === 400, '対象なしは 400');
+// 月の上限エラーは、分かりやすい日本語で記録する
+$limitId = (int)$admin->api('/api/channels', ['name' => '上限テスト', 'accessToken' => 'TOKEN_LIMIT_abcdefghij', 'channelSecret' => 'secretsecretL', 'color' => '#06C755'])['json']['id'];
+$r = $admin->api('/api/campaigns', ['title' => '上限', 'blocks' => [['type' => 'text', 'text' => 'x']], 'channelIds' => [$limitId], 'tagNames' => [], 'mode' => 'now']);
+$em = (string)val('SELECT error_message FROM broadcasts WHERE campaign_id = ?', [(int)$r['json']['campaignId']]);
+ok(val('SELECT status FROM broadcasts WHERE campaign_id = ?', [(int)$r['json']['campaignId']]) === 'failed' && str_contains($em, '今月のメッセージ数の上限') && str_contains($em, 'monthly limit'), '月の上限エラーを日本語で説明（LINE の原文も併記）', $em);
+db()->exec("DELETE FROM line_channels WHERE id = $limitId"); // 後続のテストに影響しないよう片付ける
+
 section('送信中断の検知');
 $cid7 = (int)$admin->api('/api/campaigns', ['title' => '中断', 'blocks' => [['type' => 'text', 'text' => 's']], 'channelIds' => [$ids['A']], 'tagNames' => [], 'mode' => 'draft'])['json']['campaignId'];
 db()->exec("UPDATE broadcasts SET status = 'sending', started_at = DATE_SUB(UTC_TIMESTAMP(), INTERVAL 30 MINUTE) WHERE campaign_id = $cid7");
@@ -455,6 +482,7 @@ $r = $op->req('GET', '/campaigns/new');
 ok(!str_contains($r['body'], '渋谷店'), '作成画面に担当外アカウントは出ない');
 
 // ============================================================
+ok(str_contains($op->page("/c/{$ids['A']}")['body'], '残り'), 'オペレーターも担当アカウントの配信数を見られる');
 // 担当アカウント外を含む配信は、オペレーターは編集・削除できない
 $r = $admin->api('/api/campaigns', ['title' => '権限テスト', 'blocks' => [['type' => 'text', 'text' => 'p']], 'channelIds' => [$ids['A'], $ids['B']], 'tagNames' => [], 'mode' => 'draft']);
 $cp = (int)$r['json']['campaignId'];

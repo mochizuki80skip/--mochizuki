@@ -140,3 +140,14 @@ function app_name(): string
     $n = trim((string)Config::get('app_name', ''));
     return $n !== '' ? $n : '接骨院 LINE 一括配信';
 }
+
+/** 配信数（LINE の月の上限・今月の消費）の表示文と色。@return array{string,string} [文, red|amber|green|gray] */
+function quota_summary(?array $q): array
+{
+    if (!$q) return ['配信数：取得中（1 分ほどで表示されます）', 'gray'];
+    if ($q['used'] === null) return ['配信数を取得できません：' . ($q['error'] ?? '不明なエラー'), 'red'];
+    if ($q['unlimited']) return ['今月の配信：' . number_format($q['used']) . ' 通（上限なし）', 'gray'];
+    $rem = (int)$q['remaining'];
+    $level = $rem <= 0 ? 'red' : ($rem <= (int)$q['limit'] * 0.2 ? 'amber' : 'green');
+    return ['今月の配信：' . number_format($q['used']) . ' / ' . number_format((int)$q['limit']) . ' 通（残り ' . number_format($rem) . ' 通）', $level];
+}

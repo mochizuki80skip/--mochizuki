@@ -83,6 +83,18 @@ final class Line
         return self::request($token, 'POST', '/v2/bot/message/broadcast', ['messages' => $messages], true)['requestId'] ?? null;
     }
 
+    /** 今月の配信上限（type: none=上限なし / limited=value 通まで） */
+    public static function quota(string $token): array
+    {
+        return self::request($token, 'GET', '/v2/bot/message/quota')['body'] ?? [];
+    }
+
+    /** 今月すでに配信した通数（totalUsage） */
+    public static function quotaConsumption(string $token): array
+    {
+        return self::request($token, 'GET', '/v2/bot/message/quota/consumption')['body'] ?? [];
+    }
+
     /** 配信ごとの開封・クリック統計（broadcast / narrowcast の配信だけが対象） */
     public static function insightEvent(string $token, string $requestId): array
     {

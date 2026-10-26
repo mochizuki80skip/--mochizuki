@@ -23,6 +23,21 @@
           </label>
         </template>
       </div>
+      <div x-show="channelIds.length > 0" x-cloak class="mt-4 border-t pt-3 text-sm">
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
+          <span class="font-medium">この配信で使う通数（見込み）</span>
+          <button type="button" class="text-xs underline disabled:opacity-50" :disabled="quotaBusy" @click="refreshQuota()" x-text="quotaBusy ? '取得中…' : '残り通数を最新にする'"></button>
+        </div>
+        <template x-for="c in channels.filter(function (c) { return has(c.id); })" :key="c.id">
+          <div class="py-1" :class="over(c) ? 'text-red-600' : 'text-gray-700'">
+            <span class="font-medium" x-text="c.name"></span>：
+            <span x-text="recipients(c).toLocaleString() + ' 人 × ' + blocks.length + ' メッセージ ＝ ' + need(c).toLocaleString() + ' 通'"></span>
+            <span class="text-xs ml-1" x-text="'（' + quotaText(c) + '）'"></span>
+            <div x-show="over(c)" class="text-xs font-medium">→ 今月の上限を超えます。このまま配信すると、LINE に止められて失敗します。対象を絞るか、プランの変更をご検討ください。</div>
+          </div>
+        </template>
+        <p class="text-xs text-gray-500 mt-1">LINE は「届いた人数 × メッセージ（吹き出し）の数」を、今月の配信数として数えます。タグを複数選ぶと重複する人は 1 通なので、実際はこれ以下になります。</p>
+      </div>
       <p x-show="channels.length === 0" class="text-sm text-gray-500">配信できるアカウントがありません。</p>
     </section>
 
