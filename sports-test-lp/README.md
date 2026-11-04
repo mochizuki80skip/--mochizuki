@@ -9,16 +9,17 @@ sports-test-lp/
 ```
 
 ## 公開URL
-https://arrowz-event.hachimaru-80skip.com/sports-test-lp/
+https://arrowz-event.hachimaru-80skip.com/
 
 ## アップロード方法（Xサーバー）
-1. サブドメイン `arrowz-event.hachimaru-80skip.com` の公開フォルダに、このフォルダごとアップロード
+1. このフォルダの「中身」（`index.html` / `settings.js` / `img/`）を、サブドメインの公開フォルダの直下にアップロード
    - Xサーバーの初期設定では `hachimaru-80skip.com/public_html/arrowz-event/` が公開フォルダです
-   - アップロード後の場所：`…/public_html/arrowz-event/sports-test-lp/index.html`
+   - アップロード後の場所：`…/public_html/arrowz-event/index.html`
 2. 上の公開URLで表示を確認
 3. `index.html` / `settings.js` / `img/` の位置関係は変えないでください
+   - README.md はアップロードしなくて構いません
 
-## フォルダ名・URLを変える場合
+## URLを変える場合
 `index.html` の先頭にある `canonical` / `og:url` / `og:image` / `twitter:image` の4か所のURLも、新しいURLに合わせて書き換えてください。
 （LINEやXでシェアしたときの画像 `img/ogp.jpg` が出なくなるのを防ぐためです）
 
