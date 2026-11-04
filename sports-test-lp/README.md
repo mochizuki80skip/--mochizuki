@@ -5,14 +5,22 @@
 sports-test-lp/
 ├── index.html    … ページ本体（デザイン・文章）
 ├── settings.js   … LINE・電話番号・カレンダーのURL設定
-└── img/          … 画像（19ファイル）
+└── img/          … 画像（20ファイル。ogp.jpg はシェア用画像）
 ```
 
+## 公開URL
+https://arrowz-event.hachimaru-80skip.com/sports-test-lp/
+
 ## アップロード方法（Xサーバー）
-1. このフォルダごと、ファイルマネージャーかFTPソフトで `ドメイン名/public_html/` にアップロード
-2. `https://ドメイン名/sports-test-lp/` で表示を確認
-   - フォルダ名を変えると、URLもその名前になります
-   - `index.html` / `settings.js` / `img/` の位置関係は変えないでください
+1. サブドメイン `arrowz-event.hachimaru-80skip.com` の公開フォルダに、このフォルダごとアップロード
+   - Xサーバーの初期設定では `hachimaru-80skip.com/public_html/arrowz-event/` が公開フォルダです
+   - アップロード後の場所：`…/public_html/arrowz-event/sports-test-lp/index.html`
+2. 上の公開URLで表示を確認
+3. `index.html` / `settings.js` / `img/` の位置関係は変えないでください
+
+## フォルダ名・URLを変える場合
+`index.html` の先頭にある `canonical` / `og:url` / `og:image` / `twitter:image` の4か所のURLも、新しいURLに合わせて書き換えてください。
+（LINEやXでシェアしたときの画像 `img/ogp.jpg` が出なくなるのを防ぐためです）
 
 ## リンク先を変えたいとき
 `settings.js` の上の方にある値だけを書き換えて、`settings.js` を上書きアップロードしてください。
